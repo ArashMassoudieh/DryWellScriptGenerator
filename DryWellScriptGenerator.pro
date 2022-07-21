@@ -3,15 +3,16 @@ QT       += core gui widgets
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
-DEFINES += use_VTK
-CONFIG += use_VTK
+#DEFINES += use_VTK
+#CONFIG += use_VTK
 VTKBUILDPATH = /media/arash/E/Projects/VTK-9.1.0/VTK-build
 VTKHEADERPATH = /media/arash/E/Projects/VTK-9.1.0
 VTK_V = -9.1
 
 # DEFINES += use_Armadillo
 #CONFIG += Khiem
-CONFIG += Arash
+#CONFIG += Arash
+CONFIG += Brett
 use_VTK {DEFINES += VTK}
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -30,7 +31,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     scad_generator.cpp \
-    vtkdialog.cpp
+
 
 HEADERS += \
     ../Utilities/BTC.h \
@@ -41,10 +42,9 @@ HEADERS += \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
     ../Utilities/utilities.h \
-    VTK.h \
     mainwindow.h \
     scad_generator.h \
-    vtkdialog.h
+
 Khiem {
     message("Khiem's version")
 }
@@ -55,11 +55,15 @@ Arash {
 
 use_VTK {
     message("using VTK")
+    HEADERS = VTK.h
+    FORMS += vtkdialog.ui
+    HEADERS += vtkdialog.h
+    SOURCES += vtkdialog.cpp
 }
 
 FORMS += \
     mainwindow.ui \
-    vtkdialog.ui
+
 
 TRANSLATIONS += \
     DryWellScriptGenerator_en_US.ts

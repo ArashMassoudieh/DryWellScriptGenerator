@@ -5,7 +5,9 @@
 #include <math.h>
 #include <QDebug>
 #include <QTextStream>
+#ifdef use_VTK
 #include "vtkdialog.h"
+#endif
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -51,6 +53,8 @@ void MainWindow::On_Generate_Model()
     GP.well_depth = ui->Depth_of_Well->text().toDouble();
     GP.well_radious = ui->Well_radius->text().toDouble();
     GP.Ks_factor = ui->Ks_factor->text().toDouble();
+
+    bool catchment = false;
 
     if (ui->filename_text->text()=="") return;
     QFile file(ui->filename_text->text());
@@ -357,135 +361,137 @@ void MainWindow::On_Generate_Model()
     else
         file.write(QString("create link;from=Soil_deep ("+QString::number(LayerData.count()-1)+"$0),to=GW,type=soil_to_fixedhead_link,name=Soil_deep ("+QString::number(LayerData.count()-1)+"$0) - GW\n").toUtf8());
 
-//Catchments
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=57.3816[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-6500,Slope=0.015,area=9688.46[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=5,y=-1100\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=59.6158[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-5500,Slope=0.015,area=33338.14[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=4,y=-1100\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=90.0593[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-4500,Slope=0.015,area=12921.25[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=3,y=-1100\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=90.4677[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-3500,Slope=0.015,area=3306.80[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=2,y=-1100\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=74.7339[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-2500,Slope=0.015,area=2610.37[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=1,y=-1100\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=89.8246[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-1500,Slope=0.015,area=4986.94[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=6,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-2500,Slope=0.015,area=5796.54[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=7,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-3500,Slope=0.015,area=6646.88[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=8,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-4500,Slope=0.015,area=11174.21[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=9,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=54.5287[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-5500,Slope=0.015,area=2898.58[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=10,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=49.5239[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-6500,Slope=0.015,area=7275.99[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=11,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=36[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-7500,Slope=0.015,area=8380.68[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=12,y=-15\n");
-    file.write("create block;type=Catchment,_width=500,_height=350,Width=80[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-8500,Slope=0.015,area=4177.39[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=13,y=-15\n");
+    if (catchment)
+    {
+        //Catchments
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=57.3816[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-6500,Slope=0.015,area=9688.46[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=5,y=-1100\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=59.6158[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-5500,Slope=0.015,area=33338.14[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=4,y=-1100\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=90.0593[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-4500,Slope=0.015,area=12921.25[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=3,y=-1100\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=90.4677[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-3500,Slope=0.015,area=3306.80[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=2,y=-1100\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=74.7339[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-2500,Slope=0.015,area=2610.37[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=1,y=-1100\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=89.8246[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-1500,Slope=0.015,area=4986.94[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=6,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-2500,Slope=0.015,area=5796.54[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=7,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-3500,Slope=0.015,area=6646.88[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=8,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=90.2208[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-4500,Slope=0.015,area=11174.21[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=9,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=54.5287[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-5500,Slope=0.015,area=2898.58[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=10,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=49.5239[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-6500,Slope=0.015,area=7275.99[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=11,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=36[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-7500,Slope=0.015,area=8380.68[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=12,y=-15\n");
+        file.write("create block;type=Catchment,_width=500,_height=350,Width=80[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-8500,Slope=0.015,area=4177.39[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=13,y=-15\n");
 
 
-//Sewer_Channels
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.51[m],inflow=,length=57.38[m],x=-6000,ManningCoeff=0.01,name=SC5,y=-600,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.85[m],inflow=,length=59.62[m],x=-5000,ManningCoeff=0.01,name=SC4,y=-600,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.93[m],inflow=,length=90.06[m],x=-4000,ManningCoeff=0.01,name=SC3,y=-600,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=4.51[m],inflow=,length=90.47[m],x=-2995,ManningCoeff=0.01,name=SC2,y=-600,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.24[m],inflow=,length=116.23[m],x=-1983,ManningCoeff=0.01,name=SC1,y=-608,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=8.67[m],inflow=,length=10.97[m],x=-8000,ManningCoeff=0.01,name=SC13,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.87[m],inflow=,length=49.52[m],x=-7000,ManningCoeff=0.01,name=SC12,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.91[m],inflow=,length=54.53[m],x=-6000,ManningCoeff=0.01,name=SC11,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.73[m],inflow=,length=90.22[m],x=-5000,ManningCoeff=0.02,name=SC10,y=488,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=3.86[m],inflow=,length=90.22[m],x=-4000,ManningCoeff=0.01,name=SC9,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.19[m],inflow=,length=90.22[m],x=-3000,ManningCoeff=0.01,name=SC8,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=0.96[m],inflow=,length=89.82[m],x=-2000,ManningCoeff=0.01,name=SC7,y=582,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=0.37[m],inflow=,length=9.16[m],x=-1000,ManningCoeff=0.01,name=SC6,y=485,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.51[m],inflow=,length=57.38[m],x=-5800,ManningCoeff=0.01,name=SCfive,y=-800,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.85[m],inflow=,length=59.62[m],x=-4800,ManningCoeff=0.01,name=SCfour,y=-800,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.93[m],inflow=,length=90.06[m],x=-3800,ManningCoeff=0.01,name=SCthree,y=-800,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=4.51[m],inflow=,length=90.47[m],x=-2800,ManningCoeff=0.01,name=SCtwo,y=-800,_width=200\n");
-    file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.24[m],inflow=,length=116.23[m],x=-1800,ManningCoeff=0.01,name=SCone,y=-800,_width=200\n");
-//Sewer_links
-    file.write("create link;from=SC5,to=SC4,type=Sewer2Sewer_link,name=SC5 - SC4\n");
-    file.write("create link;from=5,to=SC5,type=Catchment_link,name=5 - SC5\n");
-    file.write("create link;from=4,to=SC4,type=Catchment_link,name=4 - SC4\n");
-    file.write("create link;from=SC4,to=SC3,type=Sewer2Sewer_link,name=SC4 - SC3\n");
-    file.write("create link;from=SC3,to=SC2,type=Sewer2Sewer_link,name=SC3 - SC2\n");
-    file.write("create link;from=SC2,to=SC1,type=Sewer2Sewer_link,name=SC2 - SC1\n");
-    file.write("create link;from=3,to=SC3,type=Catchment_link,name=3 - SC3\n");
-    file.write("create link;from=2,to=SC2,type=Catchment_link,name=2 - SC2\n");
-    file.write("create link;from=1,to=SC1,type=Catchment_link,name=1 - SC1\n");
-    file.write("create link;from=SC13,to=SC12,type=Sewer2Sewer_link,name=SC13 - SC12\n");
-    file.write("create link;from=SC12,to=SC11,type=Sewer2Sewer_link,name=SC12 - SC11\n");
-    file.write("create link;from=SC11,to=SC10,type=Sewer2Sewer_link,name=SC11 - SC10\n");
-    file.write("create link;from=SC10,to=SC9,type=Sewer2Sewer_link,name=SC10 - SC9\n");
-    file.write("create link;from=SC9,to=SC8,type=Sewer2Sewer_link,name=SC9 - SC8\n");
-    file.write("create link;from=SC7,to=SC6,type=Sewer2Sewer_link,name=SC7 - SC6\n");
-    file.write("create link;from=SC8,to=SC7,type=Sewer2Sewer_link,name=SC8 - SC7\n");
-//Catchment_to_Sewer_pipes
-    file.write("create link;from=13,to=SC13,type=Catchment_link,name=13 - SC13\n");
-    file.write("create link;from=12,to=SC12,type=Catchment_link,name=12 - SC12\n");
-    file.write("create link;from=11,to=SC11,type=Catchment_link,name=11 - SC11\n");
-    file.write("create link;from=10,to=SC10,type=Catchment_link,name=10 - SC10\n");
-    file.write("create link;from=9,to=SC9,type=Catchment_link,name=9 - SC9\n");
-    file.write("create link;from=8,to=SC8,type=Catchment_link,name=8 - SC8\n");
-    file.write("create link;from=7,to=SC7,type=Catchment_link,name=7 - SC7\n");
-    file.write("create link;from=6,to=SC6,type=Catchment_link,name=6 - SC6\n");
-    file.write("create link;from=SCfive,to=SCfour,type=Sewer2Sewer_link,name=SCfive - SCfour\n");
-    file.write("create link;from=5,to=SCfive,type=Catchment_link,name=5 - SCfive\n");
-    file.write("create link;from=4,to=SCfour,type=Catchment_link,name=4 - SCfour\n");
-    file.write("create link;from=SCfour,to=SCthree,type=Sewer2Sewer_link,name=SCfour - SCthree\n");
-    file.write("create link;from=SCthree,to=SCtwo,type=Sewer2Sewer_link,name=SCthree - SCtwo\n");
-    file.write("create link;from=SCtwo,to=SCone,type=Sewer2Sewer_link,name=SCtwo - SCone\n");
-    file.write("create link;from=3,to=SCthree,type=Catchment_link,name=3 - SCthree\n");
-    file.write("create link;from=2,to=SCtwo,type=Catchment_link,name=2 - SCtwo\n");
-    file.write("create link;from=1,to=SCone,type=Catchment_link,name=1 - SCone\n");
-//Sewer to pond
-    file.write("create link;from=SC1,to=Infiltration_Pond,type=sewer2pond,name=SC1 - Infiltration_Pond,end_elevation=0[m]\n");
-    file.write("create link;from=SCone,to=Infiltration_Pond,type=sewer2pond,name=SCone - Infiltration_Pond,end_elevation=0[m]\n");
-    file.write("create link;from=SC6,to=Infiltration_Pond,type=sewer2pond,name=SC6 - Infiltration_Pond,end_elevation=0[m]\n");
-//DS boundary & link
-    file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
-    file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
+    //Sewer_Channels
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.51[m],inflow=,length=57.38[m],x=-6000,ManningCoeff=0.01,name=SC5,y=-600,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.85[m],inflow=,length=59.62[m],x=-5000,ManningCoeff=0.01,name=SC4,y=-600,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.93[m],inflow=,length=90.06[m],x=-4000,ManningCoeff=0.01,name=SC3,y=-600,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=4.51[m],inflow=,length=90.47[m],x=-2995,ManningCoeff=0.01,name=SC2,y=-600,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.24[m],inflow=,length=116.23[m],x=-1983,ManningCoeff=0.01,name=SC1,y=-608,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=8.67[m],inflow=,length=10.97[m],x=-8000,ManningCoeff=0.01,name=SC13,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.87[m],inflow=,length=49.52[m],x=-7000,ManningCoeff=0.01,name=SC12,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.91[m],inflow=,length=54.53[m],x=-6000,ManningCoeff=0.01,name=SC11,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.73[m],inflow=,length=90.22[m],x=-5000,ManningCoeff=0.02,name=SC10,y=488,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=3.86[m],inflow=,length=90.22[m],x=-4000,ManningCoeff=0.01,name=SC9,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.19[m],inflow=,length=90.22[m],x=-3000,ManningCoeff=0.01,name=SC8,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=0.96[m],inflow=,length=89.82[m],x=-2000,ManningCoeff=0.01,name=SC7,y=582,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=0.37[m],inflow=,length=9.16[m],x=-1000,ManningCoeff=0.01,name=SC6,y=485,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=7.51[m],inflow=,length=57.38[m],x=-5800,ManningCoeff=0.01,name=SCfive,y=-800,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=6.85[m],inflow=,length=59.62[m],x=-4800,ManningCoeff=0.01,name=SCfour,y=-800,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=5.93[m],inflow=,length=90.06[m],x=-3800,ManningCoeff=0.01,name=SCthree,y=-800,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=4.51[m],inflow=,length=90.47[m],x=-2800,ManningCoeff=0.01,name=SCtwo,y=-800,_width=200\n");
+        file.write("create block;type=Sewerchannelsegment,_height=200,depth=0[m],diameter=0.9144[m],bottom_elevation=2.24[m],inflow=,length=116.23[m],x=-1800,ManningCoeff=0.01,name=SCone,y=-800,_width=200\n");
+    //Sewer_links
+        file.write("create link;from=SC5,to=SC4,type=Sewer2Sewer_link,name=SC5 - SC4\n");
+        file.write("create link;from=5,to=SC5,type=Catchment_link,name=5 - SC5\n");
+        file.write("create link;from=4,to=SC4,type=Catchment_link,name=4 - SC4\n");
+        file.write("create link;from=SC4,to=SC3,type=Sewer2Sewer_link,name=SC4 - SC3\n");
+        file.write("create link;from=SC3,to=SC2,type=Sewer2Sewer_link,name=SC3 - SC2\n");
+        file.write("create link;from=SC2,to=SC1,type=Sewer2Sewer_link,name=SC2 - SC1\n");
+        file.write("create link;from=3,to=SC3,type=Catchment_link,name=3 - SC3\n");
+        file.write("create link;from=2,to=SC2,type=Catchment_link,name=2 - SC2\n");
+        file.write("create link;from=1,to=SC1,type=Catchment_link,name=1 - SC1\n");
+        file.write("create link;from=SC13,to=SC12,type=Sewer2Sewer_link,name=SC13 - SC12\n");
+        file.write("create link;from=SC12,to=SC11,type=Sewer2Sewer_link,name=SC12 - SC11\n");
+        file.write("create link;from=SC11,to=SC10,type=Sewer2Sewer_link,name=SC11 - SC10\n");
+        file.write("create link;from=SC10,to=SC9,type=Sewer2Sewer_link,name=SC10 - SC9\n");
+        file.write("create link;from=SC9,to=SC8,type=Sewer2Sewer_link,name=SC9 - SC8\n");
+        file.write("create link;from=SC7,to=SC6,type=Sewer2Sewer_link,name=SC7 - SC6\n");
+        file.write("create link;from=SC8,to=SC7,type=Sewer2Sewer_link,name=SC8 - SC7\n");
+    //Catchment_to_Sewer_pipes
+        file.write("create link;from=13,to=SC13,type=Catchment_link,name=13 - SC13\n");
+        file.write("create link;from=12,to=SC12,type=Catchment_link,name=12 - SC12\n");
+        file.write("create link;from=11,to=SC11,type=Catchment_link,name=11 - SC11\n");
+        file.write("create link;from=10,to=SC10,type=Catchment_link,name=10 - SC10\n");
+        file.write("create link;from=9,to=SC9,type=Catchment_link,name=9 - SC9\n");
+        file.write("create link;from=8,to=SC8,type=Catchment_link,name=8 - SC8\n");
+        file.write("create link;from=7,to=SC7,type=Catchment_link,name=7 - SC7\n");
+        file.write("create link;from=6,to=SC6,type=Catchment_link,name=6 - SC6\n");
+        file.write("create link;from=SCfive,to=SCfour,type=Sewer2Sewer_link,name=SCfive - SCfour\n");
+        file.write("create link;from=5,to=SCfive,type=Catchment_link,name=5 - SCfive\n");
+        file.write("create link;from=4,to=SCfour,type=Catchment_link,name=4 - SCfour\n");
+        file.write("create link;from=SCfour,to=SCthree,type=Sewer2Sewer_link,name=SCfour - SCthree\n");
+        file.write("create link;from=SCthree,to=SCtwo,type=Sewer2Sewer_link,name=SCthree - SCtwo\n");
+        file.write("create link;from=SCtwo,to=SCone,type=Sewer2Sewer_link,name=SCtwo - SCone\n");
+        file.write("create link;from=3,to=SCthree,type=Catchment_link,name=3 - SCthree\n");
+        file.write("create link;from=2,to=SCtwo,type=Catchment_link,name=2 - SCtwo\n");
+        file.write("create link;from=1,to=SCone,type=Catchment_link,name=1 - SCone\n");
+    //Sewer to pond
+        file.write("create link;from=SC1,to=Infiltration_Pond,type=sewer2pond,name=SC1 - Infiltration_Pond,end_elevation=0[m]\n");
+        file.write("create link;from=SCone,to=Infiltration_Pond,type=sewer2pond,name=SCone - Infiltration_Pond,end_elevation=0[m]\n");
+        file.write("create link;from=SC6,to=Infiltration_Pond,type=sewer2pond,name=SC6 - Infiltration_Pond,end_elevation=0[m]\n");
+    //DS boundary & link
+        file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
+        file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
 
 
-//Observations
-    file.write("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n");
-    file.write("create observation;type=Observation,object=SC6 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/MeasuredFlowData_FI2.txt,name=Obs_FortIrwin2,expression=flow,error_standard_deviation=1,error_structure=normal\n");
-    file.write("create observation;type=Observation,error_standard_deviation=1,expression=depth,error_structure=normal,name=Depth,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/Depth_04082020.txt,object=Infiltration_Pond\n");
-//Set as parameters
-    file.write("setasparameter; object= 5, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 5, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 4, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 4, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 3, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 3, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 2, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 2, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 1, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 1, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 6, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 6, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 7, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 7, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 8, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 8, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 9, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 9, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 10, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 10, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 11, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 11, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 12, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 12, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= 13, parametername= dep_storage, quantity= depression_storage\n");
-    file.write("setasparameter; object= 13, parametername= Manning_Catchment, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC5, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC4, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC3, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC2, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC1, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC13, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC12, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC11, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC10, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC9, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC8, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC7, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SC6, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SCfive, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SCfour, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SCthree, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SCtwo, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-    file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
-
+    //Observations
+        file.write("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n");
+        file.write("create observation;type=Observation,object=SC6 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/MeasuredFlowData_FI2.txt,name=Obs_FortIrwin2,expression=flow,error_standard_deviation=1,error_structure=normal\n");
+        file.write("create observation;type=Observation,error_standard_deviation=1,expression=depth,error_structure=normal,name=Depth,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/Depth_04082020.txt,object=Infiltration_Pond\n");
+    //Set as parameters
+        file.write("setasparameter; object= 5, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 5, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 4, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 4, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 3, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 3, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 2, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 2, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 1, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 1, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 6, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 6, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 7, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 7, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 8, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 8, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 9, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 9, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 10, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 10, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 11, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 11, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 12, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 12, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= 13, parametername= dep_storage, quantity= depression_storage\n");
+        file.write("setasparameter; object= 13, parametername= Manning_Catchment, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC5, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC4, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC3, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC2, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC1, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC13, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC12, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC11, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC10, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC9, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC8, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC7, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SC6, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SCfive, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SCfour, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SCthree, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SCtwo, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+        file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
+    }
     file.close();
 }
 
@@ -810,8 +816,10 @@ void MainWindow::On_CreateCADDrawing()
 
 void MainWindow::On_CreateVTK()
 {
+#ifdef use_VTK
     VTKDialog *vtkDialog = new VTKDialog(this);
     vtkDialog->show();
+#endif
 }
 
 
