@@ -13,6 +13,7 @@ VTK_V = -9.1
 #CONFIG += Khiem
 #CONFIG += Arash
 CONFIG += Brett
+DEFINES += Brett
 use_VTK {DEFINES += VTK}
 
 # You can make your code fail to compile if it uses deprecated APIs.

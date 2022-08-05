@@ -17,7 +17,9 @@ struct GeomParams
     double depth_to_gw=70.28;
     double pond_initial_depth = 0;
     unsigned int n_layer_deep = 1;
-    double Ks_factor=100;
+    double Ks_factor=1;
+    double dr_increase_factor = 1.2;
+    bool log_dr_increase = false;
 };
 
 QT_BEGIN_NAMESPACE
