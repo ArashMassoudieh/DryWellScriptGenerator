@@ -442,7 +442,7 @@ void MainWindow::On_Generate_Model()
         file.write(QString("create link;from=Soil_deep ("+QString::number(GP.n_layer_deep)+"$0),to=GW,type=soil_to_fixedhead_link,name=Soil_deep ("+QString::number(GP.n_layer_deep)+"$0) - GW\n").toUtf8());
     else
         file.write(QString("create link;from=Soil_deep ("+QString::number(LayerData.count()-1)+"$0),to=GW,type=soil_to_fixedhead_link,name=Soil_deep ("+QString::number(LayerData.count()-1)+"$0) - GW\n").toUtf8());
-#ifndef Brett
+#ifdef ModelCatchments
 //Catchments
     file.write("create block;type=Catchment,_width=500,_height=350,Width=57.3816[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-6500,Slope=0.015,area=9688.46[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=5,y=-1100\n");
     file.write("create block;type=Catchment,_width=500,_height=350,Width=59.6158[m],depth=0[m],Precipitation=Ave_04082020,loss_coefficient=1[1/day],x=-5500,Slope=0.015,area=33338.14[m~^2],Evapotranspiration=,depression_storage=0[m],elevation=0[m],ManningCoeff=0.02,name=4,y=-1100\n");
@@ -522,7 +522,7 @@ void MainWindow::On_Generate_Model()
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
 
-#ifndef Brett
+#ifdef ModelCatchments
 //Observations
     file.write("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n");
     file.write("create observation;type=Observation,object=SC6 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/MeasuredFlowData_FI2.txt,name=Obs_FortIrwin2,expression=flow,error_standard_deviation=1,error_structure=normal\n");

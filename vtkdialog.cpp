@@ -44,7 +44,7 @@ void VTKDialog::onReadScript()
 {
     QString fileName = QFileDialog::getOpenFileName(this,
             tr("Open"), "",
-            tr("OpenHydroQual Script (*.scr)"));
+            tr("OpenHydroQual Script (*.ohq)"));
     ui->txtModelScriptFile->setText(fileName);
 
     QFile inputfile(fileName);

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>645</width>
-    <height>644</height>
+    <height>715</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -211,7 +211,7 @@
       <item row="12" column="0">
        <widget class="QCheckBox" name="Logarithmic_Radial_Disc">
         <property name="text">
-         <string>Loarithmic Radial Descretization</string>
+         <string>Logarithmic Radial discretization</string>
         </property>
        </widget>
       </item>
