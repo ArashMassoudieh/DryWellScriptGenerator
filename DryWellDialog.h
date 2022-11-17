@@ -16,6 +16,7 @@ struct GeomParams
     double well_depth=41.95;
     double depth_to_gw=70.28;
     double pond_initial_depth = 0;
+    double settlingchamberdepth = 20; 
     unsigned int n_layer_deep = 1;
     double Ks_factor=1;
     double dr_increase_factor = 1.2;

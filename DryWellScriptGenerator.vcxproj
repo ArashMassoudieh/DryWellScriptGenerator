@@ -192,8 +192,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Utilities\BTC.cpp" />
-    <ClCompile Include="..\Utilities\BTCSet.cpp" />
     <ClCompile Include="..\Utilities\DistributionNUnif.cpp" />
     <ClCompile Include="..\Utilities\Matrix.cpp" />
     <ClCompile Include="..\Utilities\NormalDist.cpp" />

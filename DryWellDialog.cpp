@@ -26,6 +26,7 @@ DryWellDialog::DryWellDialog(QWidget *parent)
     ui->Alpha->setText(QString::number(GP.pond_alpha_param));
     ui->Beta->setText(QString::number(GP.pond_beta_param));
     ui->Pond_ini_depth->setText(QString::number(GP.pond_initial_depth));
+    ui->SettlingChamberDepth->setText(QString::number(GP.settlingchamberdepth));
     ui->Pond_radius->setText(QString::number(GP.pond_radius));
     ui->Depth_of_Well->setText(QString::number(GP.well_depth));
     ui->Well_radius->setText(QString::number(GP.well_radious));
@@ -54,11 +55,12 @@ void DryWellDialog::On_Generate_Model()
     GP.Ks_factor = ui->Ks_factor->text().toDouble();
     GP.log_dr_increase = ui->Logarithmic_Radial_Disc->checkState();
     GP.dr_increase_factor = ui->txtIncreaseFactor->text().toDouble();
+    GP.settlingchamberdepth = ui->SettlingChamberDepth->text().toDouble();
     QString path = "C:/Users/12022/Dropbox/Drywell Project/Combined_Model/Longterm_fixed_areas/";
 
-    if (ui->filename_text->text()=="") return;
+    if (ui->filename_text->text() == "") return;
     QFile file(ui->filename_text->text());
-    file.open(QIODevice::WriteOnly|QIODevice::Text);
+    file.open(QIODevice::WriteOnly | QIODevice::Text);
     file.write("loadtemplate; filename = /home/arash/Projects/QAquifolium/bin/Debug/../../resources/main_components.json\n");
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Pond_Plugin.json\n");
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/unsaturated_soil.json\n");
@@ -101,171 +103,195 @@ void DryWellDialog::On_Generate_Model()
     double dr;
 
     if (!GP.log_dr_increase)
-        dr = (GP.pond_radius-GP.well_radious)/double(GP.nr);
+        dr = (GP.pond_radius - GP.well_radious) / double(GP.nr);
     else
-        dr = (GP.pond_radius-GP.well_radious)/(pow(GP.dr_increase_factor,GP.nr)-1)*(GP.dr_increase_factor-1);
-    double dy = (GP.well_depth)/double(GP.n_layers);
-    double dy_deep = (GP.depth_to_gw-GP.well_depth)/double(GP.n_layer_deep);
-// Create pond
+        dr = (GP.pond_radius - GP.well_radious) / (pow(GP.dr_increase_factor, GP.nr) - 1) * (GP.dr_increase_factor - 1);
+    double dy = (GP.well_depth) / double(GP.n_layers);
+    double dy_deep = (GP.depth_to_gw - GP.well_depth) / double(GP.n_layer_deep);
+    // Create pond
     file.write(QString("// ***** Pond ***** //\n").toUtf8());
-    file.write(QString("create block;type=Pond,y="+QString::number(y_base)+",name=Infiltration_Pond,x="+QString::number(x_base)+",bottom_elevation=0,alpha="+QString::number(GP.pond_alpha_param)+",_width=200,_height=200,beta="+QString::number(GP.pond_beta_param)+",Storage="+QString::number(GP.pond_alpha_param*pow(GP.pond_initial_depth,GP.pond_beta_param))+",Precipitation=\n").toUtf8());
+    file.write(QString("create block;type=Pond,y=" + QString::number(y_base) + ",name=Infiltration_Pond,x=" + QString::number(x_base) + ",bottom_elevation=0,alpha=" + QString::number(GP.pond_alpha_param) + ",_width=200,_height=200,beta=" + QString::number(GP.pond_beta_param) + ",Storage=" + QString::number(GP.pond_alpha_param * pow(GP.pond_initial_depth, GP.pond_beta_param)) + ",Precipitation=\n").toUtf8());
 
-// Create soil blocks adjacent to well
+    // Create soil blocks adjacent to well
     file.write(QString("// ***** Soil blocks adjacent to the well ***** //\n").toUtf8());
     unsigned int lowest_shallow_layer = GP.n_layers;
+    unsigned int sedimentation_layer_id = 0; 
     double lowest_shallow_depth = 0;
     if (uniform)
-    {   for (unsigned int r = 0; r<GP.nr; r++)
-        {   for (unsigned int layer=0; layer<GP.n_layers; layer++)
-            {   double x = x_base + 200 + r*300;
-                double y = y_base + 300 + layer*300;
+    {
+        for (unsigned int r = 0; r < GP.nr; r++)
+        {
+            for (unsigned int layer = 0; layer < GP.n_layers; layer++)
+            {
+                double x = x_base + 200 + r * 300;
+                double y = y_base + 300 + layer * 300;
                 double r_in;
                 double r_out;
                 if (!GP.log_dr_increase)
                 {
-                    r_in = r*dr + GP.well_radious;
-                    r_out = (r+1)*dr + GP.well_radious;
+                    r_in = r * dr + GP.well_radious;
+                    r_out = (r + 1) * dr + GP.well_radious;
                 }
                 else
                 {
-                    r_in = GP.well_radious + dr*(pow(GP.dr_increase_factor,r)-1)/(GP.dr_increase_factor-1);
-                    r_out = GP.well_radious + dr*(pow(GP.dr_increase_factor,r+1)-1)/(GP.dr_increase_factor-1);
+                    r_in = GP.well_radious + dr * (pow(GP.dr_increase_factor, r) - 1) / (GP.dr_increase_factor - 1);
+                    r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                 }
-                double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
-                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x="+QString::number(x)+",Evapotranspiration=,n=1.41,y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original=1,_width=200,alpha=1,name=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),_height=100,bottom_elevation="+QString::number(-dy*(layer+1))+",depth="+QString::number(dy)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(-dy*(layer+0.5))+"\n").toUtf8());
+                double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
+                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=200,alpha=1,name=Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy * (layer + 1)) + ",depth=" + QString::number(dy) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy * (layer + 0.5)) + "\n").toUtf8());
             }
         }
     }
     else
     {
-        for (unsigned int r = 0; r<GP.nr; r++)
-        {   double bottom_elev = 0;
+        for (unsigned int r = 0; r < GP.nr; r++)
+        {
+            double bottom_elev = 0;
             bool reached_bottom = false;
-            for (unsigned int layer=1; layer<LayerData.count(); layer++)
-            {   bottom_elev -= LayerData[layer][0].toDouble();
+            for (unsigned int layer = 1; layer < LayerData.count(); layer++)
+            {
+                bottom_elev -= LayerData[layer][0].toDouble();
                 if (!reached_bottom)
-                {   double depth = LayerData[layer][0].toDouble();
-                    if (bottom_elev<-GP.well_depth)
+                {
+                    double depth = LayerData[layer][0].toDouble();
+                    if (bottom_elev < -GP.well_depth)
                     {
                         lowest_shallow_depth = bottom_elev + depth;
-                        depth = GP.well_depth-(-bottom_elev-depth);
+                        depth = GP.well_depth - (-bottom_elev - depth);
                         bottom_elev = -GP.well_depth;
                         reached_bottom = true;
                         lowest_shallow_layer = layer;
+                    }
+                    if (bottom_elev < -GP.settlingchamberdepth && sedimentation_layer_id==0)
+                    {
+                        sedimentation_layer_id = layer; 
                     }
                     QString Evap_object = "";
                     if (layer == 1)
                     {
                         Evap_object = "Evapotranspiration_Soil";
                     }
-                    double x = x_base + 200 + r*300;
-                    double y = y_base + 300 + layer*300;
+                    double x = x_base + 200 + r * 300;
+                    double y = y_base + 300 + layer * 300;
                     double r_in;
                     double r_out;
                     if (!GP.log_dr_increase)
                     {
-                        r_in = r*dr + GP.well_radious;
-                        r_out = (r+1)*dr + GP.well_radious;
+                        r_in = r * dr + GP.well_radious;
+                        r_out = (r + 1) * dr + GP.well_radious;
                     }
                     else
                     {
-                        r_in = GP.well_radious + dr*(pow(GP.dr_increase_factor,r)-1)/(GP.dr_increase_factor-1);
-                        r_out = GP.well_radious + dr*(pow(GP.dr_increase_factor,r+1)-1)/(GP.dr_increase_factor-1);
+                        r_in = GP.well_radious + dr * (pow(GP.dr_increase_factor, r) - 1) / (GP.dr_increase_factor - 1);
+                        r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                     }
-                    double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
-                    file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][4]+",theta_res="+LayerData[layer][5]+",specific_storage=0.01,x="+QString::number(x)+",Evapotranspiration="+Evap_object+",n="+LayerData[layer][3]+",y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original="+QString::number(LayerData[layer][1].toDouble()*GP.Ks_factor)+",_width=200,alpha="+LayerData[layer][2]+",name=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),_height=100,bottom_elevation="+QString::number(bottom_elev)+",depth="+QString::number(depth)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(bottom_elev+depth/2)+"\n").toUtf8());
+                    double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
+                    file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=" + Evap_object + ",n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elev) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elev + depth / 2) + "\n").toUtf8());
                 }
             }
         }
 
     }
 
-// Create deep soil layers
+    // Create deep soil layers
     file.write(QString("// ***** Soil Blocks not adjacent to the well ***** //\n").toUtf8());
     if (uniform)
-    {   for (unsigned int r = 0; r<GP.nr; r++)
-            for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
-            {   double x = x_base + 200 + r*300;
-                double y = y_base + 300 + layer*300 + GP.n_layers*300;
+    {
+        for (unsigned int r = 0; r < GP.nr; r++)
+            for (unsigned int layer = 0; layer < GP.n_layer_deep; layer++)
+            {
+                double x = x_base + 200 + r * 300;
+                double y = y_base + 300 + layer * 300 + GP.n_layers * 300;
                 double r_in;
                 double r_out;
                 if (!GP.log_dr_increase)
                 {
-                    r_in = r*dr + GP.well_radious;
-                    r_out = (r+1)*dr + GP.well_radious;
+                    r_in = r * dr + GP.well_radious;
+                    r_out = (r + 1) * dr + GP.well_radious;
                 }
                 else
                 {
-                    r_in = GP.well_radious + dr*(pow(GP.dr_increase_factor,r)-1)/(GP.dr_increase_factor-1);
-                    r_out = GP.well_radious + dr*(pow(GP.dr_increase_factor,r+1)-1)/(GP.dr_increase_factor-1);
+                    r_in = GP.well_radious + dr * (pow(GP.dr_increase_factor, r) - 1) / (GP.dr_increase_factor - 1);
+                    r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                 }
-                double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
-                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x="+QString::number(x)+",Evapotranspiration=,n=1.41,y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original="+QString::number(1)+",_width=200,alpha=1,name=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),_height=100,bottom_elevation="+QString::number(-dy_deep*(layer+1)-GP.well_depth)+",depth="+QString::number(dy_deep)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(-dy_deep*(layer+0.5)-GP.well_depth)+"\n").toUtf8());
+                double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
+                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=200,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + "\n").toUtf8());
             }
         file.write(QString("// ***** Soil Blocks underneath the well ***** //\n").toUtf8());
-        for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
+        for (unsigned int layer = 0; layer < GP.n_layer_deep; layer++)
         {
-            double y = y_base + 300 + layer*300 + GP.n_layers*300;
+            double y = y_base + 300 + layer * 300 + GP.n_layers * 300;
             double r_in = 0;
             double r_out = GP.well_radious;
-            double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
-            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x="+QString::number(0)+",Evapotranspiration=,n=1.41,y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original="+QString::number(1)+",_width=100,alpha=1,name=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),_height=100,bottom_elevation="+QString::number(-dy_deep*(layer+1)-GP.well_depth)+",depth="+QString::number(dy_deep)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(-dy_deep*(layer+0.5)-GP.well_depth)+"\n").toUtf8());
+            double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
+            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + "\n").toUtf8());
         }
     }
     else
     {
-        for (unsigned int r = 0; r<GP.nr; r++)
-        {   double bottom_elevation = lowest_shallow_depth;
-            for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
-            {   double x = x_base + 200 + r*300;
-                double y = y_base + 300 + (layer+1)*300;
+        for (unsigned int r = 0; r < GP.nr; r++)
+        {
+            double bottom_elevation = lowest_shallow_depth;
+            for (unsigned int layer = lowest_shallow_layer; layer < LayerData.count(); layer++)
+            {
+                double x = x_base + 200 + r * 300;
+                double y = y_base + 300 + (layer + 1) * 300;
                 double r_in;
                 double r_out;
                 if (!GP.log_dr_increase)
                 {
-                    r_in = r*dr + GP.well_radious;
-                    r_out = (r+1)*dr + GP.well_radious;
+                    r_in = r * dr + GP.well_radious;
+                    r_out = (r + 1) * dr + GP.well_radious;
                 }
                 else
                 {
-                    r_in = GP.well_radious + dr*(pow(GP.dr_increase_factor,r)-1)/(GP.dr_increase_factor-1);
-                    r_out = GP.well_radious + dr*(pow(GP.dr_increase_factor,r+1)-1)/(GP.dr_increase_factor-1);
+                    r_in = GP.well_radious + dr * (pow(GP.dr_increase_factor, r) - 1) / (GP.dr_increase_factor - 1);
+                    r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                 }
-                double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
+                double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
                 double depth = LayerData[layer][0].toDouble();
                 bottom_elevation -= depth;
-                if (layer==lowest_shallow_layer)
+                if (layer == lowest_shallow_layer)
                 {
                     depth = depth - (GP.well_depth + lowest_shallow_depth);
                 }
-                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][4]+",theta_res="+LayerData[layer][5]+",specific_storage=0.01,x="+QString::number(x)+",Evapotranspiration=,n="+LayerData[layer][3]+",y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original="+QString::number(LayerData[layer][1].toDouble()*GP.Ks_factor)+",_width=200,alpha="+LayerData[layer][2]+",name=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),_height=100,bottom_elevation="+QString::number(bottom_elevation)+",depth="+QString::number(depth)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(bottom_elevation+depth/2)+"\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil_deep (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + "\n").toUtf8());
             }
         }
         double bottom_elevation = lowest_shallow_depth;
         file.write(QString("// ***** Soil Blocks underneath the well ***** //\n").toUtf8());
-        for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
+        for (unsigned int layer = lowest_shallow_layer; layer < LayerData.count(); layer++)
         {
             double depth = LayerData[layer][0].toDouble();
             bottom_elevation -= depth;
-            if (layer==lowest_shallow_layer)
+            if (layer == lowest_shallow_layer)
             {
                 depth = depth - (GP.well_depth + lowest_shallow_depth);
             }
-            double y = y_base + 300 + (layer+1)*300;
+            double y = y_base + 300 + (layer + 1) * 300;
             double r_in = 0;
             double r_out = GP.well_radious;
-            double area = 3.1415*(pow(r_out,2)-pow(r_in,2));
-            file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][4]+",theta_res="+LayerData[layer][5]+",specific_storage=0.01,x="+QString::number(0)+",Evapotranspiration=,n="+LayerData[layer][3]+",y="+QString::number(y)+",area="+QString::number(area)+",theta=0.2,K_sat_original="+QString::number(LayerData[layer][1].toDouble()*GP.Ks_factor)+",_width=100,alpha=1,name=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),_height=100,bottom_elevation="+QString::number(bottom_elevation)+",depth="+QString::number(depth)+",actual_x="+QString::number(0.5*(r_in+r_out))+",actual_y="+QString::number(bottom_elevation+depth/2)+"\n").toUtf8());
+            double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
+            file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + "\n").toUtf8());
         }
 
     }
 
-// Create Well
+    // Create Well
     file.write(QString("// ***** Dry well well ***** //\n").toUtf8());
     if (uniform)
-        file.write(QString("create block;type=Well,y="+QString::number(y_base+(GP.n_layers-1)*300/2)+",name=DryWell,x="+QString::number(x_base)+",depth="+QString::number(GP.well_depth+GP.pond_initial_depth)+",bottom_elevation="+QString::number(-GP.well_depth)+",diameter="+QString::number(GP.well_radious*2)+",_width=100,_height="+QString::number(300*(GP.n_layers-1)+100)+"\n").toUtf8());
+    {
+        file.write(QString("create block;type=Well_aggregate,y=" + QString::number(y_base + (GP.n_layers - 1) * 300 / 2) + ",name=DryWell,x=" + QString::number(x_base) + ",depth=0[m],bottom_elevation=" + QString::number(-GP.well_depth) + ",diameter=" + QString::number(GP.well_radious * 2) + " ,porosity = 0.4,_width=100,_height=" + QString::number(300 * (GP.n_layers - 1)/2 + 100) + "\n").toUtf8());
+        file.write(QString("create block; type = Well, bottom_elevation = " + QString::number(GP.settlingchamberdepth) + "[m], name = Sedimentation_Chamber, _height = " + QString::number(300 * (GP.n_layers - 1) / 2 + 100) + ", diameter = " + QString::number(GP.well_radious * 2) + "[m], _width = 100, depth = 0, x = " + QString::number(x_base) + ", y = " + QString::number(y_base + (GP.n_layers - 1) * 300) + "\n").toUtf8());
+    }
     else
-        file.write(QString("create block;type=Well,y="+QString::number(y_base+(LayerData.count())*300/2)+",name=DryWell,x="+QString::number(x_base)+",depth="+QString::number(GP.well_depth+GP.pond_initial_depth)+",bottom_elevation="+QString::number(-GP.well_depth)+",diameter="+QString::number(GP.well_radious*2)+",_width=100,_height="+QString::number(300*(lowest_shallow_layer-1)+100)+"\n").toUtf8());
+    {
+        file.write(QString("create block;type=Well_aggregate,y=" + QString::number(y_base + (LayerData.count()) * 300 / 2) + ",name=DryWell,x=" + QString::number(x_base) + ",depth=" + QString::number(GP.well_depth + GP.pond_initial_depth - GP.settlingchamberdepth) + ",bottom_elevation=" + QString::number(-GP.well_depth) + ",porosity = 0.4,diameter=" + QString::number(GP.well_radious * 2) + ",_width=100,_height=" + QString::number(300 * (lowest_shallow_layer - 1)/2 + 100) + "\n").toUtf8());
+        file.write(QString("create block; type = Well, bottom_elevation = " + QString::number(GP.settlingchamberdepth) + "[m], name = Sedimentation_Chamber, _height = " + QString::number(300 * (lowest_shallow_layer - 1) / 2 + 100) + ", diameter = " + QString::number(GP.well_radious * 2) + "[m], _width = 100, depth = 0, x = " + QString::number(x_base) + ", y = " + QString::number(y_base + (GP.n_layers - 1) * 300) + "\n").toUtf8());
+    }
+
+
+    
 
 // Vertical soil connectors
     file.write(QString("// ***** Vertical shallow soil connectors ***** //\n").toUtf8());
@@ -407,7 +433,7 @@ void DryWellDialog::On_Generate_Model()
     }
     else
     {
-        for (unsigned int layer=1; layer<lowest_shallow_layer+1; layer++)
+        for (unsigned int layer=sedimentation_layer_id; layer<lowest_shallow_layer+1; layer++)
             file.write(QString("create link;from=DryWell,to=Soil ("+QString::number(layer)+"$1),type=Well2soil horizontal link,name=DryWell - Soil ("+QString::number(layer)+"$1),length="+QString::number(dr/2)+"\n").toUtf8());
     }
 

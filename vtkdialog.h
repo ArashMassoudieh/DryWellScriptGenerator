@@ -33,14 +33,14 @@ class VTKDialog : public QDialog
 public:
     explicit VTKDialog(QWidget *parent = nullptr);
     ~VTKDialog();
-    CBTCSet AllResults;
+    CTimeSeriesSet<double> AllResults;
     QList<QString> variables;
     QMap<QString,blockinfo> BlockInfo;
     void write_to_vtp(const QVector<cellplotinfo> &cellinfo, QVector<double> &values, QString &filename, const QString &name);
 
 private:
     Ui::VTKDialog *ui;
-    CBTCSet CompleteOutputData;
+    CTimeSeriesSet<double> CompleteOutputData;
 
 private slots:
     void onReadResults();

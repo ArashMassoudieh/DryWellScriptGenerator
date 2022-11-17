@@ -91,7 +91,7 @@ void VTKDialog::onGenerateVTK()
 
     qDebug()<<fileName<< " successfully opened!";
     QVector<cellplotinfo> PlotInfo;
-    CBTCSet toplottimeseries;
+    CTimeSeriesSet<double> toplottimeseries;
     for (int i=0; i<AllResults.nvars; i++)
     {
 
@@ -115,7 +115,7 @@ void VTKDialog::onGenerateVTK()
 
     if (toplottimeseries.nvars == 0) return;
     int i=0;
-    for (double t = toplottimeseries.BTC[0].t[0]; t<toplottimeseries.BTC[0].t[toplottimeseries.BTC[0].n-1]; t+=ui->lineEditInterval->text().toDouble())
+    for (double t = toplottimeseries.BTC[0].GetT(0); t<toplottimeseries.BTC[0].GetT(toplottimeseries.BTC[0].n-1); t+=ui->lineEditInterval->text().toDouble())
     {
         vector<double> vals = toplottimeseries.interpolate(t);
 #ifdef use_VTK

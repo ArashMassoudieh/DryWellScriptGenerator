@@ -77,6 +77,8 @@ public:
     QCheckBox *Logarithmic_Radial_Disc;
     QLabel *label_13;
     QLineEdit *txtIncreaseFactor;
+    QLabel *label_14;
+    QLineEdit *SettlingChamberDepth;
     QVBoxLayout *verticalLayout_2;
     QTableWidget *tableWidget;
     QHBoxLayout *horizontalLayout_4;
@@ -89,7 +91,7 @@ public:
     {
         if (DryWellDialog->objectName().isEmpty())
             DryWellDialog->setObjectName(QString::fromUtf8("DryWellDialog"));
-        DryWellDialog->resize(750, 715);
+        DryWellDialog->resize(747, 715);
         actionPost_Process = new QAction(DryWellDialog);
         actionPost_Process->setObjectName(QString::fromUtf8("actionPost_Process"));
         verticalLayout_3 = new QVBoxLayout(DryWellDialog);
@@ -111,7 +113,7 @@ public:
         scrollArea->setWidgetResizable(true);
         scrollAreaWidgetContents = new QWidget();
         scrollAreaWidgetContents->setObjectName(QString::fromUtf8("scrollAreaWidgetContents"));
-        scrollAreaWidgetContents->setGeometry(QRect(0, 0, 730, 643));
+        scrollAreaWidgetContents->setGeometry(QRect(0, 0, 727, 643));
         horizontalLayout_3 = new QHBoxLayout(scrollAreaWidgetContents);
         horizontalLayout_3->setObjectName(QString::fromUtf8("horizontalLayout_3"));
         verticalLayout = new QVBoxLayout();
@@ -171,60 +173,60 @@ public:
         label_6 = new QLabel(scrollAreaWidgetContents);
         label_6->setObjectName(QString::fromUtf8("label_6"));
 
-        formLayout_2->setWidget(6, QFormLayout::LabelRole, label_6);
+        formLayout_2->setWidget(7, QFormLayout::LabelRole, label_6);
 
         Depth_to_GW = new QLineEdit(scrollAreaWidgetContents);
         Depth_to_GW->setObjectName(QString::fromUtf8("Depth_to_GW"));
 
-        formLayout_2->setWidget(6, QFormLayout::FieldRole, Depth_to_GW);
+        formLayout_2->setWidget(7, QFormLayout::FieldRole, Depth_to_GW);
 
         label_7 = new QLabel(scrollAreaWidgetContents);
         label_7->setObjectName(QString::fromUtf8("label_7"));
 
-        formLayout_2->setWidget(7, QFormLayout::LabelRole, label_7);
+        formLayout_2->setWidget(8, QFormLayout::LabelRole, label_7);
 
         Pond_ini_depth = new QLineEdit(scrollAreaWidgetContents);
         Pond_ini_depth->setObjectName(QString::fromUtf8("Pond_ini_depth"));
 
-        formLayout_2->setWidget(7, QFormLayout::FieldRole, Pond_ini_depth);
+        formLayout_2->setWidget(8, QFormLayout::FieldRole, Pond_ini_depth);
 
         label_8 = new QLabel(scrollAreaWidgetContents);
         label_8->setObjectName(QString::fromUtf8("label_8"));
 
-        formLayout_2->setWidget(8, QFormLayout::LabelRole, label_8);
+        formLayout_2->setWidget(9, QFormLayout::LabelRole, label_8);
 
         nr = new QSpinBox(scrollAreaWidgetContents);
         nr->setObjectName(QString::fromUtf8("nr"));
         nr->setValue(1);
 
-        formLayout_2->setWidget(8, QFormLayout::FieldRole, nr);
+        formLayout_2->setWidget(9, QFormLayout::FieldRole, nr);
 
         label_9 = new QLabel(scrollAreaWidgetContents);
         label_9->setObjectName(QString::fromUtf8("label_9"));
 
-        formLayout_2->setWidget(9, QFormLayout::LabelRole, label_9);
+        formLayout_2->setWidget(10, QFormLayout::LabelRole, label_9);
 
         nl_shallow = new QSpinBox(scrollAreaWidgetContents);
         nl_shallow->setObjectName(QString::fromUtf8("nl_shallow"));
         nl_shallow->setValue(1);
 
-        formLayout_2->setWidget(9, QFormLayout::FieldRole, nl_shallow);
+        formLayout_2->setWidget(10, QFormLayout::FieldRole, nl_shallow);
 
         label_10 = new QLabel(scrollAreaWidgetContents);
         label_10->setObjectName(QString::fromUtf8("label_10"));
 
-        formLayout_2->setWidget(10, QFormLayout::LabelRole, label_10);
+        formLayout_2->setWidget(11, QFormLayout::LabelRole, label_10);
 
         nl_deep = new QSpinBox(scrollAreaWidgetContents);
         nl_deep->setObjectName(QString::fromUtf8("nl_deep"));
         nl_deep->setValue(1);
 
-        formLayout_2->setWidget(10, QFormLayout::FieldRole, nl_deep);
+        formLayout_2->setWidget(11, QFormLayout::FieldRole, nl_deep);
 
         label_11 = new QLabel(scrollAreaWidgetContents);
         label_11->setObjectName(QString::fromUtf8("label_11"));
 
-        formLayout_2->setWidget(14, QFormLayout::LabelRole, label_11);
+        formLayout_2->setWidget(15, QFormLayout::LabelRole, label_11);
 
         horizontalLayout = new QHBoxLayout();
         horizontalLayout->setObjectName(QString::fromUtf8("horizontalLayout"));
@@ -240,27 +242,27 @@ public:
         horizontalLayout->addWidget(file_push_bottom);
 
 
-        formLayout_2->setLayout(14, QFormLayout::FieldRole, horizontalLayout);
+        formLayout_2->setLayout(15, QFormLayout::FieldRole, horizontalLayout);
 
         Generate_Model = new QPushButton(scrollAreaWidgetContents);
         Generate_Model->setObjectName(QString::fromUtf8("Generate_Model"));
 
-        formLayout_2->setWidget(16, QFormLayout::FieldRole, Generate_Model);
+        formLayout_2->setWidget(17, QFormLayout::FieldRole, Generate_Model);
 
         pushReadLayers = new QPushButton(scrollAreaWidgetContents);
         pushReadLayers->setObjectName(QString::fromUtf8("pushReadLayers"));
 
-        formLayout_2->setWidget(17, QFormLayout::FieldRole, pushReadLayers);
+        formLayout_2->setWidget(18, QFormLayout::FieldRole, pushReadLayers);
 
         label_12 = new QLabel(scrollAreaWidgetContents);
         label_12->setObjectName(QString::fromUtf8("label_12"));
 
-        formLayout_2->setWidget(15, QFormLayout::LabelRole, label_12);
+        formLayout_2->setWidget(16, QFormLayout::LabelRole, label_12);
 
         Ks_factor = new QLineEdit(scrollAreaWidgetContents);
         Ks_factor->setObjectName(QString::fromUtf8("Ks_factor"));
 
-        formLayout_2->setWidget(15, QFormLayout::FieldRole, Ks_factor);
+        formLayout_2->setWidget(16, QFormLayout::FieldRole, Ks_factor);
 
         gridLayout = new QGridLayout();
         gridLayout->setObjectName(QString::fromUtf8("gridLayout"));
@@ -270,17 +272,27 @@ public:
         Logarithmic_Radial_Disc = new QCheckBox(scrollAreaWidgetContents);
         Logarithmic_Radial_Disc->setObjectName(QString::fromUtf8("Logarithmic_Radial_Disc"));
 
-        formLayout_2->setWidget(12, QFormLayout::LabelRole, Logarithmic_Radial_Disc);
+        formLayout_2->setWidget(13, QFormLayout::LabelRole, Logarithmic_Radial_Disc);
 
         label_13 = new QLabel(scrollAreaWidgetContents);
         label_13->setObjectName(QString::fromUtf8("label_13"));
 
-        formLayout_2->setWidget(13, QFormLayout::LabelRole, label_13);
+        formLayout_2->setWidget(14, QFormLayout::LabelRole, label_13);
 
         txtIncreaseFactor = new QLineEdit(scrollAreaWidgetContents);
         txtIncreaseFactor->setObjectName(QString::fromUtf8("txtIncreaseFactor"));
 
-        formLayout_2->setWidget(13, QFormLayout::FieldRole, txtIncreaseFactor);
+        formLayout_2->setWidget(14, QFormLayout::FieldRole, txtIncreaseFactor);
+
+        label_14 = new QLabel(scrollAreaWidgetContents);
+        label_14->setObjectName(QString::fromUtf8("label_14"));
+
+        formLayout_2->setWidget(6, QFormLayout::LabelRole, label_14);
+
+        SettlingChamberDepth = new QLineEdit(scrollAreaWidgetContents);
+        SettlingChamberDepth->setObjectName(QString::fromUtf8("SettlingChamberDepth"));
+
+        formLayout_2->setWidget(6, QFormLayout::FieldRole, SettlingChamberDepth);
 
 
         verticalLayout->addLayout(formLayout_2);
@@ -366,6 +378,7 @@ public:
         Logarithmic_Radial_Disc->setText(QCoreApplication::translate("DryWellDialog", "Logarithmic Radial discretization", nullptr));
         label_13->setText(QCoreApplication::translate("DryWellDialog", "Increase factor", nullptr));
         txtIncreaseFactor->setText(QCoreApplication::translate("DryWellDialog", "1.2", nullptr));
+        label_14->setText(QCoreApplication::translate("DryWellDialog", "Depth of settling chamber", nullptr));
         checkCut->setText(QCoreApplication::translate("DryWellDialog", "Cut the drawing", nullptr));
         CreateCadDrawing->setText(QCoreApplication::translate("DryWellDialog", "CreateCadDrawing", nullptr));
         btnCreateVTKfromOutput->setText(QCoreApplication::translate("DryWellDialog", "Create VTK", nullptr));
