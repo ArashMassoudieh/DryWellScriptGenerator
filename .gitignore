@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+.vs/DryWellScriptGenerator/FileContentIndex/
+
+.vs/DryWellScriptGenerator/v17/
+
+.vs/TOpenHydroQual/v17/
+
+debug/
+
+release/
