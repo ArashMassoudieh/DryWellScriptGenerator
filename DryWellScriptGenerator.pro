@@ -9,6 +9,7 @@ VTKBUILDPATH = /home/arash/Projects/VTK-build
 VTKHEADERPATH = /home/arash/Projects/VTK
 VTK_V = -9.0
 
+
 # DEFINES += use_Armadillo
 #CONFIG += Khiem
 #CONFIG += Arash
@@ -33,6 +34,7 @@ SOURCES += \
     ../Utilities/utilities.cpp \
     main.cpp \
     mainwindow.cpp \
+    mainwindow.cpp \
     scad_generator.cpp \
 
 
@@ -45,6 +47,7 @@ HEADERS += \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
     ../Utilities/utilities.h \
+    mainwindow.h \
     mainwindow.h \
     scad_generator.h \
 
@@ -66,6 +69,7 @@ use_VTK {
 
 FORMS += \
     mainwindow.ui \
+    mainwindow.ui \
 
 
 TRANSLATIONS += \
@@ -74,125 +78,114 @@ TRANSLATIONS += \
 INCLUDEPATH += ../Utilities/
 Brett {
     use_VTK {
-        INCLUDEPATH += ..\VTK-8.2.0\include\vtk-8.2
+        INCLUDEPATH += ..\VTK-9.2.0\include\vtk-9.2
 
-        LIBS+=  ..\\VTK-8.2.0\lib\vtkChartsCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonColor-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonComputationalGeometry-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonDataModel-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonExecutionModel-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonMath-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonMisc-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonSystem-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkCommonTransforms-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkDICOMParser-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkDomainsChemistry-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkdoubleconversion-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkexodusII-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkexpat-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersAMR-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersExtraction-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersFlowPaths-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersGeneral-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersGeneric-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersGeometry-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersHybrid-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersHyperTree-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersImaging-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersModeling-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersParallel-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersParallelImaging-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersPoints-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersProgrammable-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersSelection-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersSMP-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersSources-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersStatistics-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersTexture-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersTopology-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkFiltersVerdict-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkfreetype-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkGeovisCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkgl2ps-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkglew-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkhdf5-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkhdf5_hl-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingColor-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingFourier-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingGeneral-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingHybrid-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingMath-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingMorphological-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingSources-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingStatistics-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkImagingStencil-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkInfovisCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkInfovisLayout-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkInteractionImage-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkInteractionStyle-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkInteractionWidgets-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOAMR-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOAsynchronous-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOCityGML-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOEnSight-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOExodus-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOExport-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOExportPDF-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOGeometry-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOImage-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOImport-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOInfovis-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOLegacy-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOLSDyna-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOMINC-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOMovie-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIONetCDF-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOParallel-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOParallelXML-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOPLY-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOSegY-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOSQL-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOTecplotTable-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOVeraOut-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOVideo-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOXML-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkIOXMLParser-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkjpeg-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkjsoncpp-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtklibharu-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtklibxml2-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtklz4-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtklzma-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkmetaio-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtknetcdf-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkogg-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkParallelCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkpng-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkpugixml-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingAnnotation-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingContext2D-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingFreeType-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingGL2PSOpenGL2-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingImage-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingLabel-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingLOD-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingOpenGL2-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingVolume-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkRenderingVolumeOpenGL2-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtksqlite-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtksys-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtktheora-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtktiff-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkverdict-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkViewsContext2D-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkViewsCore-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkViewsInfovis-8.2.lib \
-                ..\\VTK-8.2.0\lib\vtkzlib-8.2.lib
+        LIBS+=  -L..\VTK-9.2.0\lib\ -lvtkChartsCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonColor-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonComputationalGeometry-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonDataModel-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonExecutionModel-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonMath-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonMisc-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonSystem-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkCommonTransforms-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkDICOMParser-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkDomainsChemistry-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkexpat-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersAMR-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersExtraction-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersFlowPaths-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersGeneral-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersGeneric-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersGeometry-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersHybrid-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersHyperTree-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersImaging-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersModeling-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersParallel-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersParallelImaging-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersPoints-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersProgrammable-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersSelection-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersSMP-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersSources-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersStatistics-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersTexture-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersTopology-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkFiltersVerdict-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkfreetype-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkGeovisCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkgl2ps-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkglew-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkhdf5-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkhdf5_hl-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingColor-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingFourier-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingGeneral-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingHybrid-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingMath-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingMorphological-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingSources-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingStatistics-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkImagingStencil-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkInfovisCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkInfovisLayout-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkInteractionImage-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkInteractionStyle-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkInteractionWidgets-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOAMR-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOEnSight-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOExodus-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOExport-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOGeometry-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOImage-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOImport-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOInfovis-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOLegacy-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOLSDyna-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOMINC-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOMovie-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIONetCDF-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOParallel-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOParallelXML-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOPLY-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOSQL-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOTecplotTable-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOVideo-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOXML-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkIOXMLParser-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkjpeg-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkjsoncpp-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtklibharu-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtklibxml2-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtklz4-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkmetaio-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtknetcdf-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkParallelCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkpng-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingAnnotation-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingContext2D-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingFreeType-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingGL2PSOpenGL2-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingImage-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingLabel-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingLOD-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingOpenGL2-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingVolume-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkRenderingVolumeOpenGL2-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtksqlite-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtksys-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtktiff-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkverdict-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkViewsContext2D-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkViewsCore-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkViewsInfovis-9.2 \
+                -L..\VTK-9.2.0\lib\ -lvtkzlib-9.2
         }
 }
 Arash {
@@ -348,10 +341,4 @@ Arash {
 
     }
 }
-
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
-
 

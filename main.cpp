@@ -1,4 +1,5 @@
-#include "mainwindow.h"
+#include "DryWellDialog.h"
+#include "MainWindow.h"
 
 #include <QApplication>
 

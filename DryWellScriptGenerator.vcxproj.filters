@@ -71,7 +71,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mainwindow.cpp">
+    <ClCompile Include="DryWellDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="scad_generator.cpp">
@@ -81,6 +81,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vtkdialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mainwindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -109,7 +112,7 @@
     <ClInclude Include="..\Utilities\Vector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <QtMoc Include="mainwindow.h">
+    <QtMoc Include="DryWellDialog.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <ClInclude Include="scad_generator.h">
@@ -123,18 +126,12 @@
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
-    
-    
     <CustomBuild Include="debug\moc_predefs.h.cbt">
       <Filter>Generated Files</Filter>
     </CustomBuild>
     <CustomBuild Include="release\moc_predefs.h.cbt">
       <Filter>Generated Files</Filter>
     </CustomBuild>
-    
-    
-    
-    
   </ItemGroup>
   <ItemGroup>
     <None Include="DryWellScriptGenerator_en_US.ts">
@@ -142,11 +139,19 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <QtUic Include="mainwindow.ui">
+    <QtUic Include="DryWellDialog.ui">
       <Filter>Form Files</Filter>
     </QtUic>
     <QtUic Include="vtkdialog.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtUic Include="mainwindow.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="mainwindow.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
 </Project>
