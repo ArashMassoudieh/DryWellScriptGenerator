@@ -20,6 +20,7 @@ private:
 
 public slots:
     void on_ActionDryWell();
+    void on_ActionImport();
 };
 
 #endif // MAINWINDOW_H

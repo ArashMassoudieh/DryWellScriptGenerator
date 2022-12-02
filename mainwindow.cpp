@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "DryWellDialog.h"
+#include "importmoisturedata.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -8,7 +9,9 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     connect(ui->actionDrwWell, SIGNAL(triggered()), this, SLOT(on_ActionDryWell()));
-    
+    connect(ui->actionImport_Moisture_Data, SIGNAL(triggered()), this, SLOT(on_ActionImport()));
+
+
 }
 
 MainWindow::~MainWindow()
@@ -20,4 +23,10 @@ void MainWindow::on_ActionDryWell()
 {
     DryWellDialog drywelldlg(this);
     drywelldlg.exec(); 
+}
+
+void MainWindow::on_ActionImport()
+{
+    ImportMoistureData importdlg(this);
+    importdlg.exec();
 }

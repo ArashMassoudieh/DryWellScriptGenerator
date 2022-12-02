@@ -31,10 +31,8 @@ SOURCES += \
     ../Utilities/Vector.cpp \
     ../Utilities/Utilities.cpp \
     DryWellDialog.cpp \
-    ../Utilities/utilities.cpp \
-    DryWellDialog.cpp \
+    importmoisturedata.cpp \
     main.cpp \
-    mainwindow.cpp \
     mainwindow.cpp \
     postprocess.cpp \
     scad_generator.cpp \
@@ -51,11 +49,11 @@ HEADERS += \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
     ../Utilities/utilities.h \
+    importmoisturedata.h \
     mainwindow.h \
-    mainwindow.h \
+    DryWellDialog.h \
+    postprocess.h \
     scad_generator.h \
-    ui_DryWellDialog.h \
-    ui_mainwindow.h
 
 Khiem {
     message("Khiem's version")
@@ -75,7 +73,9 @@ use_VTK {
 
 FORMS += \
     DryWellDialog.ui \
+    importmoisturedata.ui \
     mainwindow.ui \
+    postprocess.ui
 
 
 TRANSLATIONS += \
