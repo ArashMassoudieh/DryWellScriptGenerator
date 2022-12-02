@@ -1,7 +1,7 @@
 #include "vtkdialog.h"
 #include "ui_vtkdialog.h"
 #include "QFileDialog"
-#include "utilities.h"
+#include "Utilities.h"
 #include "QDebug"
 #ifdef use_VTK
 #include "VTK.h"

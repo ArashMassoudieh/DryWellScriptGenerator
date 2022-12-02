@@ -446,7 +446,7 @@ void DryWellDialog::On_Generate_Model()
 
 // Connect Pond to Well
     file.write(QString("// ***** Pond to well connector ***** //\n").toUtf8());
-    file.write(QString("create link;from=Infiltration_Pond,to=DryWell,type=Surface water to well,name=Infiltration_Pond - DryWell,length=3,ManningCoeff=100\n").toUtf8());
+    file.write(QString("create link;from=Infiltration_Pond,to=Sedimentation_Chamber,type=Surface water to well,name=Infiltration_Pond - DryWell,length=3,ManningCoeff=100\n").toUtf8());
 
 // GW
     file.write(QString("// ***** GW block ***** //\n").toUtf8());

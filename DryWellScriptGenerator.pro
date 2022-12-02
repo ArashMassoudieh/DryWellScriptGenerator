@@ -5,18 +5,18 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 DEFINES += use_VTK
 CONFIG += use_VTK
-VTKBUILDPATH = /home/arash/Projects/VTK-build
+VTKBUILDPATH = /home/arash/Projects/VTK/VTK-build
 VTKHEADERPATH = /home/arash/Projects/VTK
 VTK_V = -9.0
 
 
 # DEFINES += use_Armadillo
 #CONFIG += Khiem
-#CONFIG += Arash
-#DEFINES += Arash
+CONFIG += Arash
+DEFINES += Arash
 #DEFINES += ModelCatchments
-CONFIG += Brett
-DEFINES += Brett
+#CONFIG += Brett
+#DEFINES += Brett
 use_VTK {DEFINES += VTK}
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -24,16 +24,14 @@ use_VTK {DEFINES += VTK}
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    ../Utilities/BTC.cpp \
-    ../Utilities/BTCSet.cpp \
     ../Utilities/DistributionNUnif.cpp \
     ../Utilities/Matrix.cpp \
     ../Utilities/NormalDist.cpp \
     ../Utilities/QuickSort.cpp \
     ../Utilities/Vector.cpp \
-    ../Utilities/utilities.cpp \
+    ../Utilities/Utilities.cpp \
+    DryWellDialog.cpp \
     main.cpp \
-    mainwindow.cpp \
     mainwindow.cpp \
     scad_generator.cpp \
 
@@ -41,13 +39,15 @@ SOURCES += \
 HEADERS += \
     ../Utilities/BTC.h \
     ../Utilities/BTCSet.h \
+    ../Utilities/BTC.hpp \
+    ../Utilities/BTCSet.hpp \
     ../Utilities/DistributionNUnif.h \
     ../Utilities/Matrix.h \
     ../Utilities/NormalDist.h \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
-    ../Utilities/utilities.h \
-    mainwindow.h \
+    ../Utilities/Utilities.h \
+    DryWellDialog.h \
     mainwindow.h \
     scad_generator.h \
 
@@ -68,7 +68,7 @@ use_VTK {
 }
 
 FORMS += \
-    mainwindow.ui \
+    DryWellDialog.ui \
     mainwindow.ui \
 
 
