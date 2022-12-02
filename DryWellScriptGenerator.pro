@@ -32,9 +32,11 @@ SOURCES += \
     ../Utilities/QuickSort.cpp \
     ../Utilities/Vector.cpp \
     ../Utilities/utilities.cpp \
+    DryWellDialog.cpp \
     main.cpp \
     mainwindow.cpp \
     mainwindow.cpp \
+    postprocess.cpp \
     scad_generator.cpp \
 
 
@@ -47,9 +49,13 @@ HEADERS += \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
     ../Utilities/utilities.h \
+    DryWellDialog.h \
     mainwindow.h \
     mainwindow.h \
+    postprocess.h \
     scad_generator.h \
+    ui_DryWellDialog.h \
+    ui_mainwindow.h
 
 Khiem {
     message("Khiem's version")
@@ -341,4 +347,7 @@ Arash {
 
     }
 }
+
+DISTFILES += \
+    ~AutoRecover.DryWellScriptGenerator.vcxproj
 
