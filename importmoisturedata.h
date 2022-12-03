@@ -2,6 +2,7 @@
 #define IMPORTMOISTUREDATA_H
 
 #include <QDialog>
+#include <cpointset.h>
 
 namespace Ui {
 class ImportMoistureData;
@@ -14,12 +15,13 @@ class ImportMoistureData : public QDialog
 public:
     explicit ImportMoistureData(QWidget *parent = nullptr);
     ~ImportMoistureData();
-
+    vector<CPointSet<CPoint3d>> snapshots;
 private:
     Ui::ImportMoistureData *ui;
 
 public slots:
     void on_choosefolder();
+    void on_exporttoParaview();
 };
 
 #endif // IMPORTMOISTUREDATA_H

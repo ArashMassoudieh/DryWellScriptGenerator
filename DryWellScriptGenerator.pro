@@ -31,8 +31,8 @@ SOURCES += \
     ../Utilities/Vector.cpp \
     ../Utilities/Utilities.cpp \
     ../Utilities/cpoint.cpp \
+    ../Utilities/cpoint3d.cpp \
     DryWellDialog.cpp \
-    cpoint3d.cpp \
     importmoisturedata.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -52,8 +52,9 @@ HEADERS += \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
     ../Utilities/cpoint.h \
+    ../Utilities/cpoint3d.h \
+    ../Utilities/cpointset.hpp \
     ../Utilities/utilities.h \
-    cpoint3d.h \
     importmoisturedata.h \
     mainwindow.h \
     DryWellDialog.h \
