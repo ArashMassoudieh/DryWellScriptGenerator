@@ -21,4 +21,11 @@ void ImportMoistureData::on_choosefolder()
                                                  "/home",
                                                  QFileDialog::ShowDirsOnly
                                                  | QFileDialog::DontResolveSymlinks);
+
+    QDir directory(dir);
+
+    QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
+    foreach(QString filename, csvs) {
+
+    }
 }

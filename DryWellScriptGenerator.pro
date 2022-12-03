@@ -30,12 +30,15 @@ SOURCES += \
     ../Utilities/QuickSort.cpp \
     ../Utilities/Vector.cpp \
     ../Utilities/Utilities.cpp \
+    ../Utilities/cpoint.cpp \
     DryWellDialog.cpp \
+    cpoint3d.cpp \
     importmoisturedata.cpp \
     main.cpp \
     mainwindow.cpp \
     postprocess.cpp \
     scad_generator.cpp \
+    threedmap.cpp
 
 
 HEADERS += \
@@ -48,12 +51,15 @@ HEADERS += \
     ../Utilities/NormalDist.h \
     ../Utilities/QuickSort.h \
     ../Utilities/Vector.h \
+    ../Utilities/cpoint.h \
     ../Utilities/utilities.h \
+    cpoint3d.h \
     importmoisturedata.h \
     mainwindow.h \
     DryWellDialog.h \
     postprocess.h \
     scad_generator.h \
+    threedmap.h
 
 Khiem {
     message("Khiem's version")
