@@ -192,11 +192,14 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Utilities\cpoint.cpp" />
+    <ClCompile Include="..\Utilities\cpoint3d.cpp" />
     <ClCompile Include="..\Utilities\DistributionNUnif.cpp" />
     <ClCompile Include="..\Utilities\Matrix.cpp" />
     <ClCompile Include="..\Utilities\NormalDist.cpp" />
     <ClCompile Include="..\Utilities\QuickSort.cpp" />
     <ClCompile Include="..\Utilities\Vector.cpp" />
+    <ClCompile Include="importmoisturedata.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DryWellDialog.cpp" />
     <ClCompile Include="mainwindow.cpp" />
@@ -207,11 +210,16 @@
   <ItemGroup>
     <ClInclude Include="..\Utilities\BTC.h" />
     <ClInclude Include="..\Utilities\BTCSet.h" />
+    <ClInclude Include="..\Utilities\cpoint.h" />
+    <ClInclude Include="..\Utilities\cpoint3d.h" />
+    <ClInclude Include="..\Utilities\cpointset.h" />
+    <ClInclude Include="..\Utilities\cpointset.hpp" />
     <ClInclude Include="..\Utilities\DistributionNUnif.h" />
     <ClInclude Include="..\Utilities\Matrix.h" />
     <ClInclude Include="..\Utilities\NormalDist.h" />
     <ClInclude Include="..\Utilities\QuickSort.h" />
     <QtMoc Include="mainwindow.h" />
+    <QtMoc Include="importmoisturedata.h" />
     <ClInclude Include="VTK.h" />
     <ClInclude Include="..\Utilities\Vector.h" />
     <QtMoc Include="DryWellDialog.h">
@@ -245,6 +253,7 @@
   <ItemGroup>
     <QtUic Include="DryWellDialog.ui">
     </QtUic>
+    <QtUic Include="importmoisturedata.ui" />
     <QtUic Include="mainwindow.ui" />
     <QtUic Include="vtkdialog.ui">
     </QtUic>
