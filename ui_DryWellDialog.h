@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'DryWellDialog.ui'
 **
-** Created by: Qt User Interface Compiler version 5.15.2
+** Created by: Qt User Interface Compiler version 5.12.11
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -374,40 +374,40 @@ public:
 
     void retranslateUi(QDialog *DryWellDialog)
     {
-        DryWellDialog->setWindowTitle(QCoreApplication::translate("DryWellDialog", "DryWell", nullptr));
-        actionPost_Process->setText(QCoreApplication::translate("DryWellDialog", "Post-Process", nullptr));
-        menuPost_Process->setTitle(QCoreApplication::translate("DryWellDialog", "Post Process", nullptr));
-        label->setText(QCoreApplication::translate("DryWellDialog", "Pond parameter ~alpha (Coefficient)", nullptr));
-        Alpha->setText(QCoreApplication::translate("DryWellDialog", "86.061", nullptr));
-        label_2->setText(QCoreApplication::translate("DryWellDialog", "Pond parameter ~beta (Exponent)", nullptr));
-        Beta->setText(QCoreApplication::translate("DryWellDialog", "2.766", nullptr));
-        label_3->setText(QCoreApplication::translate("DryWellDialog", "Mean pond radius", nullptr));
-        Pond_radius->setText(QCoreApplication::translate("DryWellDialog", "20", nullptr));
-        label_4->setText(QCoreApplication::translate("DryWellDialog", "Well radius", nullptr));
-        Well_radius->setText(QCoreApplication::translate("DryWellDialog", "0.5", nullptr));
-        label_5->setText(QCoreApplication::translate("DryWellDialog", "Depth of Well", nullptr));
-        Depth_of_Well->setText(QCoreApplication::translate("DryWellDialog", "4", nullptr));
-        label_6->setText(QCoreApplication::translate("DryWellDialog", "Depth to Groundwater", nullptr));
-        Depth_to_GW->setText(QCoreApplication::translate("DryWellDialog", "5", nullptr));
-        label_7->setText(QCoreApplication::translate("DryWellDialog", "Pond initial water depth", nullptr));
-        Pond_ini_depth->setText(QCoreApplication::translate("DryWellDialog", "2.766", nullptr));
-        label_8->setText(QCoreApplication::translate("DryWellDialog", "Number of cells in radial direction", nullptr));
-        label_9->setText(QCoreApplication::translate("DryWellDialog", "Number of shallow soil layers", nullptr));
-        label_10->setText(QCoreApplication::translate("DryWellDialog", "Number of deep soil layers", nullptr));
-        label_11->setText(QCoreApplication::translate("DryWellDialog", "Script File Name", nullptr));
-        file_push_bottom->setText(QCoreApplication::translate("DryWellDialog", "...", nullptr));
-        Generate_Model->setText(QCoreApplication::translate("DryWellDialog", "Generate Model", nullptr));
-        pushReadLayers->setText(QCoreApplication::translate("DryWellDialog", "Read Layers Information", nullptr));
-        label_12->setText(QCoreApplication::translate("DryWellDialog", "Ks Factor", nullptr));
-        Logarithmic_Radial_Disc->setText(QCoreApplication::translate("DryWellDialog", "Logarithmic Radial discretization", nullptr));
-        label_13->setText(QCoreApplication::translate("DryWellDialog", "Increase factor", nullptr));
-        txtIncreaseFactor->setText(QCoreApplication::translate("DryWellDialog", "1.2", nullptr));
-        label_14->setText(QCoreApplication::translate("DryWellDialog", "Depth of settling chamber", nullptr));
-        label_15->setText(QCoreApplication::translate("DryWellDialog", "Top elevation of overflow pipe", nullptr));
-        label_16->setText(QCoreApplication::translate("DryWellDialog", "Bottom elevation of overflow pipe", nullptr));
-        checkCut->setText(QCoreApplication::translate("DryWellDialog", "Cut the drawing", nullptr));
-        CreateCadDrawing->setText(QCoreApplication::translate("DryWellDialog", "CreateCadDrawing", nullptr));
-        btnCreateVTKfromOutput->setText(QCoreApplication::translate("DryWellDialog", "Create VTK", nullptr));
+        DryWellDialog->setWindowTitle(QApplication::translate("DryWellDialog", "DryWell", nullptr));
+        actionPost_Process->setText(QApplication::translate("DryWellDialog", "Post-Process", nullptr));
+        menuPost_Process->setTitle(QApplication::translate("DryWellDialog", "Post Process", nullptr));
+        label->setText(QApplication::translate("DryWellDialog", "Pond parameter ~alpha (Coefficient)", nullptr));
+        Alpha->setText(QApplication::translate("DryWellDialog", "86.061", nullptr));
+        label_2->setText(QApplication::translate("DryWellDialog", "Pond parameter ~beta (Exponent)", nullptr));
+        Beta->setText(QApplication::translate("DryWellDialog", "2.766", nullptr));
+        label_3->setText(QApplication::translate("DryWellDialog", "Mean pond radius", nullptr));
+        Pond_radius->setText(QApplication::translate("DryWellDialog", "20", nullptr));
+        label_4->setText(QApplication::translate("DryWellDialog", "Well radius", nullptr));
+        Well_radius->setText(QApplication::translate("DryWellDialog", "0.5", nullptr));
+        label_5->setText(QApplication::translate("DryWellDialog", "Depth of Well", nullptr));
+        Depth_of_Well->setText(QApplication::translate("DryWellDialog", "4", nullptr));
+        label_6->setText(QApplication::translate("DryWellDialog", "Depth to Groundwater", nullptr));
+        Depth_to_GW->setText(QApplication::translate("DryWellDialog", "5", nullptr));
+        label_7->setText(QApplication::translate("DryWellDialog", "Pond initial water depth", nullptr));
+        Pond_ini_depth->setText(QApplication::translate("DryWellDialog", "2.766", nullptr));
+        label_8->setText(QApplication::translate("DryWellDialog", "Number of cells in radial direction", nullptr));
+        label_9->setText(QApplication::translate("DryWellDialog", "Number of shallow soil layers", nullptr));
+        label_10->setText(QApplication::translate("DryWellDialog", "Number of deep soil layers", nullptr));
+        label_11->setText(QApplication::translate("DryWellDialog", "Script File Name", nullptr));
+        file_push_bottom->setText(QApplication::translate("DryWellDialog", "...", nullptr));
+        Generate_Model->setText(QApplication::translate("DryWellDialog", "Generate Model", nullptr));
+        pushReadLayers->setText(QApplication::translate("DryWellDialog", "Read Layers Information", nullptr));
+        label_12->setText(QApplication::translate("DryWellDialog", "Ks Factor", nullptr));
+        Logarithmic_Radial_Disc->setText(QApplication::translate("DryWellDialog", "Logarithmic Radial discretization", nullptr));
+        label_13->setText(QApplication::translate("DryWellDialog", "Increase factor", nullptr));
+        txtIncreaseFactor->setText(QApplication::translate("DryWellDialog", "1.2", nullptr));
+        label_14->setText(QApplication::translate("DryWellDialog", "Depth of settling chamber", nullptr));
+        label_15->setText(QApplication::translate("DryWellDialog", "Top elevation of overflow pipe", nullptr));
+        label_16->setText(QApplication::translate("DryWellDialog", "Bottom elevation of overflow pipe", nullptr));
+        checkCut->setText(QApplication::translate("DryWellDialog", "Cut the drawing", nullptr));
+        CreateCadDrawing->setText(QApplication::translate("DryWellDialog", "CreateCadDrawing", nullptr));
+        btnCreateVTKfromOutput->setText(QApplication::translate("DryWellDialog", "Create VTK", nullptr));
     } // retranslateUi
 
 };

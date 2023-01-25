@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'vtkdialog.ui'
 **
-** Created by: Qt User Interface Compiler version 5.15.2
+** Created by: Qt User Interface Compiler version 5.12.11
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -142,14 +142,14 @@ public:
 
     void retranslateUi(QDialog *VTKDialog)
     {
-        VTKDialog->setWindowTitle(QCoreApplication::translate("VTKDialog", "Dialog", nullptr));
-        label->setText(QCoreApplication::translate("VTKDialog", "Model Output file: ", nullptr));
-        ChooseOutputFile->setText(QCoreApplication::translate("VTKDialog", "Choose Output File", nullptr));
-        label_3->setText(QCoreApplication::translate("VTKDialog", "Model Script File: ", nullptr));
-        BtmModelScript->setText(QCoreApplication::translate("VTKDialog", "Choose Model Script File", nullptr));
-        label_2->setText(QCoreApplication::translate("VTKDialog", "Variable", nullptr));
-        label_4->setText(QCoreApplication::translate("VTKDialog", "Interval: ", nullptr));
-        lineEditInterval->setText(QCoreApplication::translate("VTKDialog", "1", nullptr));
+        VTKDialog->setWindowTitle(QApplication::translate("VTKDialog", "Dialog", nullptr));
+        label->setText(QApplication::translate("VTKDialog", "Model Output file: ", nullptr));
+        ChooseOutputFile->setText(QApplication::translate("VTKDialog", "Choose Output File", nullptr));
+        label_3->setText(QApplication::translate("VTKDialog", "Model Script File: ", nullptr));
+        BtmModelScript->setText(QApplication::translate("VTKDialog", "Choose Model Script File", nullptr));
+        label_2->setText(QApplication::translate("VTKDialog", "Variable", nullptr));
+        label_4->setText(QApplication::translate("VTKDialog", "Interval: ", nullptr));
+        lineEditInterval->setText(QApplication::translate("VTKDialog", "1", nullptr));
     } // retranslateUi
 
 };

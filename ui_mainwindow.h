@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'mainwindow.ui'
 **
-** Created by: Qt User Interface Compiler version 5.15.2
+** Created by: Qt User Interface Compiler version 5.12.11
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -71,12 +71,12 @@ public:
 
     void retranslateUi(QMainWindow *MainWindow)
     {
-        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "MainWindow", nullptr));
-        actionDrwWell->setText(QCoreApplication::translate("MainWindow", "DrwWell", nullptr));
-        actionBioswale->setText(QCoreApplication::translate("MainWindow", "Bioswale", nullptr));
-        actionImport_Moisture_Data->setText(QCoreApplication::translate("MainWindow", "Import Moisture Data", nullptr));
-        menuCreate_Model->setTitle(QCoreApplication::translate("MainWindow", "Create Model", nullptr));
-        menuImport->setTitle(QCoreApplication::translate("MainWindow", "Import", nullptr));
+        MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", nullptr));
+        actionDrwWell->setText(QApplication::translate("MainWindow", "DrwWell", nullptr));
+        actionBioswale->setText(QApplication::translate("MainWindow", "Bioswale", nullptr));
+        actionImport_Moisture_Data->setText(QApplication::translate("MainWindow", "Import Moisture Data", nullptr));
+        menuCreate_Model->setTitle(QApplication::translate("MainWindow", "Create Model", nullptr));
+        menuImport->setTitle(QApplication::translate("MainWindow", "Import", nullptr));
     } // retranslateUi
 
 };
