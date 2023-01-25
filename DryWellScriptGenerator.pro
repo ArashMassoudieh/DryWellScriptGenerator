@@ -5,7 +5,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 DEFINES += use_VTK
 CONFIG += use_VTK
-VTKBUILDPATH = /home/arash/Projects/VTK/VTK-build
+VTKBUILDPATH = /home/arash/Projects/VTK-9.2.0/
 VTKHEADERPATH = /home/arash/Projects/VTK
 VTK_V = -9.0
 
