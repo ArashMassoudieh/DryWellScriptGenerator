@@ -23,6 +23,7 @@ public slots:
     void on_choosefolder();
     void on_exporttoParaview();
     void on_exportRadialtoParaview();
+    void on_export_timeseries();
 };
 
 #endif // IMPORTMOISTUREDATA_H

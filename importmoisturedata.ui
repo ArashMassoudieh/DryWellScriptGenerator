@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>300</height>
+    <height>194</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -64,6 +64,13 @@
     <widget class="QPushButton" name="Export_Radial_coordinate">
      <property name="text">
       <string>Export Radial</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="pushButtonExportTimeSeries">
+     <property name="text">
+      <string>ExportTimeSeries</string>
      </property>
     </widget>
    </item>
