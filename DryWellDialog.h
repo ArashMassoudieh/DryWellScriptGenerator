@@ -9,14 +9,14 @@ struct GeomParams
 {
     double pond_alpha_param = 86.061;
     double pond_beta_param = 2.766;
-    double pond_radius=26;
+    double pond_radius=6;
     double well_radious=1;
     unsigned int nr=1;
     unsigned int n_layers=1;
-    double well_depth=41.95;
-    double depth_to_gw=70.28;
+    double well_depth=20;
+    double depth_to_gw=25.9;
     double pond_initial_depth = 0;
-    double settlingchamberdepth = 20; 
+    double settlingchamberdepth = 10; 
     unsigned int n_layer_deep = 1;
     double Ks_factor=1;
     double dr_increase_factor = 1.2;

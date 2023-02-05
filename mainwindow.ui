@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuCreate_Model">
@@ -42,7 +42,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionDrwWell">
    <property name="text">
-    <string>DrwWell</string>
+    <string>DryWell</string>
    </property>
   </action>
   <action name="actionBioswale">

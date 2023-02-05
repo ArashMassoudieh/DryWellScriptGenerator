@@ -48,7 +48,7 @@ public:
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName(QString::fromUtf8("menubar"));
-        menubar->setGeometry(QRect(0, 0, 800, 22));
+        menubar->setGeometry(QRect(0, 0, 800, 20));
         menuCreate_Model = new QMenu(menubar);
         menuCreate_Model->setObjectName(QString::fromUtf8("menuCreate_Model"));
         menuImport = new QMenu(menubar);
@@ -72,7 +72,7 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", nullptr));
-        actionDrwWell->setText(QApplication::translate("MainWindow", "DrwWell", nullptr));
+        actionDrwWell->setText(QApplication::translate("MainWindow", "DryWell", nullptr));
         actionBioswale->setText(QApplication::translate("MainWindow", "Bioswale", nullptr));
         actionImport_Moisture_Data->setText(QApplication::translate("MainWindow", "Import Moisture Data", nullptr));
         menuCreate_Model->setTitle(QApplication::translate("MainWindow", "Create Model", nullptr));

@@ -68,10 +68,10 @@ void DryWellDialog::On_Generate_Model()
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Sewer_system.json\n");
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/soil_evapotranspiration_models.json\n");
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/evapotranspiration_models.json\n");
+    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/pipe_pump_tank.json\n");
 
-
-    file.write("setvalue; object=system, quantity=simulation_start_time, value=43101\n");
-    file.write("setvalue; object=system, quantity=simulation_end_time, value=43935\n");
+    file.write("setvalue; object=system, quantity=simulation_start_time, value=44435\n");
+    file.write("setvalue; object=system, quantity=simulation_end_time, value=44437\n");
     file.write("setvalue; object=system, quantity=shakescalered, value=0.75\n");
     file.write("setvalue; object=system, quantity=shakescale, value=0.05\n");
     file.write("setvalue; object=system, quantity=pmute, value=0.02\n");
@@ -87,10 +87,8 @@ void DryWellDialog::On_Generate_Model()
     file.write("setvalue; object=system, quantity=minimum_timestep, value=1e-06\n");
     file.write("setvalue; object=system, quantity=initial_time_step, value=0.01\n");
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
-
-    file.write("create source;type=Precipitation,timeseries=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/All_rain_data.txt,name=Ave_04082020\n");
-    file.write("create source;type=Evapotranspiration_Penman (Soil),z0=0.0003[m],solar_scale_fact=1,z2=2[m],wind_scale_fact=1,R_h=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Humidity010118to123121.txt,Temperature=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/AirTemp010118to123121.txt,solar_radiation=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Solar010118to123121.txt,wind_speed=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Wind010118to123121.txt,gamma=66.8,name=Evapotranspiration_Soil\n");
-    file.write("create source;type=Evapotranspiration_Penmam (S),z0=0.0003[m],solar_scale_fact=1,z2=2[m],wind_scale_fact=1,R_h=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Humidity010118to123121.txt,Temperature=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/AirTemp010118to123121.txt,solar_radiation=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Solar010118to123121.txt,wind_speed=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/Wind010118to123121.txt,gamma=66.8,name=Evapotranspiration_IB\n");
+    
+    file.write("create block;type=Pond,inflow=D:/CUA/Dropbox/LA Project/Data/Inflow_corrected_Arash.txt,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n");
 
 #ifndef Brett
     file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
@@ -109,8 +107,8 @@ void DryWellDialog::On_Generate_Model()
     double dy = (GP.well_depth) / double(GP.n_layers);
     double dy_deep = (GP.depth_to_gw - GP.well_depth) / double(GP.n_layer_deep);
     // Create pond
-    file.write(QString("// ***** Pond ***** //\n").toUtf8());
-    file.write(QString("create block;type=Pond,y=" + QString::number(y_base) + ",name=Infiltration_Pond,x=" + QString::number(x_base) + ",bottom_elevation=0,alpha=" + QString::number(GP.pond_alpha_param) + ",_width=200,_height=200,beta=" + QString::number(GP.pond_beta_param) + ",Storage=" + QString::number(GP.pond_alpha_param * pow(GP.pond_initial_depth, GP.pond_beta_param)) + ",Precipitation=\n").toUtf8());
+    //file.write(QString("// ***** Pond ***** //\n").toUtf8());
+    //file.write(QString("create block;type=Pond,y=" + QString::number(y_base) + ",name=Infiltration_Pond,x=" + QString::number(x_base) + ",bottom_elevation=0,alpha=" + QString::number(GP.pond_alpha_param) + ",_width=200,_height=200,beta=" + QString::number(GP.pond_beta_param) + ",Storage=" + QString::number(GP.pond_alpha_param * pow(GP.pond_initial_depth, GP.pond_beta_param)) + ",Precipitation=\n").toUtf8());
 
     // Create soil blocks adjacent to well
     file.write(QString("// ***** Soil blocks adjacent to the well ***** //\n").toUtf8());
@@ -169,7 +167,7 @@ void DryWellDialog::On_Generate_Model()
                     QString Evap_object = "";
                     if (layer == 1)
                     {
-                        Evap_object = "Evapotranspiration_Soil";
+                        //Evap_object = "Evapotranspiration_Soil";
                     }
                     double x = x_base + 200 + r * 300;
                     double y = y_base + 300 + layer * 300;
@@ -547,7 +545,9 @@ void DryWellDialog::On_Generate_Model()
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
-
+    file.write("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=-7.3[m],_width=100,depth=0,inflow=D:/CUA/Dropbox/LA Project/Data/Inflow_Corrected_New_Khiem .txt,diameter=2[m],x=-4505,y=130,_height=4450\n");
+    file.write("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = -7[m], x = -1151, _width = 200, _height = 200\n");
+    
 #ifdef ModelCatchments
 //Observations
     file.write("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n");
