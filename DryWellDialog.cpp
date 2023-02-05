@@ -284,9 +284,9 @@ void DryWellDialog::On_Generate_Model()
     }
     else
     {
-        file.write(QString("create block;type=Well_aggregate,y=" + QString::number(y_base + (LayerData.count()) * 300 / 2) + ",name=DryWell,x=" + QString::number(x_base) + ",depth=" + QString::number(GP.well_depth + GP.pond_initial_depth - GP.settlingchamberdepth) + ",bottom_elevation=" + QString::number(-GP.well_depth) + ",porosity = 0.4,diameter=" + QString::number(GP.well_radious * 2) + ",_width=100,_height=" + QString::number(300 * (lowest_shallow_layer - 1)/2 + 100) + "\n").toUtf8());
-        file.write(QString("create block; type = Well, bottom_elevation = " + QString::number(GP.settlingchamberdepth) + "[m], name = Sedimentation_Chamber, _height = " + QString::number(300 * (lowest_shallow_layer - 1) / 2 + 100) + ", diameter = " + QString::number(GP.well_radious * 2) + "[m], _width = 100, depth = 0, x = " + QString::number(x_base) + ", y = " + QString::number(y_base + (GP.n_layers - 1) * 300) + "\n").toUtf8());
-        file.write("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=-7.3[m],_width=100,depth=0,inflow=,diameter=2[m],x=-4505,y=130,_height=4450\n");
+        file.write(QString("create block;type=Well_aggregate,y=" + QString::number(y_base + (LayerData.count()) * 300 / 2) + ",name=DryWell,x=" + QString::number(x_base) + ",depth= 0.5[m] ,bottom_elevation=" + QString::number(-GP.well_depth) + ",porosity = 0.4,diameter=" + QString::number(GP.well_radious * 2) + ",_width=100,_height=" + QString::number(300 * (lowest_shallow_layer - 1)/2 + 100) + "\n").toUtf8());
+        file.write(QString("create block; type = Well, bottom_elevation = " + QString::number(-GP.settlingchamberdepth) + "[m], name = Sedimentation_Chamber, _height = " + QString::number(300 * (lowest_shallow_layer - 1) / 2 + 100) + ", diameter = " + QString::number(GP.well_radious * 2) + "[m], _width = 100, depth = 0, x = " + QString::number(x_base) + ", y = " + QString::number(y_base + (GP.n_layers - 1) * 300) + "\n").toUtf8());
+        file.write(QString("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=" + QString::number(-GP.settlingchamberdepth) + "[m],_width=100,depth=0,diameter=2[m],x=-4505,y=130,_height=4450\n").toUtf8());
     }
 
 
