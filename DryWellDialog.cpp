@@ -551,7 +551,7 @@ void DryWellDialog::On_Generate_Model()
     file.write("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation=-0.2[m],ManningCoeff=0.011,end_elevation=-19.8[m],diameter=0.1[m],name=Sedimentation_Chamber - DryWell,length=19.6[m]\n");
     file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber - Junction_Elastic,Transmissivity=100[m~^3/day]\n");
     file.write("create link;from=Junction_Elastic,to=DryWell,type=darcy_connector,name=Junction_Elastic - DryWell,Transmissivity=100[m~^3/day]\n");
-    file.write("create link;from=Side_Settling_Chamber,to=Soil (15$5),type=darcy_connector,name=Junction_Elastic - DryWell,Transmissivity=100[m~^3/day]\n");
+    file.write("create link;from=Side_Settling_Chamber,to=Soil (15$5),type=darcy_connector,name=Side_Settling_Chamber - Soil,Transmissivity=100[m~^3/day]\n");
 
 #ifdef ModelCatchments
 //Observations
