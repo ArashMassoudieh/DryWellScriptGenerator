@@ -61,14 +61,13 @@ void DryWellDialog::On_Generate_Model()
     if (ui->filename_text->text() == "") return;
     QFile file(ui->filename_text->text());
     file.open(QIODevice::WriteOnly | QIODevice::Text);
-    file.write("loadtemplate; filename =  C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/main_components.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/main_components.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/Pond_Plugin.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/unsaturated_soil.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/Well.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/Sewer_system.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/soil_evapotranspiration_models.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/evapotranspiration_models.json\n");
+    file.write("loadtemplate; filename = /home/arash/Projects/QAquifolium/bin/Debug/../../resources/main_components.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Pond_Plugin.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/unsaturated_soil.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Well.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Sewer_system.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/soil_evapotranspiration_models.json\n");
+    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/evapotranspiration_models.json\n");
     file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/pipe_pump_tank.json\n");
 
     file.write("setvalue; object=system, quantity=simulation_start_time, value=44435\n");
@@ -552,11 +551,6 @@ void DryWellDialog::On_Generate_Model()
 
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
-    file.write("create block;type=fixed_head,Storage=100000[m~^3],name=GW,y=11100,head=-25.9[m],x=0,_width=3200,_height=100\n");
-    file.write("create block;type=Well_aggregate,name=Sedimentation_Chamber,bottom_elevation=-20[m],porosity=0.4,diameter=2[m],_width=100,depth=0.1,x=-2023,y=5198,_height=4450\n");
-    file.write("create block;type=Well,name=DryWell,bottom_elevation=-7.3[m],_width=100,depth=0,inflow=,diameter=2[m],x=-2557,y=142,_height=4450\n");
-    file.write("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=-7.3[m],_width=100,depth=0,inflow=D:/CUA/Dropbox/LA Project/Data/Inflow_Corrected_New_Khiem .txt,diameter=2[m],x=-4505,y=130,_height=4450\n");
-    file.write("create block;type=junction_elastic,name=Junction_Elastic,elasticity=100,y=4683,elevation=-7[m],x=-1151,_width=200,_height=200\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
     file.write("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = -7[m], x = -1151, _width = 200, _height = 200\n");
     file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-4.2[m],ManningCoeff=0.011,end_elevation=-4.3[m],diameter=0.1[m],name=Side_Settling_Chamber - Sedimentation_Chamber,length=3[m]\n");
@@ -616,8 +610,8 @@ void DryWellDialog::On_Generate_Model()
     file.write("setasparameter; object= SCtwo, parametername= Manning_Sewer, quantity= ManningCoeff\n");
     file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
 #endif
-    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.3),observed_data=D:/CUA/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.3),observed_data=D:/CUA/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.3),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.3),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
 
 
     if (uniform)
