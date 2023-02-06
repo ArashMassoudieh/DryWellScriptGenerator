@@ -548,6 +548,8 @@ void DryWellDialog::On_Generate_Model()
 //testing stuff
 
 
+
+
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create block;type=fixed_head,Storage=100000[m~^3],name=GW,y=11100,head=-25.9[m],x=0,_width=3200,_height=100\n");
