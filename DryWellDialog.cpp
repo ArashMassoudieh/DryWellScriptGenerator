@@ -544,6 +544,7 @@ void DryWellDialog::On_Generate_Model()
     file.write("create link;from=SC6,to=Infiltration_Pond,type=sewer2pond,name=SC6 - Infiltration_Pond,end_elevation=0[m]\n");
 #endif
 
+
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
