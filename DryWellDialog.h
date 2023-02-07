@@ -10,7 +10,7 @@ struct GeomParams
     double pond_alpha_param = 86.061;
     double pond_beta_param = 2.766;
     double pond_radius=6;
-    double well_radious=1;
+    double well_radious=0.6;
     unsigned int nr=10;
     unsigned int n_layers=1;
     double well_depth=22;
@@ -22,6 +22,8 @@ struct GeomParams
     double Ks_factor=1;
     double dr_increase_factor = 1.2;
     bool log_dr_increase = false;
+    double pipe_top = -0.2; 
+    double pipe_bottom = -19.8; 
 };
 
 QT_BEGIN_NAMESPACE
