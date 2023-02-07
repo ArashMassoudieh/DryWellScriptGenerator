@@ -286,7 +286,7 @@ void DryWellDialog::On_Generate_Model()
     {
         file.write(QString("create block;type=Well_aggregate,y=" + QString::number(y_base + (LayerData.count()) * 300 / 2) + ",name=DryWell,x=" + QString::number(x_base) + ",depth= 0.5[m] ,bottom_elevation=" + QString::number(-GP.well_depth) + ",porosity = 0.4,diameter=" + QString::number(GP.well_radious * 2) + ",_width=100,_height=" + QString::number(300 * (lowest_shallow_layer - 1)/2 + 100) + "\n").toUtf8());
         file.write(QString("create block; type = Well, bottom_elevation = " + QString::number(-GP.settlingchamberdepth) + "[m], name = Sedimentation_Chamber, _height = " + QString::number(300 * (lowest_shallow_layer - 1) / 2 + 100) + ", diameter = " + QString::number(GP.well_radious * 2) + "[m], _width = 100, depth = 0, x = " + QString::number(x_base) + ", y = " + QString::number(y_base + (GP.n_layers - 1) * 300) + "\n").toUtf8());
-        file.write(QString("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=" + QString::number(-GP.settlingchamberdepth) + "[m],_width=100,depth=0,diameter=2[m],x=-4505,y=130,_height=4450\n").toUtf8());
+        file.write(QString("create block;type=Well,name=Side_Settling_Chamber,bottom_elevation=" + QString::number(-GP.side_settlingchamberdepth) + "[m],_width=100,depth=0,diameter=2[m],x=-4505,y=130,_height=4450\n").toUtf8());
     }
 
 
@@ -552,12 +552,12 @@ void DryWellDialog::On_Generate_Model()
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
-    file.write("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = -7[m], x = -1151, _width = 200, _height = 200\n");
-    file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-4.2[m],ManningCoeff=0.011,end_elevation=-4.3[m],diameter=0.1[m],name=Side_Settling_Chamber - Sedimentation_Chamber,length=3[m]\n");
+    file.write(QString("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = " + QString::number(GP.settlingchamberdepth)+"[m], x = -1151, _width = 200, _height = 200\n").toUtf8());
+    file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-3.9[m],ManningCoeff=0.011,end_elevation=-4.0[m],diameter=0.1[m],name=Side_Settling_Chamber - Sedimentation_Chamber,length=3[m]\n");
     file.write("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation=-0.2[m],ManningCoeff=0.011,end_elevation=-19.8[m],diameter=0.1[m],name=Sedimentation_Chamber - DryWell,length=19.6[m]\n");
     file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber - Junction_Elastic,Transmissivity=100[m~^3/day]\n");
     file.write("create link;from=Junction_Elastic,to=DryWell,type=darcy_connector,name=Junction_Elastic - DryWell,Transmissivity=100[m~^3/day]\n");
-    file.write("create link;from=Side_Settling_Chamber,to=Soil (15$5),type=darcy_connector,name=Side_Settling_Chamber - Soil,Transmissivity=100[m~^3/day]\n");
+    file.write("create link;from=Side_Settling_Chamber,to=Soil (10$5),type=darcy_connector,name=Side_Settling_Chamber - Soil,Transmissivity=100[m~^3/day]\n");
 
 #ifdef ModelCatchments
 //Observations
@@ -610,8 +610,8 @@ void DryWellDialog::On_Generate_Model()
     file.write("setasparameter; object= SCtwo, parametername= Manning_Sewer, quantity= ManningCoeff\n");
     file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
 #endif
-    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.3),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.3),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-3.1),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-7.8),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
 
 
     if (uniform)
