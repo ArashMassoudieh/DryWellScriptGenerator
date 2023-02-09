@@ -559,7 +559,7 @@ void DryWellDialog::On_Generate_Model()
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
     file.write(QString("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = " + QString::number(GP.settlingchamberdepth)+"[m], x = -1151, _width = 200, _height = 200\n").toUtf8());
     file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-3.9[m],ManningCoeff=0.011,end_elevation=-4.1[m],diameter=0.1[m],name=Side_Settling_Chamber - Sedimentation_Chamber,length=3[m]\n");
-    file.write("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation="+QString::number(GP.pipe_top)+"[m],ManningCoeff=0.011,end_elevation=" + QString::number(GP.pipe_bottom) + "[m],diameter=0.1[m],name=Sedimentation_Chamber - DryWell,length=19.6[m]\n");
+    file.write(QString("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation="+QString::number(GP.pipe_top)+"[m],ManningCoeff=0.011,end_elevation=" + QString::number(GP.pipe_bottom) + "[m],diameter=0.1[m],name=Sedimentation_Chamber - DryWell,length=19.6[m]\n").toUtf8());
     file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber - Junction_Elastic,Transmissivity=100[m~^3/day]\n");
     file.write("create link;from=Junction_Elastic,to=DryWell,type=darcy_connector,name=Junction_Elastic - DryWell,Transmissivity=100[m~^3/day]\n");
     file.write("create link;from=Side_Settling_Chamber,to=Soil (10$5),type=darcy_connector,name=Side_Settling_Chamber - Soil,Transmissivity=100[m~^3/day]\n");
