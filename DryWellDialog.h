@@ -9,21 +9,21 @@ struct GeomParams
 {
     double pond_alpha_param = 86.061;
     double pond_beta_param = 2.766;
-    double pond_radius=6;
-    double well_radious=0.6;
-    unsigned int nr=10;
-    unsigned int n_layers=1;
-    double well_depth=22;
-    double depth_to_gw=25.9;
+    double pond_radius = 6;
+    double well_radious = 0.6;
+    unsigned int nr = 10;
+    unsigned int n_layers = 1;
+    double well_depth = 14;
+    double depth_to_gw = 25.9;
     double pond_initial_depth = 0;
-    double settlingchamberdepth = 14;
-    double side_settlingchamberdepth = 5.4;
+    double settlingchamberdepth = 7.3;
+    double side_settlingchamberdepth = 7.3;
     unsigned int n_layer_deep = 1;
-    double Ks_factor=1;
+    double Ks_factor = 1;
     double dr_increase_factor = 1.2;
     bool log_dr_increase = false;
-    double pipe_top = -0.2; 
-    double pipe_bottom = -19.8; 
+    double pipe_top = -3.9; 
+    double pipe_bottom = -10.1; 
 };
 
 QT_BEGIN_NAMESPACE
