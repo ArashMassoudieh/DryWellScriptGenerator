@@ -115,7 +115,7 @@ void DryWellDialog::On_Generate_Model()
     double dy_deep = (GP.depth_to_gw - GP.well_depth) / double(GP.n_layer_deep);
     // Create pond
     //file.write(QString("// ***** Pond ***** //\n").toUtf8());
-    //file.write(QString("create block;type=Pond,y=" + QString::number(y_base) + ",name=Infiltration_Pond,x=" + QString::number(x_base) + ",bottom_elevation=0,alpha=" + QString::number(GP.pond_alpha_param) + ",_width=200,_height=200,beta=" + QString::number(GP.pond_beta_param) + ",Storage=" + QString::number(GP.pond_alpha_param * pow(GP.pond_initial_depth, GP.pond_beta_param)) + ",Precipitation=\n").toUtf8());
+    //file.write(QString("create block;type=Pond,y=" + QString::number(y_base) + ",name=Infiltration_Pond,x=" + QString::number(x_base) + ",bottom_elevation=0,alpha=" + QString::number(GP.pond_alpha_param) + ",_width=200,_height=200,=" + QString::number(GP.pond_beta_param) + ",Storage=" + QString::number(GP.pond_alpha_param * pow(GP.pond_initial_depth, GP.pond_beta_param)) + ",Precipitation=\n").toUtf8());
 
     // Create soil blocks adjacent to well
     file.write(QString("// ***** Soil blocks adjacent to the well ***** //\n").toUtf8());
@@ -143,7 +143,7 @@ void DryWellDialog::On_Generate_Model()
                     r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                 }
                 double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
-                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=200,alpha=1,name=Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy * (layer + 1)) + ",depth=" + QString::number(dy) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy * (layer + 0.5)) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=200,alpha=1,name=Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy * (layer + 1)) + ",depth=" + QString::number(dy) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy * (layer + 0.5)) + "\n").toUtf8());
             }
         }
     }
@@ -191,7 +191,7 @@ void DryWellDialog::On_Generate_Model()
                         r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                     }
                     double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
-                    file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=" + Evap_object + ",n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elev) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elev + depth / 2) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+                    file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=" + Evap_object + ",n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elev) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elev + depth / 2) + "\n").toUtf8());
                 }
             }
         }
@@ -220,7 +220,7 @@ void DryWellDialog::On_Generate_Model()
                     r_out = GP.well_radious + dr * (pow(GP.dr_increase_factor, r + 1) - 1) / (GP.dr_increase_factor - 1);
                 }
                 double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
-                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=200,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=200,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + "\n").toUtf8());
             }
         file.write(QString("// ***** Soil Blocks underneath the well ***** //\n").toUtf8());
         for (unsigned int layer = 0; layer < GP.n_layer_deep; layer++)
@@ -229,7 +229,7 @@ void DryWellDialog::On_Generate_Model()
             double r_in = 0;
             double r_out = GP.well_radious;
             double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
-            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(1) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(-dy_deep * (layer + 1) - GP.well_depth) + ",depth=" + QString::number(dy_deep) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(-dy_deep * (layer + 0.5) - GP.well_depth) + "\n").toUtf8());
         }
     }
     else
@@ -260,7 +260,7 @@ void DryWellDialog::On_Generate_Model()
                 {
                     depth = depth - (GP.well_depth + lowest_shallow_depth);
                 }
-                file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil_deep (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=200,alpha=" + LayerData[layer][2] + ",name=Soil_deep (" + QString::number(layer) + "$" + QString::number(r + 1) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + "\n").toUtf8());
             }
         }
         double bottom_elevation = lowest_shallow_depth;
@@ -277,7 +277,7 @@ void DryWellDialog::On_Generate_Model()
             double r_in = 0;
             double r_out = GP.well_radious;
             double area = 3.1415 * (pow(r_out, 2) - pow(r_in, 2));
-            file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + ",MC_to_EC_intercept=beta,MC_to_EC_coefficient=alpha\n").toUtf8());
+            file.write(QString("create block;type=Soil,theta_sat=" + LayerData[layer][4] + ",theta_res=" + LayerData[layer][5] + ",specific_storage=0.01,x=" + QString::number(0) + ",Evapotranspiration=,n=" + LayerData[layer][3] + ",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=" + QString::number(LayerData[layer][1].toDouble() * GP.Ks_factor) + ",_width=100,alpha=1,name=Soil_deep (" + QString::number(layer) + "$" + QString::number(0) + "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(depth) + ",actual_x=" + QString::number(0.5 * (r_in + r_out)) + ",actual_y=" + QString::number(bottom_elevation + depth / 2) + "\n").toUtf8());
         }
 
     }
@@ -620,15 +620,14 @@ void DryWellDialog::On_Generate_Model()
     file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-3.1),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-7.8),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
 
-    //file.write(QString("setasparameter; object= Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= beta, quantity= MC_to_EC_intercept\n").toUtf8());
-    //file.write(QString("setasparameter; object= Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
-
-    if (uniform)
+    
+     if (uniform)
     {   for (unsigned int r = 0; r<GP.nr; r++)
         {   for (unsigned int layer=0; layer<GP.n_layers; layer++)
             {
                 file.write(QString("setasparameter; object= Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
-                
+                file.write(QString("setasparameter; object= Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= beta, quantity= MC_to_EC_exponent,\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
             }
         }
     }
@@ -639,6 +638,8 @@ void DryWellDialog::On_Generate_Model()
             for (unsigned int layer=1; layer<=lowest_shallow_layer; layer++)
             {
                 file.write(QString("setasparameter; object= Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil (" + QString::number(layer) + "$" + QString::number(r + 1) + "), parametername= beta, quantity= MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil (" + QString::number(layer) + "$" + QString::number(r + 1) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
             }
         }
 
@@ -648,12 +649,16 @@ void DryWellDialog::On_Generate_Model()
             for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
             {
                 file.write(QString("setasparameter; object= Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= beta, quantity= MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(r + 1) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
             }
 
         for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
         {
 
             file.write(QString("setasparameter; object= Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
+            file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(0) + "), parametername= beta, quantity= MC_to_EC_exponent\n").toUtf8());
+            file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer + 1) + "$" + QString::number(0) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
         }
     }
     else
@@ -663,12 +668,16 @@ void DryWellDialog::On_Generate_Model()
             for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
             {
                 file.write(QString("setasparameter; object= Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer) + "$" + QString::number(r + 1) + "), parametername= beta, quantity= MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer) + "$" + QString::number(r + 1) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
             }
         }
 
         for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
         {
             file.write(QString("setasparameter; object= Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"), parametername= Ks_scale, quantity= K_sat_scale_factor\n").toUtf8());
+            file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer) + "$" + QString::number(0) + "), parametername= beta, quantity= MC_to_EC_exponent\n").toUtf8());
+            file.write(QString("setasparameter; object= Soil_deep (" + QString::number(layer) + "$" + QString::number(0) + "), parametername= alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
         }
     }
     file.close();

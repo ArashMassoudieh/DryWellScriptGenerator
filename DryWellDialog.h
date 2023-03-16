@@ -10,7 +10,7 @@ struct GeomParams
     double pond_alpha_param = 86.061;
     double pond_beta_param = 2.766;
     double pond_radius = 6;
-    double well_radious = 0.6;
+    double well_radious = 0.381;
     unsigned int nr = 10;
     unsigned int n_layers = 1;
     double well_depth = 14;
