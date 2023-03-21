@@ -100,10 +100,11 @@ void ImportMoistureData::on_export_timeseries()
     CPoint point;
     point.setx(ui->center_X->text().toDouble());
     point.sety(ui->center_y->text().toDouble());
+    double initial_time = 44436.5;
     for (int i=0; i<snapshots.size(); i++)
     {
         CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
-        out.append(cylendical_points.KernelSmoothValue(point,span));
+        out.append(initial_time + cylendical_points.hrs/24.0 , cylendical_points.KernelSmoothValue(point,span));
     }
     out.writefile(fileName.toStdString());
     QMessageBox msgBox;
