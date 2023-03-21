@@ -96,13 +96,15 @@ void DryWellDialog::On_Generate_Model()
     file.write("create block;type=Pond,inflow=D:/CUA/Dropbox/LA Project/Data/Inflow_corrected_Arash.txt,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n");
 
 #ifndef Brett
-    file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
-    file.write("create parameter;type=Parameter,prior_distribution=,value=0.2,name=Manning_Catchment,high=1,low=0.01\n");
-    file.write("create parameter;type=Parameter,prior_distribution=,value=0.1,name=Manning_Sewer,high=1,low=0.01\n");
+    //file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
+    //file.write("create parameter;type=Parameter,prior_distribution=,value=0.2,name=Manning_Catchment,high=1,low=0.01\n");
+    //file.write("create parameter;type=Parameter,prior_distribution=,value=0.1,name=Manning_Sewer,high=1,low=0.01\n");
 #endif
     file.write("create parameter;type=Parameter,value=1,prior_distribution=normal,name=Ks_scale,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n");
     file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=beta,low=0.00001,high=10\n");
+    file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n");
+    file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n");
     double x_base = 0;
     double y_base = 0;
     double dr;
@@ -559,12 +561,15 @@ void DryWellDialog::On_Generate_Model()
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
-    file.write(QString("create block;type = junction_elastic, name = Junction_Elastic, elasticity = 100, y = 4683, elevation = " + QString::number(GP.settlingchamberdepth)+"[m], x = -1151, _width = 200, _height = 200\n").toUtf8());
-    file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-3.9[m],ManningCoeff=0.011,end_elevation=-4.1[m],diameter=0.1[m],name=Side_Settling_Chamber - Sedimentation_Chamber,length=3[m]\n");
-    file.write(QString("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation="+QString::number(GP.pipe_top)+"[m],ManningCoeff=0.011,end_elevation=" + QString::number(GP.pipe_bottom) + "[m],diameter=0.1[m],name=Sedimentation_Chamber - DryWell,length=19.6[m]\n").toUtf8());
-    file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber - Junction_Elastic,Transmissivity=100[m~^3/day]\n");
-    file.write("create link;from=Junction_Elastic,to=DryWell,type=darcy_connector,name=Junction_Elastic - DryWell,Transmissivity=100[m~^3/day]\n");
-    file.write("create link;from=Side_Settling_Chamber,to=Soil (15$5),type=darcy_connector,name=Side_Settling_Chamber - Soil,Transmissivity=100[m~^3/day]\n");
+    file.write(QString("create block;type=junction_elastic,name=Junction_Elastic,elasticity=100,y=4683,elevation="+QString::number(GP.settlingchamberdepth)+"[m],x=-1151,_width=200,_height=200\n").toUtf8());
+    file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-3.9[m],ManningCoeff=0.011,end_elevation=-4.1[m],diameter=0.1[m],name=Side_Settling_Chamber-Sedimentation_Chamber,length=3[m]\n");
+    file.write(QString("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation="+QString::number(GP.pipe_top)+"[m],ManningCoeff=0.011,end_elevation="+QString::number(GP.pipe_bottom)+"[m],diameter=0.1[m],name=Sedimentation_Chamber-DryWell,length=19.6[m]\n").toUtf8());
+    file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber-Junction_Elastic,Transmissivity=100[m~^3/day]\n");
+    file.write("create link;from=Junction_Elastic,to=DryWell,type=darcy_connector,name=Junction_Elastic-DryWell,Transmissivity=100[m~^3/day]\n");
+    file.write("create link;from=Side_Settling_Chamber,to=Soil (15$5),type=darcy_connector,name=Side_Settling_Chamber-Soil,Transmissivity=100[m~^3/day]\n");
+    file.write("setasparameter;object=Sedimentation_Chamber-Junction_Elastic,parametername=Transmissivity_Coeff_Drywell,quantity= Transmissivity\n");
+    file.write("setasparameter;object=Junction_Elastic-DryWell,parametername=Transmissivity_Coeff_Drywell,quantity=Transmissivity\n");
+    file.write("setasparameter;object= Side_Settling_Chamber-Soil,parametername=Transmissivity_Coeff_Sed_Chamber,quantity=Transmissivity\n");
 
 #ifdef ModelCatchments
 //Observations
