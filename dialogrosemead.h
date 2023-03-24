@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+enum columns {Depth,K_sat,alpha,n,theta_s,theta_r};
+
 namespace Ui {
 class DialogRoseMead;
 }
@@ -17,9 +19,13 @@ public:
 
 private:
     Ui::DialogRoseMead *ui;
+    QList<QStringList> LayerData;
 
 public slots:
-    void On_File_Select();
+    void On_ReadLayer_Info();
+    void accept();
+
+
 };
 
 #endif // DIALOGROSEMEAD_H

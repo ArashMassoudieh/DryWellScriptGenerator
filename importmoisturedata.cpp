@@ -31,7 +31,8 @@ void ImportMoistureData::on_choosefolder()
 
     QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
     foreach(QString filename, csvs) {
-        CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
+        //CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
+        CPointSet<CPoint3d> points((dir+"/"+filename).toStdString());
         snapshots.push_back(points);
     }
 
@@ -54,6 +55,7 @@ void ImportMoistureData::on_exporttoParaview()
     for (int i=0; i<snapshots.size(); i++)
     {
         snapshots[i].WriteToPointsVtp(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp",limits);
+        snapshots[i].WriteToVtp3D(dir.toStdString()+"/Mesh_"+aquiutils::numbertostring(i+1)+".vtu");
     }
     QMessageBox msgBox;
     msgBox.setText("Export completed!");
@@ -104,7 +106,9 @@ void ImportMoistureData::on_export_timeseries()
     for (int i=0; i<snapshots.size(); i++)
     {
         CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
-        out.append(initial_time + cylendical_points.hrs/24.0 , cylendical_points.KernelSmoothValue(point,span));
+        //out.append(initial_time + cylendical_points.hrs/24.0 , cylendical_points.KernelSmoothValue(point,span));
+        out.append(initial_time + 1/24.0 , cylendical_points.KernelSmoothValue(point,span));
+
     }
     out.writefile(fileName.toStdString());
     QMessageBox msgBox;
