@@ -34,6 +34,7 @@ SOURCES += \
     ../Utilities/cpoint.cpp \
     ../Utilities/cpoint3d.cpp \
     DryWellDialog.cpp \
+    dialogrosemead.cpp \
     importmoisturedata.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -56,6 +57,7 @@ HEADERS += \
     ../Utilities/cpoint3d.h \
     ../Utilities/cpointset.hpp \
     ../Utilities/utilities.h \
+    dialogrosemead.h \
     importmoisturedata.h \
     mainwindow.h \
     DryWellDialog.h \
@@ -81,6 +83,7 @@ use_VTK {
 
 FORMS += \
     DryWellDialog.ui \
+    dialogrosemead.ui \
     importmoisturedata.ui \
     mainwindow.ui \
     postprocess.ui
