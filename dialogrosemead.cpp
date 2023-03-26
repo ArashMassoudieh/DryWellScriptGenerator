@@ -66,16 +66,16 @@ void DialogRoseMead::accept()
         double y=layer*200;
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
         if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.2,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=10,_width=200,alpha=1,name=EnginneredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+            file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.2,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=10,_width=150,alpha=1,name=EnginneredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
 
     }
-    //Left side
+    //Top Left side
     bottom_elevation = 0;
     for (int layer=0; layer<LayerData.size();layer++)
     {
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         double y=layer*200;
-        double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble();
+        double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble()/double(ui->spinBoxLateralCells->value());
 
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
@@ -85,8 +85,105 @@ void DialogRoseMead::accept()
         }
     }
 
+    //Top Right side
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        double y=layer*200;
+        double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble()/double(ui->spinBoxLateralCells->value());
+
+        for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
+        {
+            x = -200*(column+1);
+            if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=RightTop (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+        }
+    }
+
+    //UnderneathEngineered soil
+    x=0;
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        double y=layer*200;
+        double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
+        if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
+            file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=UEngineered (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+    }
+
+    //Bottom Left side
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        double y=layer*200;
+        double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble()/double(ui->spinBoxLateralCells->value());
+
+        for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
+        {
+            x = 200*(column+1);
+            if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+        }
+    }
+
+    //Bottom Right side
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        double y=layer*200;
+        double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble()/double(ui->spinBoxLateralCells->value());
+
+        for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
+        {
+            x = -200*(column+1);
+            if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+        }
+    }
+
+    //vertical Eng soil connector
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        if (bottom_elevation - LayerData[layer+1][Depth].toDouble() >=-ui->lineEditBioSwaleDepth->text().toDouble())
+            file.write(QString("create link;from=EnginneredSoil ("+QString::number(layer+1)+"),to=EnginneredSoil ("+QString::number(layer+2)+"),type=soil_to_soil_link,name=EnginneredSoil_V ("+QString::number(layer+1)+")\n").toUtf8());
+        else
+            break;
+    }
+
+    //engineered to left
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        double length = ui->lineEditBioSwaleWidth->text().toDouble()/2.0 + (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/double(ui->spinBoxLateralCells->value())/4.0;
+        double area = LayerData[layer][Depth].toDouble()*ui->lineEditLenght->text().toDouble();
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        if (bottom_elevation >=-ui->lineEditBioSwaleDepth->text().toDouble())
+            file.write(QString("create link;from=EnginneredSoil ("+QString::number(layer+1)+"),to=LeftTop ("+QString::number(layer+1)+"$1),type=soil_to_soil_H_link,name=EnginneredSoil-LeftTop ("+QString::number(layer+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2])\n").toUtf8());
+        else
+            break;
+    }
+
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        double length = ui->lineEditBioSwaleWidth->text().toDouble()/2.0 + (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/double(ui->spinBoxLateralCells->value())/4.0;
+        double area = LayerData[layer][Depth].toDouble()*ui->lineEditLenght->text().toDouble();
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        if (bottom_elevation >=-ui->lineEditBioSwaleDepth->text().toDouble())
+            file.write(QString("create link;from=EnginneredSoil ("+QString::number(layer+1)+"),to=RightTop ("+QString::number(layer+1)+"$1),type=soil_to_soil_H_link,name=EnginneredSoil-RightTop ("+QString::number(layer+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2])\n").toUtf8());
+        else
+            break;
+    }
 
 
+    //"create link;from=EnginneredSoil (1),to=EnginneredSoil (2),type=soil_to_soil_link,name=EnginneredSoil (1) - EnginneredSoil (2)
+    //"create link;from=EnginneredSoil (1),to=LeftTop (1$1),type=soil_to_soil_H_link,name=EnginneredSoil (1) - LeftTop (1$1),length=0[m],area=0[m~^2]"
 
     file.close();
 }
@@ -108,6 +205,7 @@ void DialogRoseMead::On_ReadLayer_Info()
     QTextStream in(&inputfile);
     //QString line = in.readLine();
 
+    QStringList headers = in.readLine().split(",");
     while (!in.atEnd())
        {
             LayerData.append(in.readLine().split(","));
@@ -121,7 +219,7 @@ void DialogRoseMead::On_ReadLayer_Info()
     }
 
     for (unsigned int j=0; j<LayerData[0].count(); j++)
-    {   QTableWidgetItem *tableitem = new QTableWidgetItem(LayerData[0][j]);
+    {   QTableWidgetItem *tableitem = new QTableWidgetItem(headers[j]);
         ui->tableWidget->setHorizontalHeaderItem(j,tableitem);
     }
 
