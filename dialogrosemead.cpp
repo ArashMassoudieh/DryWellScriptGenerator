@@ -169,6 +169,7 @@ void DialogRoseMead::accept()
             break;
     }
 
+    //engineered to right
     bottom_elevation = 0;
     for (int layer=0; layer<LayerData.size();layer++)
     {
@@ -179,11 +180,43 @@ void DialogRoseMead::accept()
             file.write(QString("create link;from=EnginneredSoil ("+QString::number(layer+1)+"),to=RightTop ("+QString::number(layer+1)+"$1),type=soil_to_soil_H_link,name=EnginneredSoil-RightTop ("+QString::number(layer+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2])\n").toUtf8());
         else
             break;
+
+    }
+
+    //left to left - H
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        double length = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/double(ui->spinBoxLateralCells->value())/2.0;
+        double area = LayerData[layer][Depth].toDouble()*ui->lineEditLenght->text().toDouble();
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        if (bottom_elevation >=-ui->lineEditBioSwaleDepth->text().toDouble())
+        {
+            for (int column=0;column<ui->spinBoxLateralCells->text().toInt()-1; column++)
+                file.write(QString("create link;from=LeftTop ("+QString::number(layer+1)+"$" +QString::number(column+1) + "),to=LeftTop ("+QString::number(layer+1)+"$" +QString::number(column+2) + "),type=soil_to_soil_H_link,name=LeftTopH ("+QString::number(layer+1)+"$"+QString::number(column+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2])\n").toUtf8());
+        }
+        else
+            break;
+    }
+
+    //right to right - H
+    bottom_elevation = 0;
+    for (int layer=0; layer<LayerData.size();layer++)
+    {
+        double length = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/double(ui->spinBoxLateralCells->value())/2.0;
+        double area = LayerData[layer][Depth].toDouble()*ui->lineEditLenght->text().toDouble();
+        bottom_elevation -= LayerData[layer][Depth].toDouble();
+        if (bottom_elevation >=-ui->lineEditBioSwaleDepth->text().toDouble())
+        {
+            for (int column=0;column<ui->spinBoxLateralCells->text().toInt()-1; column++)
+                file.write(QString("create link;from=RightTop ("+QString::number(layer+1)+"$" +QString::number(column+1) + "),to=RightTop ("+QString::number(layer+1)+"$" +QString::number(column+2) + "),type=soil_to_soil_H_link,name=RoghtTopH ("+QString::number(layer+1)+"$"+QString::number(column+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2])\n").toUtf8());
+        }
+        else
+            break;
     }
 
 
-    //"create link;from=EnginneredSoil (1),to=EnginneredSoil (2),type=soil_to_soil_link,name=EnginneredSoil (1) - EnginneredSoil (2)
-    //"create link;from=EnginneredSoil (1),to=LeftTop (1$1),type=soil_to_soil_H_link,name=EnginneredSoil (1) - LeftTop (1$1),length=0[m],area=0[m~^2]"
+
 
     file.close();
 }
