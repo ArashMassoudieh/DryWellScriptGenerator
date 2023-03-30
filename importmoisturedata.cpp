@@ -31,8 +31,8 @@ void ImportMoistureData::on_choosefolder()
 
     QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
     foreach(QString filename, csvs) {
-        //CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
-        CPointSet<CPoint3d> points((dir+"/"+filename).toStdString());
+        CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
+        //CPointSet<CPoint3d> points((dir+"/"+filename).toStdString());
         snapshots.push_back(points);
     }
 
