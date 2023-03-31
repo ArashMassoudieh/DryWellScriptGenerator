@@ -89,6 +89,9 @@
     <ClCompile Include="..\Utilities\cpoint3d.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="dialogrosemead.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Utilities\BTC.h">
@@ -166,12 +169,18 @@
     <QtUic Include="importmoisturedata.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtUic Include="dialogrosemead.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="mainwindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="importmoisturedata.h">
+      <Filter>Generated Files</Filter>
+    </QtMoc>
+    <QtMoc Include="dialogrosemead.h">
       <Filter>Generated Files</Filter>
     </QtMoc>
   </ItemGroup>

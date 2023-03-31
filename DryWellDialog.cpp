@@ -104,9 +104,15 @@ void DryWellDialog::On_Generate_Model()
     file.write("create parameter;type=Parameter,value=0.25,prior_distribution=normal,name=Ks_1,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=1.06,prior_distribution=normal,name=Ks_2,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.03,prior_distribution=normal,name=Ks_3,low=0.1,high=10\n");
-    file.write("create parameter;type=Parameter,value=0.05,prior_distribution=normal,name=Ks_4,low=0.1,high=10\n");
-    file.write("create parameter;type=Parameter,value=0.11,prior_distribution=normal,name=Ks_5,low=0.1,high=10\n");
-    file.write("create parameter;type=Parameter,value=0.31,prior_distribution=normal,name=Ks_6,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.25,prior_distribution=normal,name=Ks_4,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.03,prior_distribution=normal,name=Ks_5,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.05,prior_distribution=normal,name=Ks_6,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.03,prior_distribution=normal,name=Ks_7,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.25,prior_distribution=normal,name=Ks_8,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.11,prior_distribution=normal,name=Ks_9,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.03,prior_distribution=normal,name=Ks_10,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.11,prior_distribution=normal,name=Ks_11,low=0.1,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.31,prior_distribution=normal,name=Ks_12,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n");
     file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=beta,low=0.00001,high=10\n");
     file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n");
@@ -639,19 +645,19 @@ void DryWellDialog::On_Generate_Model()
     file.write("create observation;type=Observation,object=Soil(33$7),name=Soil_4_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_115.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil(29$7),name=Soil_4_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_120.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil(26$7),name=Soil_4_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_125.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(20$7),name=Soil_4_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil(20$7),nafme=Soil_4_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil(10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil(8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n");
    
-    vector<int> layer_parameter = { 1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,1,1,1,3,4,4,3,1,5,3,5,6 };
-    vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6"};
+    vector<int> layer_parameter = { 1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,5,6,6,7,8,9,10,11,12 };
+    vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6","Ks_7","Ks_8","Ks_9","Ks_10","Ks_11","Ks_12" };
     if (uniform)
     {   for (unsigned int r = 0; r<GP.nr; r++)
         {   for (unsigned int layer=0; layer<GP.n_layers; layer++)
             {
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent,\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent,\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
             }
         }
     }
@@ -661,9 +667,9 @@ void DryWellDialog::On_Generate_Model()
         {
             for (unsigned int layer=1; layer<=lowest_shallow_layer; layer++)
             {
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity=K_sat_scale_factor\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity=K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
             }
         }
 
@@ -672,17 +678,17 @@ void DryWellDialog::On_Generate_Model()
     {   for (unsigned int r = 0; r<GP.nr; r++)
             for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
             {
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
             }
 
         for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
         {
 
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=" + QString::fromStdString(K_Parameter_Names[layer_parameter[layer - 1] - 1]) + ",quantity=K_sat_scale_factor\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
         }
     }
     else
@@ -691,17 +697,17 @@ void DryWellDialog::On_Generate_Model()
         {
             for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
             {
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity= K_sat_scale_factor\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
-                file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
             }
         }
 
         for (unsigned int layer=lowest_shallow_layer; layer<LayerData.count(); layer++)
         {
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(0)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
-            file.write(QString("setasparameter;object=Soil_deep("+QString::number(layer)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=" + QString::fromStdString(K_Parameter_Names[layer_parameter[layer - 1] - 1]) + ",quantity=K_sat_scale_factor\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
         }
     }
     file.close();

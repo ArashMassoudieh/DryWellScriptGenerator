@@ -199,6 +199,7 @@
     <ClCompile Include="..\Utilities\NormalDist.cpp" />
     <ClCompile Include="..\Utilities\QuickSort.cpp" />
     <ClCompile Include="..\Utilities\Vector.cpp" />
+    <ClCompile Include="dialogrosemead.cpp" />
     <ClCompile Include="importmoisturedata.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DryWellDialog.cpp" />
@@ -220,6 +221,7 @@
     <ClInclude Include="..\Utilities\QuickSort.h" />
     <QtMoc Include="mainwindow.h" />
     <QtMoc Include="importmoisturedata.h" />
+    <QtMoc Include="dialogrosemead.h" />
     <ClInclude Include="VTK.h" />
     <ClInclude Include="..\Utilities\Vector.h" />
     <QtMoc Include="DryWellDialog.h">
@@ -251,6 +253,7 @@
     <None Include="DryWellScriptGenerator_en_US.ts" />
   </ItemGroup>
   <ItemGroup>
+    <QtUic Include="dialogrosemead.ui" />
     <QtUic Include="DryWellDialog.ui">
     </QtUic>
     <QtUic Include="importmoisturedata.ui" />
