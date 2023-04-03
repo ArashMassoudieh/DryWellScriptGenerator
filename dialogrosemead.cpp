@@ -55,8 +55,11 @@ void DialogRoseMead::accept()
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
 
 
-
-
+    //Catchment
+    {
+        double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
+        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow_timeseries=,Slope=0.02,Width="+ui->lineEditBioSwaleWidth->text()+"[m],y=-200,area="+QString::number(area)+"[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").toUtf8());
+    }
     //Engineered soil
     double x=0;
     int lowest_up;
@@ -149,6 +152,8 @@ void DialogRoseMead::accept()
         }
     }
 
+    file.write(QString("create link;from=Catchment (1),to=EngineeredSoil (1),type=surfacewater_to_soil_link,name=Catchment (1) - EngineeredSoil (1)\n").toUtf8());
+
     //vertical Eng soil connector
     bottom_elevation = 0;
     for (int layer=0; layer<LayerData.size();layer++)
@@ -186,6 +191,8 @@ void DialogRoseMead::accept()
             break;
 
     }
+
+
 
     //left to left - H
     bottom_elevation = 0;
