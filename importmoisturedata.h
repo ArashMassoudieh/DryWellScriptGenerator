@@ -16,6 +16,9 @@ public:
     explicit ImportMoistureData(QWidget *parent = nullptr);
     ~ImportMoistureData();
     vector<CPointSet<CPoint3d>> snapshots;
+    enum class _mode {radial, rectangular} mode;
+    void SetMode(_mode Mode);
+    QString ScheduleFileName;
 private:
     Ui::ImportMoistureData *ui;
 

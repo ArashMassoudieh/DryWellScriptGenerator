@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuCreate_Model">
@@ -35,6 +35,7 @@
      <string>Import</string>
     </property>
     <addaction name="actionImport_Moisture_Data"/>
+    <addaction name="actionImport_Moisture_Data_Rosemead"/>
    </widget>
    <addaction name="menuCreate_Model"/>
    <addaction name="menuImport"/>
@@ -53,6 +54,11 @@
   <action name="actionImport_Moisture_Data">
    <property name="text">
     <string>Import Moisture Data</string>
+   </property>
+  </action>
+  <action name="actionImport_Moisture_Data_Rosemead">
+   <property name="text">
+    <string>Import Moisture Data (Rosemead)</string>
    </property>
   </action>
  </widget>

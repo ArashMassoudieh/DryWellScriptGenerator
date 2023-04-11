@@ -15,6 +15,12 @@ ImportMoistureData::ImportMoistureData(QWidget *parent) :
     connect(ui->pushButtonExportTimeSeries, SIGNAL(clicked()),this, SLOT(on_export_timeseries()));
 }
 
+void ImportMoistureData::SetMode(_mode Mode)
+{
+    mode = Mode;
+    ui->Export_Radial_coordinate->setText("Export 2D mapped");
+}
+
 ImportMoistureData::~ImportMoistureData()
 {
     delete ui;
@@ -30,10 +36,23 @@ void ImportMoistureData::on_choosefolder()
     QDir directory(dir);
 
     QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
-    foreach(QString filename, csvs) {
-        CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
-        //CPointSet<CPoint3d> points((dir+"/"+filename).toStdString());
-        snapshots.push_back(points);
+    if (mode==_mode::radial)
+    {   foreach(QString filename, csvs) {
+            CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
+            snapshots.push_back(points);
+        }
+    }
+    else if (mode==_mode::rectangular)
+    {
+        vector<int> xyzval;
+        xyzval.push_back(1); xyzval.push_back(2); xyzval.push_back(3); xyzval.push_back(5);
+        ifstream SchedFile(ScheduleFileName.toStdString());
+        foreach(QString filename, csvs) {
+            vector<string> schedline = aquiutils::getline(SchedFile);
+            CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),xyzval);
+            points.hrs = aquiutils::atof(schedline[0]);
+            snapshots.push_back(points);
+        }
     }
 
     QMessageBox msgBox;
@@ -73,14 +92,25 @@ void ImportMoistureData::on_exportRadialtoParaview()
     CPointSet<CPoint3d> range3d = snapshots[0].Range();
     CPointSet<CPoint> mapped_to_cylendrical = snapshots[0].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
     CPointSet<CPoint> range2d = mapped_to_cylendrical.Range();
-    vector<double> span = {0.5, 0.5};
+    vector<double> span = {0.5, 0.2};
 
     for (int i=0; i<snapshots.size(); i++)
     {
-        CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
-        CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(2,5,span);
+        if (mode == _mode::radial)
+        {   CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
+            CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(2,5,span);
 
-        cylendical_points_kernel_smooth.WriteToVtp2D(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp");
+            cylendical_points_kernel_smooth.WriteToVtp2D(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp");
+        }
+        if (mode == _mode::rectangular)
+        {
+            CPointSet<CPoint> cylendical_points = snapshots[i].MapTo2DV();
+            CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(1,1,span,true);
+            cylendical_points_kernel_smooth.WriteToVtp2D(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp");
+            CPointSet<CPoint> cylendical_points_long = snapshots[i].MapTo2DV(true);
+            CPointSet<CPoint> cylendical_points_kernel_smooth_long = cylendical_points_long.MapToGrid(1,1,span,true);
+            cylendical_points_kernel_smooth_long.WriteToVtp2D(dir.toStdString()+"/MC_long"+aquiutils::numbertostring(i+1)+".vtp");
+        }
     }
     QMessageBox msgBox;
     msgBox.setText("Export completed!");
