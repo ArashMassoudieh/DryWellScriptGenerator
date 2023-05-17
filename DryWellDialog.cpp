@@ -113,8 +113,8 @@ void DryWellDialog::On_Generate_Model()
     file.write("create parameter;type=Parameter,value=0.03,prior_distribution=normal,name=Ks_10,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.11,prior_distribution=normal,name=Ks_11,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.31,prior_distribution=normal,name=Ks_12,low=0.1,high=10\n");
-    file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n");
-    file.write("create parameter;type=Parameter,value=0.01,prior_distribution=log-normal,name=beta,low=0.00001,high=10\n");
+    file.write("create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n");
+    file.write("create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=beta,low=0.5,high=5\n");
     file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n");
     file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n");
     double x_base = 0;
@@ -573,7 +573,7 @@ void DryWellDialog::On_Generate_Model()
 //DS boundary & link
     file.write("create block;type=fixed_head,_height=200,_width=200,y=-526,Storage=100000[m~^3],head=0[m],name=Downstream_Boundary,x=821\n");
     file.write("create link;from=Infiltration_Pond,to=Downstream_Boundary,type=wier,name=weir,alpha=392619,beta=2.995,crest_elevation=1.914[m]\n");
-    file.write(QString("create block;type=junction_elastic,name=Junction_Elastic,elasticity=100,y=4683,elevation="+QString::number(GP.settlingchamberdepth)+"[m],x=-1151,_width=200,_height=200\n").toUtf8());
+    file.write(QString("create block;type=junction_elastic,name=Junction_Elastic,elasticity=100,y=4683,elevation="+QString::number(-GP.settlingchamberdepth)+"[m],x=-1151,_width=200,_height=200\n").toUtf8());
     file.write("create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=Sewer_pipe,start_elevation=-3.9[m],ManningCoeff=0.011,end_elevation=-4.1[m],diameter=0.1[m],name=Side_Settling_Chamber-Sedimentation_Chamber,length=3[m]\n");
     file.write(QString("create link;from=Sedimentation_Chamber,to=DryWell,type=Sewer_pipe,start_elevation="+QString::number(GP.pipe_top)+"[m],ManningCoeff=0.011,end_elevation="+QString::number(GP.pipe_bottom)+"[m],diameter=0.1[m],name=Sedimentation_Chamber-DryWell,length=19.6[m]\n").toUtf8());
     file.write("create link;from=Sedimentation_Chamber,to=Junction_Elastic,type=darcy_connector,name=Sedimentation_Chamber-Junction_Elastic,Transmissivity=100[m~^3/day]\n");
@@ -636,18 +636,18 @@ void DryWellDialog::On_Generate_Model()
 #endif
     file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(33$4),name=Soil_2_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_115.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(26$4),name=Soil_2_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_125.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(20$4),name=Soil_2_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_130.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(10$4),name=Soil_2_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_135.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(8$4),name=Soil_2_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_136.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(33$7),name=Soil_4_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_115.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(29$7),name=Soil_4_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_120.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(26$7),name=Soil_4_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_125.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(20$7),nafme=Soil_4_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil(8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (33$4),name=Soil_2_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_115.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (26$4),name=Soil_2_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_125.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (20$4),name=Soil_2_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_130.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (10$4),name=Soil_2_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_135.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (8$4),name=Soil_2_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_136.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (33$7),name=Soil_4_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_115.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (29$7),name=Soil_4_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_120.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (26$7),name=Soil_4_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_125.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (20$7),nafme=Soil_4_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Soil (8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n");
    
     vector<int> layer_parameter = { 1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,5,6,6,7,8,9,10,11,12 };
     vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6","Ks_7","Ks_8","Ks_9","Ks_10","Ks_11","Ks_12" };

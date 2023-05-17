@@ -13,7 +13,7 @@ struct GeomParams
     double well_radious = 0.381;
     unsigned int nr = 10;
     unsigned int n_layers = 1;
-    double well_depth = 14;
+    double well_depth = 20;
     double depth_to_gw = 25.9;
     double pond_initial_depth = 0;
     double settlingchamberdepth = 7.3;
