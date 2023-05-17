@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionDrwWell, SIGNAL(triggered()), this, SLOT(on_ActionDryWell()));
     connect(ui->actionBioswale,SIGNAL(triggered()), this, SLOT(on_ActionBioSwale()));
     connect(ui->actionImport_Moisture_Data, SIGNAL(triggered()), this, SLOT(on_ActionImport()));
+    connect(ui->actionImport_Moisture_Data_Rosemead, SIGNAL(triggered()), this, SLOT(on_ActionImport_Rosemead()));
 
 
 }
@@ -37,5 +38,13 @@ void MainWindow::on_ActionBioSwale()
 void MainWindow::on_ActionImport()
 {
     ImportMoistureData importdlg(this);
+    importdlg.exec();
+}
+
+void MainWindow::on_ActionImport_Rosemead()
+{
+    ImportMoistureData importdlg(this);
+    importdlg.SetMode(ImportMoistureData::_mode::rectangular);
+    importdlg.ScheduleFileName = "/home/arash/Dropbox/LA Project/Rosemead_Data/Rosemead_export/TimeStamps.txt";
     importdlg.exec();
 }

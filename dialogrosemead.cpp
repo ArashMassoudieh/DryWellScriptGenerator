@@ -36,8 +36,8 @@ void DialogRoseMead::accept()
     file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/evapotranspiration_models.json\n");
     file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/pipe_pump_tank.json\n");
 
-    file.write("setvalue; object=system, quantity=simulation_start_time, value=44435\n");
-    file.write("setvalue; object=system, quantity=simulation_end_time, value=44437\n");
+    file.write("setvalue; object=system, quantity=simulation_start_time, value=44499.3\n");
+    file.write("setvalue; object=system, quantity=simulation_end_time, value=44501\n");
     file.write("setvalue; object=system, quantity=shakescalered, value=0.75\n");
     file.write("setvalue; object=system, quantity=shakescale, value=0.05\n");
     file.write("setvalue; object=system, quantity=pmute, value=0.02\n");
@@ -55,8 +55,11 @@ void DialogRoseMead::accept()
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
 
 
-
-
+    //Catchment
+    {
+        double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
+        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow_timeseries=/home/arash/Dropbox/LA Project/Data/Inflow_Rosemead.txt,Slope=0.02,Width="+ui->lineEditBioSwaleWidth->text()+"[m],y=-200,area="+QString::number(area)+"[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").toUtf8());
+    }
     //Engineered soil
     double x=0;
     int lowest_up;
@@ -68,7 +71,7 @@ void DialogRoseMead::accept()
         double y=layer*200;
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
         if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-        {   file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.2,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=10,_width=150,alpha=1,name=EngineeredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+        {   file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.2,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.41,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original=30,_width=150,alpha=1,name=EngineeredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(0)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
             lowest_up = layer;
         }
     }
@@ -78,13 +81,15 @@ void DialogRoseMead::accept()
     {
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         double y=layer*200;
+
         double area = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0*ui->lineEditLenght->text().toDouble()/double(ui->spinBoxLateralCells->value());
 
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
             x = 200*(column+1);
+            double actual_x = (ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0/double(ui->spinBoxLateralCells->value())*(column+0.5) + ui->lineEditBioSwaleWidth->text().toDouble()/2.0;
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=LeftTop (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original="+LayerData[layer][K_sat]+",_width=150,alpha="+LayerData[layer][alpha]+",name=LeftTop (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(actual_x)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
         }
     }
 
@@ -98,9 +103,10 @@ void DialogRoseMead::accept()
 
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
+            double actual_x = -((ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0/double(ui->spinBoxLateralCells->value())*(column+0.5) + ui->lineEditBioSwaleWidth->text().toDouble()/2.0);
             x = -200*(column+1);
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=RightTop (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original="+LayerData[layer][K_sat]+",_width=150,alpha="+LayerData[layer][alpha]+",name=RightTop (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(actual_x)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
         }
     }
 
@@ -113,7 +119,7 @@ void DialogRoseMead::accept()
         double y=layer*200;
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
         if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-            file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=UEngineered (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+            file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original="+LayerData[layer][K_sat]+",_width=150,alpha="+LayerData[layer][alpha]+",name=UEngineered (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(0)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
     }
 
     //Bottom Left side
@@ -126,9 +132,11 @@ void DialogRoseMead::accept()
 
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
+            double actual_x = ((ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0/double(ui->spinBoxLateralCells->value())*(column+0.5) + ui->lineEditBioSwaleWidth->text().toDouble()/2.0);
+
             x = 200*(column+1);
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original="+LayerData[layer][K_sat]+",_width=150,alpha="+LayerData[layer][alpha]+",name=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(actual_x)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
         }
         GW_elevation = bottom_elevation;
     }
@@ -143,11 +151,15 @@ void DialogRoseMead::accept()
 
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
+            double actual_x = -((ui->SystemWidth->text().toDouble()-ui->lineEditBioSwaleWidth->text().toDouble())/2.0/double(ui->spinBoxLateralCells->value())*(column+0.5) + ui->lineEditBioSwaleWidth->text().toDouble()/2.0);
+
             x = -200*(column+1);
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.2,K_sat_original=1,_width=150,alpha="+LayerData[layer][alpha]+",name=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x=0,actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+                file.write(QString("create block;type=Soil,theta_sat="+LayerData[layer][theta_s]+",theta_res="+LayerData[layer][theta_r]+",specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n="+LayerData[layer][n]+",y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original="+LayerData[layer][K_sat]+",_width=150,alpha="+LayerData[layer][alpha]+",name=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(actual_x)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
         }
     }
+
+    file.write(QString("create link;from=Catchment (1),to=EngineeredSoil (1),type=surfacewater_to_soil_link,name=Catchment (1) - EngineeredSoil (1)\n").toUtf8());
 
     //vertical Eng soil connector
     bottom_elevation = 0;
@@ -186,6 +198,8 @@ void DialogRoseMead::accept()
             break;
 
     }
+
+
 
     //left to left - H
     bottom_elevation = 0;
@@ -330,6 +344,13 @@ void DialogRoseMead::accept()
     for (int column=0; column<ui->spinBoxLateralCells->text().toInt();column++)
         file.write(QString("create link;from=RightBottom ("+QString::number(LayerData.size())+"$" +QString::number(column+1) + "),to=GW,type=soil_to_fixedhead_link,name=RightBottom - GW ("+QString::number(column+1)+")\n").toUtf8());
 
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_1_1,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_1_3,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_1_7,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_2_1,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_2_3,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=Catchment (1),name=Depth,expression=depth,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Depth.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
     file.close();
 }
 
