@@ -238,8 +238,8 @@ void DialogRoseMead::accept()
     length = ui->StreetWidth->text().toDouble()/double(ui->spinBoxLateralCells->value());
     double width = ui->lineEditLenght->text().toDouble();
     bottom_elevation -= LayerData[layer][Depth].toDouble();
-    for (int column=0;column<ui->spinBoxLateralCells->text().toInt()-1; column++)
-        file.write(QString("create link;from=Subbase (" +QString::number(column+1) + "),to=Subbase (" +QString::number(column+2) + "),type=aggregate2aggregate_H_Link,width=0[m~^2],length=" +QString::number(width) + "[m],name=Subbase (" +QString::number(column+1) + ") - Subbase (" +QString::number(column+2) + ")\n").toUtf8());
+    for (int column=0;column<ui->spinBox->text().toInt()-1; column++)
+        file.write(QString("create link;from=Subbase (" +QString::number(column+1) + "),to=Subbase (" +QString::number(column+2) + "),type=aggregate2aggregate_H_Link,width=" +QString::number(width) + "[m],length=" +QString::number(length) + "[m],name=Subbase (" +QString::number(column+1) + ") - Subbase (" +QString::number(column+2) + ")\n").toUtf8());
     for (int layer=1; layer<LayerData.size();layer++)
     {
         double length = ui->StreetWidth->text().toDouble()/double(ui->spinBoxLateralCells->value());
@@ -247,7 +247,7 @@ void DialogRoseMead::accept()
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         if (bottom_elevation >=-ui->lineEditBioSwaleDepth->text().toDouble())
         {
-            for (int column=0;column<ui->spinBoxLateralCells->text().toInt()-1; column++)
+            for (int column=0;column<ui->spinBox->text().toInt()-1; column++)
                 file.write(QString("create link;from=RightTop ("+QString::number(layer+1)+"$" +QString::number(column+1) + "),to=RightTop ("+QString::number(layer+1)+"$" +QString::number(column+2) + "),type=soil_to_soil_H_link,name=RightTopH ("+QString::number(layer+1)+"$"+QString::number(column+1)+"),length="+QString::number(length)+"[m],area="+QString::number(area)+"[m~^2]\n").toUtf8());
         }
         else
@@ -419,7 +419,7 @@ void DialogRoseMead::On_ReadLayer_Info()
         for (unsigned int j=0; j<LayerData[i].count(); j++)
         {
             QTableWidgetItem *tableitem = new QTableWidgetItem(LayerData[i][j]);
-            ui->tableWidget->setItem(i-1,j,tableitem);
+            ui->tableWidget->setItem(i,j,tableitem);
         }
 
 
