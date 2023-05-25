@@ -22,7 +22,7 @@ private:
     QList<QStringList> LayerData;
 
 public slots:
-    void On_ReadLayer_Info();
+    void On_ReadLayer_Info(const QString &filename="");
     void accept();
 
 
