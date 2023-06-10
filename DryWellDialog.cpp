@@ -115,6 +115,7 @@ void DryWellDialog::On_Generate_Model()
     file.write("create parameter;type=Parameter,value=0.31,prior_distribution=normal,name=Ks_12,low=0.1,high=10\n");
     file.write("create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n");
     file.write("create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=beta,low=0.5,high=5\n");
+    file.write("create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=theta_t,low=0.01,high=0.13\n");
     file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n");
     file.write("create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n");
     double x_base = 0;
@@ -658,6 +659,7 @@ void DryWellDialog::On_Generate_Model()
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent,\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
             }
         }
     }
@@ -670,6 +672,7 @@ void DryWellDialog::On_Generate_Model()
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity=K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=theat_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
             }
         }
 
@@ -681,6 +684,7 @@ void DryWellDialog::On_Generate_Model()
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=Ks_scale,quantity=K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(r+1)+"),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
             }
 
         for (unsigned int layer=0; layer<GP.n_layer_deep; layer++)
@@ -689,6 +693,7 @@ void DryWellDialog::On_Generate_Model()
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=" + QString::fromStdString(K_Parameter_Names[layer_parameter[layer - 1] - 1]) + ",quantity=K_sat_scale_factor\n").toUtf8());
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer+1)+"$"+QString::number(0)+"),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
         }
     }
     else
@@ -700,6 +705,7 @@ void DryWellDialog::On_Generate_Model()
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername="+QString::fromStdString(K_Parameter_Names[layer_parameter[layer-1]-1])+",quantity= K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
                 file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(r+1)+"),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
             }
         }
 
@@ -708,6 +714,7 @@ void DryWellDialog::On_Generate_Model()
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=" + QString::fromStdString(K_Parameter_Names[layer_parameter[layer - 1] - 1]) + ",quantity=K_sat_scale_factor\n").toUtf8());
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=beta,quantity=MC_to_EC_exponent\n").toUtf8());
             file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=alpha,quantity=MC_to_EC_coefficient\n").toUtf8());
+            file.write(QString("setasparameter;object=Soil_deep ("+QString::number(layer)+"$"+QString::number(0)+"),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture\n").toUtf8());
         }
     }
     file.close();

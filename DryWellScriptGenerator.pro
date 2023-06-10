@@ -8,6 +8,9 @@ CONFIG += use_VTK
 #VTKBUILDPATH = /home/arash/Projects/VTK-9.2.0/
 VTKBUILDPATH = /home/arash/Projects/VTK/VTK-build
 VTKHEADERPATH = /home/arash/Projects/VTK
+#Arash Home PowerEdge
+VTKBUILDPATH = /mnt/3rd900/Projects/VTK-build
+VTKHEADERPATH = /mnt/3rd900/Projects/VTK
 VTK_V = -9.0
 
 

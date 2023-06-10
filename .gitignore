@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+build-DryWellScriptGenerator-Desktop_Qt_6_0_1_GCC_64bit-Debug/.qtc_clangd/
+
+build-DryWellScriptGenerator-Desktop_Qt_6_0_1_GCC_64bit-Debug/
