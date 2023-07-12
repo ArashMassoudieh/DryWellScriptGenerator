@@ -98,7 +98,7 @@ void VTKDialog::onGenerateVTK()
         if (QString::fromStdString(AllResults.names[i]).split("_").last()==ui->VariablecomboBox->currentText())
         {
             cellplotinfo pltinf;
-            QString blkname = QString::fromStdString(AllResults.names[i]).left(QString::fromStdString(AllResults.names[i]).size()- QString::fromStdString(AllResults.names[i]).split("_").last().size()-1);
+            QString blkname = QString::fromStdString(AllResults.names[i]).split("_")[0];
             qDebug()<<blkname;
             if (BlockInfo.contains(blkname))
             {   pltinf.name_location = BlockInfo[blkname];
