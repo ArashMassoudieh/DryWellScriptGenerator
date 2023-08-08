@@ -27,6 +27,7 @@ public slots:
     void on_exporttoParaview();
     void on_exportRadialtoParaview();
     void on_export_timeseries();
+    void on_export_profiles();
 };
 
 #endif // IMPORTMOISTUREDATA_H

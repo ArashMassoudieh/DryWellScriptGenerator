@@ -3,6 +3,8 @@
 #include "QFileDialog"
 #include "QMessageBox"
 #include "BTC.h"
+#include "BTCSet.h"
+#include <qdebug.h>
 
 ImportMoistureData::ImportMoistureData(QWidget *parent) :
     QDialog(parent),
@@ -13,6 +15,7 @@ ImportMoistureData::ImportMoistureData(QWidget *parent) :
     connect(ui->pushButtonExport ,SIGNAL(clicked()),this,SLOT(on_exporttoParaview()));
     connect(ui->Export_Radial_coordinate ,SIGNAL(clicked()),this,SLOT(on_exportRadialtoParaview()));
     connect(ui->pushButtonExportTimeSeries, SIGNAL(clicked()),this, SLOT(on_export_timeseries()));
+    connect(ui->ExportProfiles, SIGNAL(clicked()),this, SLOT(on_export_profiles()));
 }
 
 void ImportMoistureData::SetMode(_mode Mode)
@@ -121,7 +124,7 @@ void ImportMoistureData::on_export_timeseries()
 {
     QString fileName = QFileDialog::getSaveFileName(this,
             tr("Save"), "",
-            tr("script files (*.csv)"));
+            tr("csv files (*.csv)"));
 
     QDir directory(dir);
     CPointSet<CPoint3d> range3d = snapshots[0].Range();
@@ -137,11 +140,36 @@ void ImportMoistureData::on_export_timeseries()
     {
         CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
         //out.append(initial_time + cylendical_points.hrs/24.0 , cylendical_points.KernelSmoothValue(point,span));
-        out.append(initial_time + 1/24.0 , cylendical_points.KernelSmoothValue(point,span));
+        out.append(initial_time + double(i)/24.0 , cylendical_points.KernelSmoothValue(point,span));
 
     }
     out.writefile(fileName.toStdString());
     QMessageBox msgBox;
     msgBox.setText("Export completed!");
     msgBox.exec();
+}
+
+void ImportMoistureData::on_export_profiles()
+{
+
+    if (mode == _mode::rectangular)
+    {   double initial_time = 44437.7152777821;
+        vector<double> span = {0.5, 0.2};
+        CTimeSeriesSet<double> profile_data;
+        for (int i=0; i<snapshots.size(); i++)
+        {   CPointSet<CPoint> cylendical_points = snapshots[i].MapTo2DV();
+            CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(0.25,0.25,span,false);
+            CTimeSeries<double> profile;
+            for (int j=0; j<cylendical_points_kernel_smooth.size(); j++)
+            {
+                profile.append(cylendical_points_kernel_smooth[j].y(),cylendical_points_kernel_smooth[j].Value(0));
+            }
+            profile_data.append(profile,QString::number(initial_time+double(i)/24.0,'g',7).toStdString());
+
+        }
+        QString fileName = QFileDialog::getSaveFileName(this,
+                tr("Save"), "",
+                tr("csv files (*.csv)"));
+        profile_data.writetofile(fileName.toStdString());
+    }
 }
