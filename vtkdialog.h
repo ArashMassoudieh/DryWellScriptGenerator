@@ -46,6 +46,7 @@ private slots:
     void onReadResults();
     void onReadScript();
     void onGenerateVTK();
+    void on_Extract_Profile();
 
 
 

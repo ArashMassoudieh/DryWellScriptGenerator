@@ -153,7 +153,7 @@ void ImportMoistureData::on_export_profiles()
 {
 
     if (mode == _mode::rectangular)
-    {   double initial_time = 44437.7152777821;
+    {   double initial_time = 44438.3993;
         vector<double> span = {0.5, 0.2};
         CTimeSeriesSet<double> profile_data;
         for (int i=0; i<snapshots.size(); i++)

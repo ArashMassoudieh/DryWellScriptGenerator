@@ -16,6 +16,7 @@ VTKDialog::VTKDialog(QWidget *parent) :
     connect(ui->ChooseOutputFile,SIGNAL(clicked()),this,SLOT(onReadResults()));
     connect(ui->BtmModelScript,SIGNAL(clicked()),this,SLOT(onReadScript()));
     connect(this,SIGNAL(accepted()),this,SLOT(onGenerateVTK()));
+    connect(ui->Extract_Profile,SIGNAL(clicked()),this, SLOT(on_Extract_Profile()));
 }
 
 VTKDialog::~VTKDialog()
@@ -273,5 +274,65 @@ QVector<double> ConvertToQVector(const vector<double> &x)
         out.push_back(x[i]);
 
     return out;
+}
+
+void VTKDialog::on_Extract_Profile()
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+               tr("csv"), "",
+               tr("CSV file (*.csv)"));
+
+
+    QVector<cellplotinfo> PlotInfo;
+    CTimeSeriesSet<double> toplottimeseries;
+    for (int i=0; i<AllResults.nvars; i++)
+    {
+
+        if (QString::fromStdString(AllResults.names[i]).split("_").last()==ui->VariablecomboBox->currentText())
+        {
+            cellplotinfo pltinf;
+            QString blkname = QString::fromStdString(AllResults.names[i]).split("_")[0];
+            qDebug()<<blkname;
+            if (BlockInfo.contains(blkname))
+            {   pltinf.name_location = BlockInfo[blkname];
+                pltinf.column_no = i;
+
+               if (BlockInfo[blkname].location.x()==ui->ExtractProfileAt->text().toDouble())
+                {   PlotInfo.append(pltinf);
+                    toplottimeseries.append(AllResults.BTC[i],AllResults.names[i]);
+                    qDebug()<<pltinf.name_location.name<<":"<<pltinf.name_location.location;
+                }
+            }
+        }
+    }
+
+    if (toplottimeseries.nvars == 0) return;
+    int i=0;
+    CTimeSeriesSet<double> profiles;
+    for (double t = toplottimeseries.BTC[0].GetT(0); t<toplottimeseries.BTC[0].GetT(toplottimeseries.BTC[0].n-1); t+=ui->lineEditInterval->text().toDouble())
+    {
+        vector<double> vals = toplottimeseries.interpolate(t);
+#ifdef use_VTK
+             QVector<double> values = ConvertToQVector(vals);
+        #endif
+             qDebug()<<fileName;
+             QString filename = fileName.split(".")[0] + "_" + QString::number(i) + "." + fileName.split(".")[1];
+             qDebug()<<filename;
+    qDebug()<<i<<":"<<t;
+#ifdef use_VTK
+    qDebug()<<PlotInfo.count()<<","<<values.count();
+        CTimeSeries<double> profile;
+        for (int i=0; i<vals.size(); i++)
+        {
+            profile.append(PlotInfo[i].name_location.location.y(),vals[i]);
+        }
+        profiles.append(profile,QString::number(t,'g',9).toStdString());
+
+#endif
+        i++;
+    }
+
+    profiles.writetofile(fileName.toStdString());
+
 }
 
