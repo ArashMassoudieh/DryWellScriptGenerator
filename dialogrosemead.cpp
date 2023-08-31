@@ -17,6 +17,7 @@ DialogRoseMead::DialogRoseMead(QWidget *parent) :
     ui->lineEditBioSwaleWidth->setText("0.6096");
     ui->lineEditLenght->setText("8");
     ui->SoilFileName->setText("/home/arash/Dropbox/LA Project/Data/SoilData_Rosemead_corrected.txt");
+    ui->AnisoRatioLineEdit->setText("5");
     On_ReadLayer_Info(ui->SoilFileName->text());
 }
 
@@ -61,6 +62,9 @@ void DialogRoseMead::accept()
     file.write("setvalue; object=system, quantity=initial_time_step, value=0.01\n");
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
     file.write("create parameter;type=Parameter,high=10,low=0.1,name=KS_scale_factor,prior_distribution=log-normal,value=2\n");
+    file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Anisotropy_ratio,prior_distribution=log-normal,value="+ui->AnisoRatioLineEdit->text()+"\n").toUtf8());
+    file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_alpha,prior_distribution=log-normal,value=1.35\n").toUtf8());
+    file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_n,prior_distribution=log-normal,value=1.5601\n").toUtf8());
 
     //Catchment
     {
@@ -387,7 +391,9 @@ void DialogRoseMead::accept()
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+            {   file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+            }
         }
     }
 
@@ -401,7 +407,9 @@ void DialogRoseMead::accept()
         for (int column = 0; column<ui->spinBox->text().toInt(); column++)
         {
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+            {   file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+            }
         }
     }
 
@@ -412,7 +420,11 @@ void DialogRoseMead::accept()
     {
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+        {   file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= alpha, quantity= Eng_Soil_alpha\n").toUtf8());
+            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= n, quantity= Eng_Soil_n\n").toUtf8());
+        }
+
 
     }
 
@@ -424,7 +436,9 @@ void DialogRoseMead::accept()
         for (int column = 0; column<ui->spinBoxLateralCells->text().toInt(); column++)
         {
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("setasparameter; object=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+            {   file.write(QString("setasparameter; object=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object=LeftBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+            }
         }
     }
 
@@ -436,7 +450,9 @@ void DialogRoseMead::accept()
         for (int column = 0; column<ui->spinBox->text().toInt(); column++)
         {
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
-                file.write(QString("setasparameter; object=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+            {   file.write(QString("setasparameter; object=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
+                file.write(QString("setasparameter; object=RightBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+            }
         }
     }
 
