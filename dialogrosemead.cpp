@@ -421,8 +421,8 @@ void DialogRoseMead::accept()
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
         {   file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
-            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= alpha, quantity= Eng_Soil_alpha\n").toUtf8());
-            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= n, quantity= Eng_Soil_n\n").toUtf8());
+            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_alpha, quantity= alpha\n").toUtf8());
+            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_n, quantity= n\n").toUtf8());
         }
 
 
