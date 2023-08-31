@@ -401,6 +401,8 @@ void DialogRoseMead::accept()
     bottom_elevation = 0;
     bottom_elevation -= LayerData[layer][Depth].toDouble();
 
+
+
     for (int layer=1; layer<LayerData.size();layer++)
     {
         bottom_elevation -= LayerData[layer][Depth].toDouble();
@@ -418,11 +420,16 @@ void DialogRoseMead::accept()
     bottom_elevation = 0;
     for (int layer=0; layer<LayerData.size();layer++)
     {
+
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
         {   file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
-            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_alpha, quantity= alpha\n").toUtf8());
-            file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_n, quantity= n\n").toUtf8());
+            file.write(QString("setasparameter; object= UEngineered ("+QString::number(layer+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+        }
+        else
+        {
+            file.write(QString("setasparameter; object=EngineeredSoil (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_alpha, quantity= alpha\n").toUtf8());
+            file.write(QString("setasparameter; object=EngineeredSoil (" + QString::number(layer + 1)+ "), parametername= Eng_Soil_n, quantity= n\n").toUtf8());
         }
 
 
