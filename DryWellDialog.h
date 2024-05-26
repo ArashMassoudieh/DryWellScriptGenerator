@@ -22,8 +22,9 @@ struct GeomParams
     double Ks_factor = 1;
     double dr_increase_factor = 1.2;
     bool log_dr_increase = false;
-    double pipe_top = -3.9; 
-    double pipe_bottom = -10.1; 
+    double pipe_top = -3.9;
+    double pipe_bottom = -10.1;
+    double surface_elevation = 140;
 };
 
 QT_BEGIN_NAMESPACE

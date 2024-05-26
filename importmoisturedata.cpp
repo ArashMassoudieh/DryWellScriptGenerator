@@ -37,7 +37,7 @@ void ImportMoistureData::on_choosefolder()
                                                  | QFileDialog::DontResolveSymlinks);
 
     QDir directory(dir);
-
+    snapshots.clear();
     QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
     if (mode==_mode::radial)
     {   foreach(QString filename, csvs) {
@@ -123,8 +123,8 @@ void ImportMoistureData::on_exportRadialtoParaview()
 void ImportMoistureData::on_export_timeseries()
 {
     QString fileName = QFileDialog::getSaveFileName(this,
-            tr("Save"), "",
-            tr("csv files (*.csv)"));
+                                                    tr("Save"), "",
+                                                    tr("csv files (*.csv)"));
 
     QDir directory(dir);
     CPointSet<CPoint3d> range3d = snapshots[0].Range();

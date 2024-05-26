@@ -5,23 +5,39 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 DEFINES += use_VTK
 CONFIG += use_VTK
-#VTKBUILDPATH = /home/arash/Projects/VTK-9.2.0/
-VTKBUILDPATH = /home/arash/Projects/VTK/VTK-build
-VTKHEADERPATH = /home/arash/Projects/VTK
-#Arash Home PowerEdge
-#VTKBUILDPATH = /mnt/3rd900/Projects/VTK-build
-#VTKHEADERPATH = /mnt/3rd900/Projects/VTK
-VTK_V = -9.0
-
 
 # DEFINES += use_Armadillo
 #CONFIG += Khiem
-CONFIG += Arash
-DEFINES += Arash
+CONFIG += Hooman
+DEFINES += Hooman
 #DEFINES += ModelCatchments
 #CONFIG += Brett
 #DEFINES += Brett
 use_VTK {DEFINES += VTK}
+
+
+#VTKBUILDPATH = /home/arash/Projects/VTK-9.2.0/
+Arash
+{
+    VTKBUILDPATH = /home/arash/Projects/VTK/VTK-build
+    VTKHEADERPATH = /home/arash/Projects/VTK
+}
+Hooman
+{
+    VTKBUILDPATH = /home/hoomanmoradpour/Projects/VTK-9.3.0/VTK-build
+    VTKHEADERPATH = /home/hoomanmoradpour/Projects/VTK-9.3.0
+}
+#Arash Home PowerEdge
+#VTKBUILDPATH = /mnt/3rd900/Projects/VTK-build
+#VTKHEADERPATH = /mnt/3rd900/Projects/VTK
+
+VTK_V = -9.2
+Hooman
+{
+    VTK_V = -9.3
+}
+
+
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -74,6 +90,10 @@ Khiem {
 
 Arash {
     message("Arash's version")
+}
+
+Hooman {
+    message("Hooman's version")
 }
 
 use_VTK {
@@ -208,7 +228,6 @@ Brett {
                 -L..\VTK-9.2.0\lib\ -lvtkzlib-9.2
         }
 }
-Arash {
 
     use_VTK {
     LIBS += -L$$VTKBUILDPATH/lib/ -lvtkChartsCore$$VTK_V
@@ -318,7 +337,10 @@ Arash {
 
     #VTK Include files
     INCLUDEPATH +=$${VTKHEADERPATH}/Common/Core
+    INCLUDEPATH +=$${VTKBUILDPATH}//Utilities/KWSys
     INCLUDEPATH +=$${VTKBUILDPATH}/Common/Core
+    INCLUDEPATH +=$${VTKHEADERPATH}/Common/Transforms
+    INCLUDEPATH +=$${VTKBUILDPATH}/Common/Transforms
     INCLUDEPATH +=$${VTKHEADERPATH}/Common/Color
     INCLUDEPATH +=$${VTKBUILDPATH}/Common/Color
     INCLUDEPATH +=$${VTKBUILDPATH}/Common/DataModel
@@ -359,7 +381,7 @@ Arash {
     INCLUDEPATH +=$${VTKHEADERPATH}/Imaging/Core
     INCLUDEPATH +=$${VTKBUILDPATH}/Imaging/Core
 
-    }
+
 }
 
 DISTFILES += \
