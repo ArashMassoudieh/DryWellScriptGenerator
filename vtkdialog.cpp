@@ -123,7 +123,11 @@ void VTKDialog::onGenerateVTK()
              QVector<double> values = ConvertToQVector(vals);
         #endif
              qDebug()<<fileName;
-             QString filename = fileName.split(".")[0] + "_" + QString::number(i) + "." + fileName.split(".")[1];
+             QString filename;
+             if (!fileName.contains("."))
+                filename = fileName.split(".")[0] + "_" + QString::number(i) + ".vtp";
+             else
+                filename = fileName.split(".")[0] + "_" + QString::number(i) + "." + fileName.split(".")[1];
              qDebug()<<filename;
     qDebug()<<i<<":"<<t;
 #ifdef use_VTK
