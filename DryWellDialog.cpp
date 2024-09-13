@@ -639,10 +639,10 @@ void DryWellDialog::On_Generate_Model()
     file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
 #endif
     //file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    //file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_Drywell_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Projects/LA Project/Data/PreTreat_new_shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Projects/LA Project/Data/depth_chamber.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
+    //file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/PreTreat_new_shifted.txt,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Data/PreTreat_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n");
+    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Data/DryWell_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n");
+    //file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
     /*file.write("create observation;type=Observation,object=Soil (33$4),name=Soil_2_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_115.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil (26$4),name=Soil_2_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_125.csv,error_structure=normal,error_standard_deviation=1\n");
@@ -656,8 +656,8 @@ void DryWellDialog::On_Generate_Model()
     file.write("create observation;type=Observation,object=Soil (10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n");
     file.write("create observation;type=Observation,object=Soil (8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n");
     */
-    vector<int> layer_parameter = { 1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,5,6,6,7,8,9,10,11,12 };
-    vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6","Ks_7","Ks_8","Ks_9","Ks_10","Ks_11","Ks_12" };
+    vector<int> layer_parameter = { 1,1,1,2,2,3,3,3,3,3,3,3,3,4,4,4,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,7,7,8,9,10,11 };
+    vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6","Ks_7","Ks_8","Ks_9","Ks_10","Ks_11"};
 
 
     //vector<int> layer_parameter = { 1,1,1,1 ,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,5,6,6,7,8,9,10,11,12 };

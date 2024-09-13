@@ -394,3 +394,5 @@ ui_DryWellDialog.h
 ui_postprocess.h
 
 ui_vtkdialog.h
+
+*.vtp

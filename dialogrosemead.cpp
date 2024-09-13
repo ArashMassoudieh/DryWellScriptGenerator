@@ -16,7 +16,7 @@ DialogRoseMead::DialogRoseMead(QWidget *parent) :
     ui->spinBoxLateralCells->setValue(6);
     ui->lineEditBioSwaleWidth->setText("0.6096");
     ui->lineEditLenght->setText("8");
-    ui->SoilFileName->setText("/home/arash/Dropbox/LA Project/Data/SoilData_Rosemead_corrected.txt");
+    ui->SoilFileName->setText("/home/hoomanmoradpour/Dropbox/LA Project/Data/SoilData_Rosemead_corrected.txt");
     ui->AnisoRatioLineEdit->setText("5");
     On_ReadLayer_Info(ui->SoilFileName->text());
 }
@@ -65,11 +65,13 @@ void DialogRoseMead::accept()
     file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Anisotropy_ratio,prior_distribution=log-normal,value="+ui->AnisoRatioLineEdit->text()+"\n").toUtf8());
     file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_alpha,prior_distribution=log-normal,value=1.35\n").toUtf8());
     file.write(QString("create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_n,prior_distribution=log-normal,value=1.5601\n").toUtf8());
+    file.write(QString("create parameter;type=Parameter,high=10,low=0.01,name=EC_alpha,prior_distribution=log-normal,value=0.43\n").toUtf8());
+    file.write(QString("create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2\n").toUtf8());
 
     //Catchment
     {
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
-        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=/home/arash/Dropbox/LA Project/Data/Inflow_Rosemead_August.txt,Slope=0.02,Width="+ui->lineEditBioSwaleWidth->text()+"[m],y=-200,area="+QString::number(area)+"[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").toUtf8());
+        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=/home/hoomanmoradpour/Dropbox/LA Project/Data/Inflow_Rosemead_August.txt,Slope=0.02,Width="+ui->lineEditBioSwaleWidth->text()+"[m],y=-200,area="+QString::number(area)+"[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").toUtf8());
     }
     //Engineered soil
     double x=0;
@@ -81,8 +83,9 @@ void DialogRoseMead::accept()
         bottom_elevation -= LayerData[layer][Depth].toDouble();
         double y=layer*200;
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
+        qDebug()<<ui->lineEditBioSwaleDepth->text().toDouble();
         if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
-        {   file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.2,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.80,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original=50,_width=150,alpha=1,name=EngineeredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(0)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
+        {   file.write(QString("create block;type=Soil,theta_sat=0.4,theta_res=0.08,specific_storage=0.01,x=" + QString::number(x) + ",Evapotranspiration=,n=1.80,y=" + QString::number(y) + ",area=" + QString::number(area) + ",theta=0.09,K_sat_original=50,_width=150,alpha=1,name=EngineeredSoil (" + QString::number(layer + 1)+ "),_height=100,bottom_elevation=" + QString::number(bottom_elevation) + ",depth=" + QString::number(LayerData[layer][Depth].toDouble()) + ",actual_x="+QString::number(0)+",actual_y=" + QString::number(bottom_elevation+LayerData[layer][Depth].toDouble()/2) + "\n").toUtf8());
             lowest_up = layer;
         }
     }
@@ -393,6 +396,8 @@ void DialogRoseMead::accept()
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
             {   file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+                file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter; object= LeftTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_beta, quantity= MC_to_EC_exponent\n").toUtf8());
             }
         }
     }
@@ -411,6 +416,9 @@ void DialogRoseMead::accept()
             if (bottom_elevation>=-ui->lineEditBioSwaleDepth->text().toDouble())
             {   file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+                file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter; object= RightTop ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_beta, quantity= MC_to_EC_exponent\n").toUtf8());
+
             }
         }
     }
@@ -425,6 +433,9 @@ void DialogRoseMead::accept()
         if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
         {   file.write(QString("setasparameter; object=UEngineered (" + QString::number(layer + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
             file.write(QString("setasparameter; object= UEngineered ("+QString::number(layer+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+            file.write(QString("setasparameter; object= UEngineered ("+QString::number(layer+1)+"), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
+            file.write(QString("setasparameter; object= UEngineered ("+QString::number(layer+1)+"), parametername= EC_beta, quantity= MC_to_EC_exponent\n").toUtf8());
+
         }
         else
         {
@@ -445,6 +456,9 @@ void DialogRoseMead::accept()
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
             {   file.write(QString("setasparameter; object=LeftBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter; object=LeftBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+                file.write(QString("setasparameter; object= LeftBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter; object= LeftBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_beta, quantity= MC_to_EC_exponent\n").toUtf8());
+
             }
         }
     }
@@ -459,18 +473,21 @@ void DialogRoseMead::accept()
             if (bottom_elevation<-ui->lineEditBioSwaleDepth->text().toDouble())
             {   file.write(QString("setasparameter; object=RightBottom (" + QString::number(layer + 1)+ "$" + QString::number(column + 1)+ "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n").toUtf8());
                 file.write(QString("setasparameter; object=RightBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= Anisotropy_ratio, quantity= aniso_ratio\n").toUtf8());
+                file.write(QString("setasparameter; object= RightBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n").toUtf8());
+                file.write(QString("setasparameter; object= RightBottom ("+QString::number(layer+1)+"$"+QString::number(column+1)+"), parametername= EC_beta, quantity= MC_to_EC_exponent\n").toUtf8());
+
             }
         }
     }
 
 
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_1_1,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_1_3,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_1_7,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_1_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_2_1,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_2_3,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,expression=theta,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Moisture_2_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=Catchment (1),name=Depth,expression=depth,observed_data=/home/arash/Dropbox/LA Project/Rosemead_Data/Depth.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_1_1,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_1_3,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_1_7,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_2_1,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_2_3,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString("create observation;type=Observation,object=Catchment (1),name=Depth,expression=depth,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Depth.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
     file.close();
 }
 
