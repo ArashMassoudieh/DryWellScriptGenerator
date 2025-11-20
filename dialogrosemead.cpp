@@ -3,6 +3,36 @@
 #include <QFileDialog>
 #include <QDebug>
 
+#ifdef PowerEdge
+    QString base = "/mnt/3rd900/Projects/LA Project/";
+    QString obsPath = "/mnt/3rd900/Projects/LA Project new/Results/";
+    QString ohq_r="/mnt/3rd900/Projects/OpenHydroQual/resources/";
+#endif
+
+#ifdef Hooman
+    QString base = "/home/hoomanmoradpour/Dropbox/LA Project/Data/";
+    QString obsPath = "/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/";
+    QString ohq_r="/home/hoomanmoradpour/Projects/OpenHydroQual/resources/";
+#endif
+
+#ifdef Arash
+    QString base = "/home/arash/Dropbox/LA Project/Data/";
+    QString obsPath = "/home/arash/Dropbox/LA Project/Rosemead_Data/";
+    QString ohq_r="/home/arash/Projects/OpenHydroQual/resources/";
+#endif
+
+#ifdef Behzad
+    QString base = "/home/behzad/Dropbox/LA Project/Data/";
+    QString obsPath = "/home/behzad/Projects/LA Project new/Results/";
+    QString ohq_r="/home/behzad/Projects/OpenHydroQual/resources/";
+#endif
+
+#ifdef SligoCreek
+    QString base = "/media/arash/E/Projects/LA Project/Data/";
+    QString obsPath = "/media/arash/E/Projects/LA Project new/Results/";
+    QString ohq_r="/media/arash/E/Projects/OpenHydroQual/resources/";
+#endif
+
 DialogRoseMead::DialogRoseMead(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::DialogRoseMead)
@@ -16,7 +46,7 @@ DialogRoseMead::DialogRoseMead(QWidget *parent) :
     ui->spinBoxLateralCells->setValue(6);
     ui->lineEditBioSwaleWidth->setText("0.6096");
     ui->lineEditLenght->setText("8");
-    ui->SoilFileName->setText("/home/hoomanmoradpour/Dropbox/LA Project/Data/SoilData_Rosemead_corrected.txt");
+    ui->SoilFileName->setText(base + "Data/SoilData_Rosemead_corrected.txt");
     ui->AnisoRatioLineEdit->setText("5");
     On_ReadLayer_Info(ui->SoilFileName->text());
 }
@@ -35,14 +65,14 @@ void DialogRoseMead::accept()
     if (fileName == "") return;
     QFile file(fileName);
     file.open(QIODevice::WriteOnly | QIODevice::Text);
-    file.write("loadtemplate; filename = /home/arash/Projects/QAquifolium/bin/Debug/../../resources/main_components.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Pond_Plugin.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/unsaturated_soil.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Well.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Sewer_system.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/soil_evapotranspiration_models.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/evapotranspiration_models.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/pipe_pump_tank.json\n");
+    file.write(QString("loadtemplate; filename=%1main_components.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Pond_Plugin.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1unsaturated_soil.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Well.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Sewer_system.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1soil_evapotranspiration_models.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1evapotranspiration_models.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1pipe_pump_tank.json\n").arg(ohq_r).toUtf8());
 
     file.write("setvalue; object=system, quantity=simulation_start_time, value=44438.3\n");
     file.write("setvalue; object=system, quantity=simulation_end_time, value=44440\n");
@@ -481,13 +511,40 @@ void DialogRoseMead::accept()
     }
 
 
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_1_1,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_1_3,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_1_7,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_1_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (1),name=MC_2_1,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_1.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (3),name=MC_2_3,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_3.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,expression=theta,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Moisture_2_7.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
-    file.write(QString("create observation;type=Observation,object=Catchment (1),name=Depth,expression=depth,observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Depth.txt,error_structure=normal,error_standard_deviation=1\n").toUtf8());
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (1),name=MC_1_1,"
+    "expression=theta,observed_data=%1Moisture_1_1.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (3),name=MC_1_3,"
+    "expression=theta,observed_data=%1Moisture_1_3.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (7),name=MC_1_7,"
+    "expression=theta,observed_data=%1Moisture_1_7.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (1),name=MC_2_1,"
+    "expression=theta,observed_data=%1Moisture_2_1.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (3),name=MC_2_3,"
+    "expression=theta,observed_data=%1Moisture_2_3.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,"
+    "expression=theta,observed_data=%1Moisture_2_7.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
+
+    file.write(QString(
+    "create observation;type=Observation,object=Catchment (1),name=Depth,"
+    "expression=depth,observed_data=%1Depth.txt,error_structure=normal,"
+    "error_standard_deviation=1\n").arg(obsPath).toUtf8());
     file.close();
 }
 
