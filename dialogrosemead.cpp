@@ -4,6 +4,7 @@
 #include <QDebug>
 
 #include "paths.h"
+#include "solver_runner.h"
 
 DialogRoseMead::DialogRoseMead(QWidget *parent) :
     QDialog(parent),
@@ -518,6 +519,9 @@ void DialogRoseMead::accept()
     "expression=depth,observed_data=%1Depth.txt,error_structure=normal,"
     "error_standard_deviation=1\n").arg(obsPath).toUtf8());
     file.close();
+
+    RunOHQ(fileName);   // <<< automatically run solver
+
 }
 
 void DialogRoseMead::On_ReadLayer_Info(const QString &filename)

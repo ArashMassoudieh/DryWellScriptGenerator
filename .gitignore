@@ -396,3 +396,7 @@ ui_postprocess.h
 ui_vtkdialog.h
 
 *.vtp
+
+build-OpenHydroQual-Console-Desktop_Qt_6_9_1-Debug/
+
+OHQ-static/libOpenHydroQual.a
