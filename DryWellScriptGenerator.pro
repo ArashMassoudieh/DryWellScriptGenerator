@@ -67,6 +67,7 @@ SOURCES += \
     importmoisturedata.cpp \
     main.cpp \
     mainwindow.cpp \
+    paths.cpp \
     postprocess.cpp \
     scad_generator.cpp \
     threedmap.cpp
@@ -89,6 +90,7 @@ HEADERS += \
     importmoisturedata.h \
     mainwindow.h \
     DryWellDialog.h \
+    paths.h \
     postprocess.h \
     scad_generator.h \
     threedmap.h

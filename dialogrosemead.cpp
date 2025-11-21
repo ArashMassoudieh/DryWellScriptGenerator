@@ -3,35 +3,7 @@
 #include <QFileDialog>
 #include <QDebug>
 
-#ifdef PowerEdge
-    QString base = "/mnt/3rd900/Projects/LA Project/";
-    QString obsPath = "/mnt/3rd900/Projects/LA Project new/Results/";
-    QString ohq_r="/mnt/3rd900/Projects/OpenHydroQual/resources/";
-#endif
-
-#ifdef Hooman
-    QString base = "/home/hoomanmoradpour/Dropbox/LA Project/Data/";
-    QString obsPath = "/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/";
-    QString ohq_r="/home/hoomanmoradpour/Projects/OpenHydroQual/resources/";
-#endif
-
-#ifdef Arash
-    QString base = "/home/arash/Dropbox/LA Project/Data/";
-    QString obsPath = "/home/arash/Dropbox/LA Project/Rosemead_Data/";
-    QString ohq_r="/home/arash/Projects/OpenHydroQual/resources/";
-#endif
-
-#ifdef Behzad
-    QString base = "/home/behzad/Dropbox/LA Project/Data/";
-    QString obsPath = "/home/behzad/Projects/LA Project new/Results/";
-    QString ohq_r="/home/behzad/Projects/OpenHydroQual/resources/";
-#endif
-
-#ifdef SligoCreek
-    QString base = "/media/arash/E/Projects/LA Project/Data/";
-    QString obsPath = "/media/arash/E/Projects/LA Project new/Results/";
-    QString ohq_r="/media/arash/E/Projects/OpenHydroQual/resources/";
-#endif
+#include "paths.h"
 
 DialogRoseMead::DialogRoseMead(QWidget *parent) :
     QDialog(parent),
