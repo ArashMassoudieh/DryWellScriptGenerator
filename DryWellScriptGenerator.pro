@@ -3,8 +3,6 @@
 #####################################################################
 
 QT += widgets gui core
-INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtWidgets
-INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtGui
 
 #####################################################################
 # C++ Standard
@@ -58,6 +56,9 @@ CONFIG(SligoCreek) {
     VTK_V = -9.1
 }
 
+#####################################################################
+# GSL
+#####################################################################
 DEFINES += GSL
 LIBS += -lgsl -lgslcblas -lm
 
@@ -82,9 +83,7 @@ INCLUDEPATH += ../Utilities
 # Link Static Library (OpenHydroQual)
 #####################################################################
 
-# path to static library (relative to .pro file)
 OPENHYDROQUAL_STATIC = $${PWD}/OHQ-static
-
 LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
 
 #####################################################################
@@ -103,7 +102,7 @@ SOURCES += \
     solver_runner.cpp \
     threedmap.cpp \
     ../Utilities/cpoint.cpp \
-    ../Utilities/cpoint3d.cpp \
+    ../Utilities/cpoint3d.cpp
 
 HEADERS += \
     DryWellDialog.h \
@@ -117,7 +116,7 @@ HEADERS += \
     threedmap.h \
     ../Utilities/cpoint.h \
     ../Utilities/cpoint3d.h \
-    ../Utilities/cpointset.hpp \
+    ../Utilities/cpointset.hpp
 
 FORMS += \
     DryWellDialog.ui \
