@@ -2,8 +2,9 @@
 # OpenHydroQual - Static Library
 # ================================
 
-QT -= gui
 QT += core
+QT -= gui widgets
+DEFINES += Q_JSON_SUPPORT
 
 TEMPLATE = lib
 CONFIG += staticlib c++17

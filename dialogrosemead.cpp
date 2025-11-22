@@ -520,7 +520,7 @@ void DialogRoseMead::accept()
     "error_standard_deviation=1\n").arg(obsPath).toUtf8());
     file.close();
 
-    RunOHQ(fileName);   // <<< automatically run solver
+    //RunOHQ(fileName);   // <<< automatically run solver
 
 }
 

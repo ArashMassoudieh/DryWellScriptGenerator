@@ -5,6 +5,18 @@
 #include "QDebug"
 #ifdef use_VTK
 #include "VTK.h"
+#include <vtkLookupTable.h>
+#include <vtkSmartPointer.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include <vtkPolyData.h>
+#include <vtkFloatArray.h>
+#include <vtkPointData.h>
+#include <vtkXMLImageDataReader.h>   // if you read *.vti
+#include <vtkImageData.h>
 #endif
 
 

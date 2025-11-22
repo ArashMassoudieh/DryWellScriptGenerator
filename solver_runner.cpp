@@ -1,10 +1,13 @@
+/*
 #include "solver_runner.h"
 #include "paths.h"
 
 #include "System.h"
 #include "Script.h"
+
 #include <QFileInfo>
 #include <QDebug>
+#include <QCoreApplication>
 
 bool RunOHQ(const QString &inputFile)
 {
@@ -14,34 +17,69 @@ bool RunOHQ(const QString &inputFile)
             return false;
         }
 
+        // ----------------------------
+        // Construct System
+        // ----------------------------
         System system;
 
-        system.SetDefaultTemplatePath(ohq_r.toStdString());
-        system.SetWorkingFolder(
-            QFileInfo(inputFile).canonicalPath().toStdString() + "/"
-        );
+        // ----------------------------
+        // Default Template Path
+        // (matches original console runner)
+        // ----------------------------
+        QString templatePath =
+            qApp->applicationDirPath() + "/../../resources/";
 
-        QString settings = ohq_r + "settings.json";
+        system.SetDefaultTemplatePath(templatePath.toStdString());
 
-        Script script(inputFile, &system);
+        // ----------------------------
+        // Working Folder
+        // ----------------------------
+        QString workFolder =
+            QFileInfo(inputFile).canonicalPath() + "/";
 
-        qDebug() << "[OHQ Solver] Building system...";
-        system.CreateFromScript(script, settings.toStdString());
+        system.SetWorkingFolder(workFolder.toStdString());
 
-        qDebug() << "[OHQ Solver] Solving...";
+        // ----------------------------
+        // Read Script
+        // ----------------------------
+        Script scr(inputFile.toStdString(), &system);
+
+        // ----------------------------
+        // Settings.json
+        // ----------------------------
+        QString settingsFile = templatePath + "settings.json";
+
+        // ----------------------------
+        // Create model from script
+        // ----------------------------
+        system.CreateFromScript(scr, settingsFile.toStdString());
+        system.SetSilent(false);
+
+        // ----------------------------
+        // Solve system
+        // ----------------------------
         system.Solve();
 
-        QString outFile =
+        // ----------------------------
+        // Write outputs
+        // ----------------------------
+        QString outputFile =
             QString::fromStdString(system.GetWorkingFolder()) +
             QString::fromStdString(system.OutputFileName());
 
-        qDebug() << "[OHQ Solver] Writing output:" << outFile;
-        system.GetOutputs().write(outFile.toStdString());
+        system.GetOutputs().write(outputFile.toStdString());
+
+        qDebug() << "[OHQ Solver] Output written:" << outputFile;
 
         return true;
     }
+    catch (std::exception &e) {
+        qWarning() << "[OHQ Solver] Exception:" << e.what();
+        return false;
+    }
     catch (...) {
-        qWarning() << "[OHQ Solver] Exception!";
+        qWarning() << "[OHQ Solver] Unknown exception!";
         return false;
     }
 }
+*/

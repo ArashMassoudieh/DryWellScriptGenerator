@@ -2,8 +2,9 @@
 # DryWellScriptGenerator — GUI Application (uses OpenHydroQual static lib)
 #####################################################################
 
-QT += core gui widgets
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+QT += widgets gui core
+INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtWidgets
+INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtGui
 
 #####################################################################
 # C++ Standard
