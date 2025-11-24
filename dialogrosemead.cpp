@@ -74,7 +74,7 @@ void DialogRoseMead::accept()
     //Catchment
     {
         double area = ui->lineEditBioSwaleWidth->text().toDouble()*ui->lineEditLenght->text().toDouble();
-        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=/home/hoomanmoradpour/Dropbox/LA Project/Data/Inflow_Rosemead_August.txt,Slope=0.02,Width="+ui->lineEditBioSwaleWidth->text()+"[m],y=-200,area="+QString::number(area)+"[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").toUtf8());
+        file.write(QString("create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=%1Data/Inflow_Rosemead_August.txt,Slope=0.02,Width=%2[m],y=-200,area=%3[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n").arg(base).arg(ui->lineEditBioSwaleWidth->text()).arg(area).toUtf8());
     }
     //Engineered soil
     double x=0;
