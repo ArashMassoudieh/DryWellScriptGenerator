@@ -8,6 +8,9 @@
 #include "vtkdialog.h"
 #include "QMessageBox"
 
+#include "paths.h"
+#include "solver_runner.h"
+
 DryWellDialog::DryWellDialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::DryWellDialog)
@@ -63,19 +66,17 @@ void DryWellDialog::On_Generate_Model()
     GP.pipe_top = ui->lineEditTopPipe->text().toDouble();
     GP.surface_elevation = ui->lineEdit_surface_elevation->text().toDouble();
 
-    QString path = "C:/Users/12022/Dropbox/Drywell Project/Combined_Model/Longterm_fixed_areas/";
-
     if (ui->filename_text->text() == "") return;
     QFile file(ui->filename_text->text());
     file.open(QIODevice::WriteOnly | QIODevice::Text);
-    file.write("loadtemplate; filename = /home/arash/Projects/QAquifolium/bin/Debug/../../resources/main_components.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Pond_Plugin.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/unsaturated_soil.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Well.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/Sewer_system.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/soil_evapotranspiration_models.json\n");
-    file.write("addtemplate; filename = /home/arash/Projects/QAquifolium/bin/Release/../../resources/evapotranspiration_models.json\n");
-    file.write("addtemplate; filename = C:/Program Files (x86)/OpenHydroQual/bin/bin/../../resources/pipe_pump_tank.json\n");
+    file.write(QString("loadtemplate; filename=%1main_components.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Pond_Plugin.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1unsaturated_soil.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Well.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1Sewer_system.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1soil_evapotranspiration_models.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1evapotranspiration_models.json\n").arg(ohq_r).toUtf8());
+    file.write(QString("addtemplate; filename=%1pipe_pump_tank.json\n").arg(ohq_r).toUtf8());
 
     file.write("setvalue; object=system, quantity=simulation_start_time, value=44435\n");
     file.write("setvalue; object=system, quantity=simulation_end_time, value=44438\n");
@@ -95,7 +96,7 @@ void DryWellDialog::On_Generate_Model()
     file.write("setvalue; object=system, quantity=initial_time_step, value=0.01\n");
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
     file.write("setvalue; object=system, quantity=maximum_time_allowed, value=4800\n");
-    file.write("create block;type=Pond,inflow=/home/hoomanmoradpour/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n");
+    file.write(QString("create block;type=Pond,inflow=%1Data/Inflow_Corrected_New_Khiem.csv,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n").arg(base).toUtf8());
 
 #ifndef Brett
     //file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
@@ -587,11 +588,12 @@ void DryWellDialog::On_Generate_Model()
     file.write("setasparameter;object=Junction_Elastic-DryWell,parametername=Transmissivity_Coeff_Drywell,quantity=Transmissivity\n");
     file.write("setasparameter;object= Side_Settling_Chamber-Soil,parametername=Transmissivity_Coeff_Sed_Chamber,quantity=Transmissivity\n");
 
+//Combined model
 #ifdef ModelCatchments
 //Observations
-    file.write("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n");
-    file.write("create observation;type=Observation,object=SC6 - Infiltration_Pond,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/MeasuredFlowData_FI2.txt,name=Obs_FortIrwin2,expression=flow,error_standard_deviation=1,error_structure=normal\n");
-    file.write("create observation;type=Observation,error_standard_deviation=1,expression=depth,error_structure=normal,name=Depth,observed_data=/media/arash/E/Dropbox/Drywell Project/Combined_Model/TimeSeriesData/All_Depth.txt,object=Infiltration_Pond\n");
+    file.write(QString("create observation;type=Observation,object=SC1 - Infiltration_Pond,observed_data=%1Data/MeasuredFlowData_FI1.txt,name=Obs_FortIrwin1,expression=flow,error_standard_deviation=1,error_structure=normal\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=SC6 - Infiltration_Pond,observed_data=%1Data/MeasuredFlowData_FI2.txt,name=Obs_FortIrwin2,expression=flow,error_standard_deviation=1,error_structure=normal\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,error_standard_deviation=1,expression=depth,error_structure=normal,name=Depth,observed_data=%1Data/All_Depth.txt,object=Infiltration_Pond\n").arg(base).toUtf8());
 //Set as parameters
     file.write("setasparameter; object= 5, parametername= dep_storage, quantity= depression_storage\n");
     file.write("setasparameter; object= 5, parametername= Manning_Catchment, quantity= ManningCoeff\n");
@@ -638,23 +640,30 @@ void DryWellDialog::On_Generate_Model()
     file.write("setasparameter; object= SCtwo, parametername= Manning_Sewer, quantity= ManningCoeff\n");
     file.write("setasparameter; object= SCone, parametername= Manning_Sewer, quantity= ManningCoeff\n");
 #endif
-    //file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    //file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/arash/Dropbox/LA Project/Data/PreTreat_new_shifted.txt,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Data/PreTreat_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=/home/hoomanmoradpour/Dropbox/LA Project/Data/DryWell_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n");
-    //file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
-    /*file.write("create observation;type=Observation,object=Soil (33$4),name=Soil_2_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_115.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (26$4),name=Soil_2_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_125.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (20$4),name=Soil_2_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_130.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (10$4),name=Soil_2_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_135.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (8$4),name=Soil_2_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/2_136.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (33$7),name=Soil_4_115,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_115.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (29$7),name=Soil_4_120,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_120.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (26$7),name=Soil_4_125,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_125.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (20$7),name=Soil_4_130,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n");
-    file.write("create observation;type=Observation,object=Soil (8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=D:/CUA/Dropbox/LA Project/Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n");
+    // ---------------------------------------------
+    // Chamber Depth Observations
+    // ---------------------------------------------
+    // file.write(QString("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=%1Data/Depth_PreTreat_Shifted.txt,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    // file.write(QString("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=%1Data/PreTreat_new_shifted.txt,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Side_Settling_Chamber,name=Side_depth,expression=(depth-0.7),observed_data=%1Data/PreTreat_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Sedimentation_Chamber,name=depth_sedimentation_chamber,expression=(depth-0.7),observed_data=%1Data/DryWell_Final_08122024.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    // ---------------------------------------------
+    // Soil Moisture / EC Observations (Commented)
+    // ---------------------------------------------
+    // file.write(QString("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    /*
+    file.write(QString("create observation;type=Observation,object=Soil (33$4),name=Soil_2_115,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_115.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (29$4),name=Soil_2_120,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_120.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (26$4),name=Soil_2_125,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_125.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (20$4),name=Soil_2_130,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_130.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (10$4),name=Soil_2_135,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_135.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (8$4),name=Soil_2_136,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/2_136.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (33$7),name=Soil_4_115,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_115.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (29$7),name=Soil_4_120,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_120.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (26$7),name=Soil_4_125,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_125.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (20$7),name=Soil_4_130,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_130.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (10$7),name=Soil_4_135,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_135.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
+    file.write(QString("create observation;type=Observation,object=Soil (8$7),name=Soil_4_136,expression=Electrical_Conductivity,observed_data=%1Data/TimeSeries/Khiem_New/4_136.csv,error_structure=normal,error_standard_deviation=1\n").arg(base).toUtf8());
     */
     vector<int> layer_parameter = { 1,1,1,2,2,3,3,3,3,3,3,3,3,4,4,4,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,7,7,8,9,10,11 };
     vector<string> K_Parameter_Names = { "Ks_1","Ks_2","Ks_3","Ks_4","Ks_5","Ks_6","Ks_7","Ks_8","Ks_9","Ks_10","Ks_11"};
