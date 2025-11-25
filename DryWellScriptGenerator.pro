@@ -16,17 +16,35 @@ else: isEqual(QT_MAJOR_VERSION, 5) {
 }
 
 #####################################################################
-# DryWellScriptGenerator — GUI Application (uses OpenHydroQual static lib)
-#####################################################################
-
-QT += widgets gui core
-
-#####################################################################
 # C++ Standard
 #####################################################################
 CONFIG -= c++11
 CONFIG += c++17
 QMAKE_CXXFLAGS += -std=c++17
+
+#####################################################################
+# OpenMP
+#####################################################################
+unix:!macx {
+    QMAKE_CXXFLAGS += -fopenmp
+    QMAKE_LFLAGS   += -fopenmp
+    LIBS           += -lgomp
+}
+
+#####################################################################
+# Armadillo / BLAS / LAPACK (Correct Order!)
+#####################################################################
+unix:!macx {
+    LIBS += -larmadillo
+    LIBS += -lopenblas -llapack -lblas
+    LIBS += -lgfortran -lpthread -lm
+}
+
+#####################################################################
+# GSL
+#####################################################################
+DEFINES += GSL
+LIBS += -lgsl -lgslcblas -lm
 
 #####################################################################
 # Build Profile
@@ -74,34 +92,17 @@ CONFIG(SligoCreek) {
 }
 
 #####################################################################
-# GSL
-#####################################################################
-DEFINES += GSL
-LIBS += -lgsl -lgslcblas -lm
-
-#####################################################################
 # Include Paths
 #####################################################################
 
-# OpenHydroQual headers (static lib)
 INCLUDEPATH += $$OHQPATH
 INCLUDEPATH += $$OHQPATH/include
 INCLUDEPATH += $$OHQPATH/include/GA
 INCLUDEPATH += $$OHQPATH/include/MCMC
 INCLUDEPATH += $$OHQPATH/src
 
-# JSONCPP include
 INCLUDEPATH += $$OHQPATH/../jsoncpp/include
-
-# Utilities
 INCLUDEPATH += ../Utilities
-
-#####################################################################
-# Link Static Library (OpenHydroQual)
-#####################################################################
-
-OPENHYDROQUAL_STATIC = $${PWD}/OHQ-static
-LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
 
 #####################################################################
 # Project Sources / Headers / Forms
@@ -238,6 +239,13 @@ CONFIG(use_VTK) {
 
     LIBS += -lsuperlu
 }
+
+#####################################################################
+# Link OpenHydroQual static library LAST
+#####################################################################
+
+OPENHYDROQUAL_STATIC = $${PWD}/OHQ-static
+LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
 
 #####################################################################
 # Misc

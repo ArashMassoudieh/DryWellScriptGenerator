@@ -4,20 +4,35 @@
 
 QT += core
 QT -= gui widgets
-DEFINES += Q_JSON_SUPPORT
 
 TEMPLATE = lib
-CONFIG += staticlib c++17
+CONFIG  += staticlib c++17
+
 TARGET = OpenHydroQual
 
-DEFINES += Terminal_version Q_JSON_SUPPORT GSL
-DEFINES += ARMA_USE_LAPACK ARMA_USE_BLAS
+# --------------------------------
+# Global DEFINES
+# --------------------------------
+DEFINES += Terminal_version
+DEFINES += Q_JSON_SUPPORT
+DEFINES += GSL
 
-#############################################
+# Armadillo: use system BLAS/LAPACK (no wrapper)
+DEFINES += ARMA_DONT_USE_WRAPPER ARMA_USE_LAPACK ARMA_USE_BLAS
+
+# --------------------------------
+# C++ Standard
+# --------------------------------
+QMAKE_CXXFLAGS += -std=c++17
+
+# --------------------------------
 # MACHINE-SPECIFIC PATHS
-#############################################
+# --------------------------------
 
 CONFIG += PowerEdge
+#CONFIG += Hooman
+#CONFIG += Arash
+#CONFIG += SligoCreek
 
 CONFIG(PowerEdge) {
     OHQPATH        = /mnt/3rd900/Projects/OpenHydroQual/aquifolium
@@ -39,18 +54,14 @@ CONFIG(SligoCreek) {
     OHQ_LIB_OUTPUT = /media/arash/E/Projects/DryWellScriptGenerator/OHQ-static
 }
 
-DEFINES += GSL
-
-#############################################
+# --------------------------------
 # Output directory for libOpenHydroQual.a
-#############################################
-
+# --------------------------------
 DESTDIR = $${OHQ_LIB_OUTPUT}
 
-#############################################
+# --------------------------------
 # Include Paths
-#############################################
-
+# --------------------------------
 INCLUDEPATH += $${OHQPATH}
 INCLUDEPATH += $${OHQPATH}/include
 INCLUDEPATH += $${OHQPATH}/include/GA
@@ -58,27 +69,31 @@ INCLUDEPATH += $${OHQPATH}/include/MCMC
 INCLUDEPATH += $${OHQPATH}/src
 INCLUDEPATH += $${OHQPATH}/../jsoncpp/include
 
-#############################################
-# Armadillo / GSL / OpenMP
-#############################################
-
-linux {
+# --------------------------------
+# Armadillo / GSL / OpenMP / BLAS
+# (Note: LIBS here are mostly for test/link checks;
+#        the final app (DryWell) must also link them.)
+# --------------------------------
+unix:!macx {
     INCLUDEPATH += /usr/include
-    LIBS += -larmadillo -llapack -lblas -lgsl
+
+    # OpenMP
     QMAKE_CXXFLAGS += -fopenmp -O3 -march=native
     QMAKE_LFLAGS   += -fopenmp
-    LIBS += -lgomp -lpthread
+    LIBS           += -lgomp -lpthread
+
+    # Armadillo + OpenBLAS + GSL
+    LIBS += -larmadillo -lopenblas -lgsl -lgfortran
 }
 
 macx {
     INCLUDEPATH += /opt/homebrew/include
-    LIBS += -L/opt/homebrew/lib -larmadillo -lblas -llapack -lgsl
+    LIBS += -L/opt/homebrew/lib -larmadillo -lopenblas -lgsl
 }
 
-#############################################
+# --------------------------------
 # Source Files (OpenHydroQual Engine)
-#############################################
-
+# --------------------------------
 SOURCES += \
     $${OHQPATH}/src/Block.cpp \
     $${OHQPATH}/src/Command.cpp \
@@ -121,17 +136,11 @@ SOURCES += \
     $${OHQPATH}/../jsoncpp/src/lib_json/json_value.cpp \
     $${OHQPATH}/../jsoncpp/src/lib_json/json_writer.cpp
 
-#############################################
-# Header Files (expanded correctly)
-#############################################
-
-# All .h headers in include/
+# --------------------------------
+# Header Files
+# --------------------------------
 HEADERS += $$files($${OHQPATH}/include/*.h)
 HEADERS += $$files($${OHQPATH}/include/**/*.h)
-
-# All template headers (.hpp) in src/
 HEADERS += $$files($${OHQPATH}/src/*.hpp)
 HEADERS += $$files($${OHQPATH}/src/**/*.hpp)
-
-# JSONCPP headers
 HEADERS += $$files($${OHQPATH}/../jsoncpp/include/json/*.h)
