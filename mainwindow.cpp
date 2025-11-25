@@ -4,6 +4,8 @@
 #include "dialogrosemead.h"
 #include "importmoisturedata.h"
 
+#include "paths.h"
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -45,6 +47,6 @@ void MainWindow::on_ActionImport_Rosemead()
 {
     ImportMoistureData importdlg(this);
     importdlg.SetMode(ImportMoistureData::_mode::rectangular);
-    importdlg.ScheduleFileName = "/home/hoomanmoradpour/Dropbox/LA Project/Rosemead_Data/Rosemead_export/TimeStamps.txt";
+    importdlg.ScheduleFileName = base + "Rosemead_Data/Rosemead_export/TimeStamps.txt";
     importdlg.exec();
 }
