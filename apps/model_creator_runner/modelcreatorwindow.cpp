@@ -190,13 +190,25 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
+    addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
     addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
+    addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
     addTextRow(layout, tr("Simulation start"), simulationStartEdit);
     addTextRow(layout, tr("Simulation end"), simulationEndEdit);
     addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
+    addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
+    addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     addTextRow(layout, tr("Observation object"), observationObjectEdit);
     addTextRow(layout, tr("Observation expression"), observationExpressionEdit);
     addTextRow(layout, tr("Observation name"), observationNameEdit);
+    additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
+    auto *additionalRow = new QHBoxLayout();
+    additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
+    additionalRow->addWidget(additionalCommandsEdit, 1);
+    auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
+    connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
+    additionalRow->addWidget(loadCommandsButton);
+    layout->addLayout(additionalRow);
 
     auto *runSectionLabel = new QLabel(tr("OHQ run controls"), this);
     QFont runSectionFont = runSectionLabel->font();
@@ -239,30 +251,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     plotsLayout->addWidget(observationPlot, 1);
     plotsLayout->addWidget(depthProfilePlot, 1);
     tabs->addTab(plotsTab, tr("Plots"));
-
-    auto *importTab = new QWidget(this);
-    auto *importLayout = new QVBoxLayout(importTab);
-    auto *importLabel = new QLabel(tr("Import model inputs and command files"), this);
-    QFont importFont = importLabel->font();
-    importFont.setBold(true);
-    importLabel->setFont(importFont);
-    importLayout->addWidget(importLabel);
-
-    addFileRow(importLayout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    addFileRow(importLayout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
-    addFileRow(importLayout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
-    addFileRow(importLayout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
-
-    additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
-    auto *additionalRow = new QHBoxLayout();
-    additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
-    additionalRow->addWidget(additionalCommandsEdit, 1);
-    auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
-    connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
-    additionalRow->addWidget(loadCommandsButton);
-    importLayout->addLayout(additionalRow);
-    importLayout->addStretch(1);
-    tabs->addTab(importTab, tr("Import"));
 
     auto *exportTab = new QWidget(this);
     auto *exportLayout = new QVBoxLayout(exportTab);
