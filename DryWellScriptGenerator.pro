@@ -20,6 +20,7 @@ greaterThan(QT_MAJOR_VERSION, 5) {
 #####################################################################
 CONFIG -= c++11
 CONFIG += c++17
+CONFIG += no_lflags_merge
 QMAKE_CXXFLAGS += -std=c++17
 
 #####################################################################
@@ -28,6 +29,7 @@ QMAKE_CXXFLAGS += -std=c++17
 unix:!macx {
     QMAKE_CXXFLAGS += -fopenmp
     QMAKE_LFLAGS   += -fopenmp
+    QMAKE_LFLAGS   += -Wl,--no-as-needed
     LIBS           += -lgomp
 }
 
