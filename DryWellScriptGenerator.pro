@@ -118,6 +118,7 @@ SOURCES += \
     mainwindow.cpp \
     paths.cpp \
     postprocess.cpp \
+    qt_jsonvalue_compat.cpp \
     scad_generator.cpp \
     solver_runner.cpp \
     threedmap.cpp \
