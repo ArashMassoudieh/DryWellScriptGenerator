@@ -1609,16 +1609,21 @@ void ModelCreatorWindow::appendLog(const QString &text)
 void ModelCreatorWindow::loadSettings()
 {
     QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
+    const QString defaultWorkingDirectory = QDir::currentPath();
+    const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
+    const QString defaultTemplateDirectory = QDir(defaultWorkingDirectory).filePath("templates");
+    const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
+
     modelTypeCombo->setCurrentText(settings.value("modelType", "Drywell").toString());
     const QString enrichmentPreset = settings.value("enrichmentPreset").toString();
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable").toString());
     scriptPathEdit->setText(settings.value("ohqScript").toString());
-    workingDirEdit->setText(settings.value("workingDirectory").toString());
-    artifactsDirEdit->setText(settings.value("artifactsDirectory").toString());
-    templateDirEdit->setText(settings.value("templateDirectory").toString());
-    generatedScriptEdit->setText(settings.value("generatedScriptPath").toString());
+    workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
+    artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
+    templateDirEdit->setText(settings.value("templateDirectory", defaultTemplateDirectory).toString());
+    generatedScriptEdit->setText(settings.value("generatedScriptPath", defaultGeneratedScriptPath).toString());
     inflowFileEdit->setText(settings.value("inflowFile").toString());
     simulationStartEdit->setText(settings.value("simulationStart", "44435").toString());
     simulationEndEdit->setText(settings.value("simulationEnd", "44438").toString());
