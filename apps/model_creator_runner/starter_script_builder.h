@@ -31,8 +31,9 @@ struct StarterScriptOptions
 
     // Optional preset that appends extra model blocks/links.
     // Supported: "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
-    //            "Drywell_PretreatmentChambers", "Bioswale_Underdrain",
-    //            "Bioswale_Underdrain_GW"
+    //            "Drywell_PretreatmentChambers", "Drywell_LegacyStyle",
+    //            "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
+    //            "Bioswale_SuiteStyle"
     QString enrichmentPreset;
 };
 
