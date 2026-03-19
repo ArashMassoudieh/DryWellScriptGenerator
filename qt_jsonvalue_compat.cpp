@@ -1,4 +1,6 @@
 #include <QtCore/QJsonValue>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonObject>
 
 // Compatibility shim for environments where headers reference
 // QJsonValueConstRef::concrete(QJsonValueConstRef) but the linked QtCore
