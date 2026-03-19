@@ -146,7 +146,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       previewScriptButton(new QPushButton(tr("Review/Edit .ohq"), this)),
       generateScriptButton(new QPushButton(tr("Generate starter .ohq"), this)),
       generateAndRunButton(new QPushButton(tr("Generate + Run"), this)),
-      runButton(new QPushButton(tr("Run OHQ"), this)),
+      runButton(new QPushButton(tr("Run selected .ohq"), this)),
       exportArtifactsButton(new QPushButton(tr("Export run artifacts"), this)),
       stopButton(new QPushButton(tr("Stop"), this)),
       runner(new OHQProcessRunner(this))
@@ -188,6 +188,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
+    scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
@@ -222,6 +223,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     actions->addWidget(runButton);
     actions->addWidget(stopButton);
     layout->addLayout(actions);
+    layout->addWidget(new QLabel(tr("Tip: You can load an existing .ohq script and click \"Run selected .ohq\" without generating a starter script."), this));
 
     logView->setReadOnly(true);
     layout->addWidget(logView, 1);
@@ -707,6 +709,7 @@ void ModelCreatorWindow::runScript()
     saveSettings();
 
     runner->setExecutablePath(exeInfo.absoluteFilePath());
+    appendLog(stamp(tr("Running loaded script without generation: %1").arg(scriptInfo.absoluteFilePath())));
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath());
 }
 

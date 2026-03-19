@@ -21,9 +21,11 @@ class ModelCreatorWindow : public QMainWindow
     Q_OBJECT
 
 public:
+    /// Main UI window for starter generation, OHQ execution, plotting, and export workflows.
     explicit ModelCreatorWindow(QWidget *parent = nullptr);
 
 private slots:
+    // File/folder selection helpers.
     void chooseExecutable();
     void chooseScript();
     void chooseWorkingDirectory();
@@ -34,11 +36,15 @@ private slots:
     void chooseObservationFile();
     void chooseDepthProfileFile();
     void loadAdditionalCommandsFromFile();
+
+    // Generation/run actions.
     void syncEnrichmentPresetForModel();
     void previewScript();
     void generateStarterScript();
     void generateAndRunStarterScript();
     void runScript();
+
+    // Analysis/export actions.
     void refreshPlots();
     void exportArtifacts();
     void compareOutputVsObservation();
@@ -50,17 +56,29 @@ private slots:
     void clearComparisonHistory();
 
 private:
+    /// Shared starter-generation implementation used by Generate and Generate + Run.
     bool generateStarterScriptInternal();
+    /// Parse a numeric series from text/csv-like file formats into points.
     QVector<QPointF> loadSeriesFromFile(const QString &path, QString *errorMessage) const;
+    /// Load numeric output columns from configured OHQ output file.
     bool loadOutputColumns(QString *errorMessage);
+    /// Compute interpolated depth-slice series at @p targetX for selected columns.
     QVector<QPointF> computeDepthSliceSeries(double targetX, int xIdx, int yIdx, int depthIdx) const;
+    /// Append latest comparison metrics snapshot to history file (if enabled).
     void appendComparisonHistory() const;
+    /// Discover exportable files under current working directory tree.
     QStringList collectExportArtifacts() const;
+    /// Append plain text lines to UI log pane.
     void appendLog(const QString &text);
+    /// Restore persisted user settings into UI controls.
     void loadSettings();
+    /// Persist current UI selections/paths.
     void saveSettings() const;
+    /// Discover files modified during/after current run window.
     QStringList collectRunArtifacts() const;
+    /// Copy discovered artifacts into configured artifacts directory.
     void copyArtifacts(const QStringList &artifacts);
+    /// Write manifest CSV for copied/discovered artifacts.
     void writeArtifactManifest(const QStringList &artifacts);
 
     QComboBox *modelTypeCombo;
