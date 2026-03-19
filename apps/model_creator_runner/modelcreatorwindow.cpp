@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFont>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -156,7 +157,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     auto *runTab = new QWidget(this);
     auto *layout = new QVBoxLayout(runTab);
-    tabs->addTab(runTab, tr("Run setup"));
+    tabs->addTab(runTab, tr("Setup + Run"));
 
     modelTypeCombo->addItems({"Drywell", "Bioswale"});
     enrichmentPresetCombo->addItem(tr("None"), "");
@@ -166,60 +167,52 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
     enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
 
-    auto addFileRow = [layout](const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) {
+    auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) {
         auto *row = new QHBoxLayout();
         row->addWidget(new QLabel(labelText));
         row->addWidget(edit, 1);
         auto *btn = new QPushButton(buttonText);
         QObject::connect(btn, &QPushButton::clicked, slot);
         row->addWidget(btn);
-        layout->addLayout(row);
+        targetLayout->addLayout(row);
     };
 
-    auto addTextRow = [layout](const QString &labelText, QWidget *editor) {
+    auto addTextRow = [](QVBoxLayout *targetLayout, const QString &labelText, QWidget *editor) {
         auto *row = new QHBoxLayout();
         row->addWidget(new QLabel(labelText));
         row->addWidget(editor, 1);
-        layout->addLayout(row);
+        targetLayout->addLayout(row);
     };
 
-    addTextRow(tr("Model type"), modelTypeCombo);
-    addTextRow(tr("Model enrichment preset"), enrichmentPresetCombo);
-    addFileRow(tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
-    addFileRow(tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
-    addFileRow(tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
-    addFileRow(tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
-    addFileRow(tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    addFileRow(tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
-    addFileRow(tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
-    addTextRow(tr("Simulation start"), simulationStartEdit);
-    addTextRow(tr("Simulation end"), simulationEndEdit);
-    addTextRow(tr("Output series file"), outputSeriesFileEdit);
-    addFileRow(tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
-    addFileRow(tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
-    addTextRow(tr("Observation object"), observationObjectEdit);
-    addTextRow(tr("Observation expression"), observationExpressionEdit);
-    addTextRow(tr("Observation name"), observationNameEdit);
-    additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
-    auto *additionalRow = new QHBoxLayout();
-    additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
-    additionalRow->addWidget(additionalCommandsEdit, 1);
-    auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
-    connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
-    additionalRow->addWidget(loadCommandsButton);
-    layout->addLayout(additionalRow);
+    addTextRow(layout, tr("Model type"), modelTypeCombo);
+    addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
+    addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
+    addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
+    addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
+    addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
+    addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
+    addTextRow(layout, tr("Simulation start"), simulationStartEdit);
+    addTextRow(layout, tr("Simulation end"), simulationEndEdit);
+    addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
+    addTextRow(layout, tr("Observation object"), observationObjectEdit);
+    addTextRow(layout, tr("Observation expression"), observationExpressionEdit);
+    addTextRow(layout, tr("Observation name"), observationNameEdit);
 
-    logView->setReadOnly(true);
-    layout->addWidget(logView, 1);
-
+    auto *runSectionLabel = new QLabel(tr("OHQ run controls"), this);
+    QFont runSectionFont = runSectionLabel->font();
+    runSectionFont.setBold(true);
+    runSectionLabel->setFont(runSectionFont);
+    layout->addWidget(runSectionLabel);
     auto *actions = new QHBoxLayout();
     actions->addWidget(previewScriptButton);
     actions->addWidget(generateScriptButton);
     actions->addWidget(generateAndRunButton);
     actions->addWidget(runButton);
-    actions->addWidget(exportArtifactsButton);
     actions->addWidget(stopButton);
     layout->addLayout(actions);
+
+    logView->setReadOnly(true);
+    layout->addWidget(logView, 1);
 
     auto *plotsTab = new QWidget(this);
     auto *plotsLayout = new QVBoxLayout(plotsTab);
@@ -237,9 +230,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     sliceXEdit->setMaximumWidth(120);
     plotActions->addWidget(sliceXEdit);
     plotActions->addWidget(computeDepthSliceButton);
-    plotActions->addWidget(exportPlotDataButton);
-    plotActions->addWidget(exportAllDepthSlicesButton);
-    plotActions->addWidget(clearComparisonHistoryButton);
     plotActions->addWidget(refreshPlotsButton);
     plotsLayout->addLayout(plotActions);
     comparisonSummaryLabel->setWordWrap(true);
@@ -249,6 +239,47 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     plotsLayout->addWidget(observationPlot, 1);
     plotsLayout->addWidget(depthProfilePlot, 1);
     tabs->addTab(plotsTab, tr("Plots"));
+
+    auto *importTab = new QWidget(this);
+    auto *importLayout = new QVBoxLayout(importTab);
+    auto *importLabel = new QLabel(tr("Import model inputs and command files"), this);
+    QFont importFont = importLabel->font();
+    importFont.setBold(true);
+    importLabel->setFont(importFont);
+    importLayout->addWidget(importLabel);
+
+    addFileRow(importLayout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
+    addFileRow(importLayout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
+    addFileRow(importLayout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
+    addFileRow(importLayout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
+
+    additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
+    auto *additionalRow = new QHBoxLayout();
+    additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
+    additionalRow->addWidget(additionalCommandsEdit, 1);
+    auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
+    connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
+    additionalRow->addWidget(loadCommandsButton);
+    importLayout->addLayout(additionalRow);
+    importLayout->addStretch(1);
+    tabs->addTab(importTab, tr("Import"));
+
+    auto *exportTab = new QWidget(this);
+    auto *exportLayout = new QVBoxLayout(exportTab);
+    auto *exportLabel = new QLabel(tr("Export artifacts and analysis outputs"), this);
+    QFont exportFont = exportLabel->font();
+    exportFont.setBold(true);
+    exportLabel->setFont(exportFont);
+    exportLayout->addWidget(exportLabel);
+
+    auto *exportActions = new QHBoxLayout();
+    exportActions->addWidget(exportArtifactsButton);
+    exportActions->addWidget(exportPlotDataButton);
+    exportActions->addWidget(exportAllDepthSlicesButton);
+    exportActions->addWidget(clearComparisonHistoryButton);
+    exportLayout->addLayout(exportActions);
+    exportLayout->addStretch(1);
+    tabs->addTab(exportTab, tr("Export"));
 
     setCentralWidget(central);
     setWindowTitle(tr("Model Creator Runner (New Workflow)"));
