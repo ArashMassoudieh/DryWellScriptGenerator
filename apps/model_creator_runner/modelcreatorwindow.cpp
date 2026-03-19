@@ -201,9 +201,14 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
     addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
     addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
-    addTextRow(layout, tr("Observation object"), observationObjectEdit);
-    addTextRow(layout, tr("Observation expression"), observationExpressionEdit);
-    addTextRow(layout, tr("Observation name"), observationNameEdit);
+    observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
+    observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
+    observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
+    observationExpressionEdit->setToolTip(tr("Observed quantity/expression, e.g. moisture variable theta."));
+    observationNameEdit->setPlaceholderText(tr("e.g. Obs_1"));
+    addTextRow(layout, tr("Soil layer/object (observation target)"), observationObjectEdit);
+    addTextRow(layout, tr("Moisture/expression (observation quantity)"), observationExpressionEdit);
+    addTextRow(layout, tr("Observation series name"), observationNameEdit);
     additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
     auto *additionalRow = new QHBoxLayout();
     additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));

@@ -18,7 +18,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - inflow file
   - simulation start/end
   - OHQ output series file name
-  - optional observation file/object/expression/name
+  - optional observation file + soil layer/object + moisture expression + observation series name
   - optional raw "additional OHQ commands" appended to generated starter scripts
     - includes **Load file** to import reusable command snippets from `.txt`/`.ohq`
 - Supports **Review/Edit .ohq**, **Generate starter .ohq**, and **Generate + Run** actions.
