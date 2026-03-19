@@ -7,8 +7,14 @@
 // Marked weak so it won't conflict on toolchains/environments where QtCore
 // already provides a strong implementation.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0) && QT_VERSION < QT_VERSION_CHECK(7, 0, 0)
+#if defined(__GNUC__) || defined(__clang__)
+#define DW_WEAK_SYMBOL __attribute__((weak))
+#else
+#define DW_WEAK_SYMBOL
+#endif
+
 QT_BEGIN_NAMESPACE
-Q_DECL_WEAK QJsonValue QJsonValueConstRef::concrete(QJsonValueConstRef self) noexcept
+DW_WEAK_SYMBOL QJsonValue QJsonValueConstRef::concrete(QJsonValueConstRef self) noexcept
 {
     switch (concreteType(self)) {
     case QJsonValue::Null:
@@ -29,5 +35,6 @@ Q_DECL_WEAK QJsonValue QJsonValueConstRef::concrete(QJsonValueConstRef self) noe
     return QJsonValue(QJsonValue::Undefined);
 }
 QT_END_NAMESPACE
-#endif
 
+#undef DW_WEAK_SYMBOL
+#endif
