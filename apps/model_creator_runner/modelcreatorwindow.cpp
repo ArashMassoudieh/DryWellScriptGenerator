@@ -323,6 +323,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
+        currentRunOutput.clear();
         previewScriptButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
         generateAndRunButton->setEnabled(false);
@@ -333,6 +334,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     });
 
     connect(runner, &OHQProcessRunner::outputReady, this, [this](const QString &text) {
+        currentRunOutput += text;
         appendLog(text);
     });
 
@@ -344,6 +346,21 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
+        if (exitCode != 0) {
+            if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
+                QMessageBox::warning(this,
+                                     tr("Runtime dependency error"),
+                                     tr("OHQ failed to start due to missing shared libraries.\n\n"
+                                        "Details:\n%1\n\n"
+                                        "Please ensure required runtime libraries (e.g., VTK) are available via LD_LIBRARY_PATH or system linker paths.")
+                                         .arg(currentRunOutput.trimmed()));
+                appendLog(stamp(tr("Detected shared-library runtime error; artifact scan skipped.")));
+            } else {
+                appendLog(stamp(tr("Run exited with non-zero code; artifact scan skipped.")));
+            }
+            return;
+        }
+
         refreshPlots();
 
         const QStringList artifacts = collectRunArtifacts();

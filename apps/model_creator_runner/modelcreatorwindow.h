@@ -134,6 +134,7 @@ private:
     double lastComparisonBias = 0.0;
     double lastComparisonR2 = 0.0;
     mutable QString lastComparisonHistorySignature;
+    QString currentRunOutput;
 };
 
 #endif // MODELCREATORWINDOW_H
