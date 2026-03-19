@@ -1,6 +1,7 @@
 #include "simplelineplotwidget.h"
 
 #include <QPainter>
+#include <QPainterPath>
 
 namespace {
 QRectF plotRect(const QRect &outer)

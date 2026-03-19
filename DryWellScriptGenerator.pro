@@ -2,14 +2,13 @@
 # Qt Version Auto-Config (Qt5 / Qt6)
 #####################################################################
 
-isEqual(QT_MAJOR_VERSION, 6) {
+QT += core gui widgets
+
+greaterThan(QT_MAJOR_VERSION, 5) {
     message(">>> Building with Qt 6.x")
-    QT += core gui widgets
     DEFINES += QT6_BUILD
-}
-else: isEqual(QT_MAJOR_VERSION, 5) {
+} else {
     message(">>> Building with Qt 5.x")
-    QT += core gui widgets
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtWidgets
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtGui
     DEFINES += QT5_BUILD
