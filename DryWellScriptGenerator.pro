@@ -246,6 +246,14 @@ CONFIG(use_VTK) {
 OPENHYDROQUAL_STATIC = $${PWD}/OHQ-static
 LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
 
+# Keep QtCore after OpenHydroQual for static-lib dependent symbol resolution
+# (e.g., QJsonValueConstRef symbols referenced from libOpenHydroQual.a).
+greaterThan(QT_MAJOR_VERSION, 5) {
+    LIBS += -L$$[QT_INSTALL_LIBS] -lQt6Core
+} else {
+    LIBS += -L$$[QT_INSTALL_LIBS] -lQt5Core
+}
+
 #####################################################################
 # Misc
 #####################################################################
