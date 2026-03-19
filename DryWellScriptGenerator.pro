@@ -6,6 +6,7 @@ QT += core gui widgets
 
 greaterThan(QT_MAJOR_VERSION, 5) {
     message(">>> Building with Qt 6.x")
+    QT += core5compat
     DEFINES += QT6_BUILD
 } else {
     message(">>> Building with Qt 5.x")
@@ -249,7 +250,7 @@ LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
 # Keep QtCore after OpenHydroQual for static-lib dependent symbol resolution
 # (e.g., QJsonValueConstRef symbols referenced from libOpenHydroQual.a).
 greaterThan(QT_MAJOR_VERSION, 5) {
-    LIBS += -L$$[QT_INSTALL_LIBS] -lQt6Core
+    LIBS += -L$$[QT_INSTALL_LIBS] -lQt6Core -lQt6Core5Compat
 } else {
     LIBS += -L$$[QT_INSTALL_LIBS] -lQt5Core
 }
