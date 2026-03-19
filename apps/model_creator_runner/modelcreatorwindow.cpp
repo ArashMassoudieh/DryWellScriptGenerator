@@ -1526,9 +1526,11 @@ void ModelCreatorWindow::exportArtifacts()
         for (int i = 0; i < exportedPaths.size(); ++i) {
             const QFileInfo dst(exportedPaths[i]);
             const QString sourcePath = exportedSources.value(i);
+            QString escapedSourcePath = sourcePath;
+            escapedSourcePath.replace('"', "\"\"");
             ts << '"' << dst.absoluteFilePath().replace('"', "\"\"") << '"' << ','
                << '"' << dst.fileName().replace('"', "\"\"") << '"' << ','
-               << '"' << sourcePath.replace('"', "\"\"") << '"' << "\n";
+               << '"' << escapedSourcePath << '"' << "\n";
         }
         exportManifest.commit();
     }
