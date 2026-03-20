@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QMap>
 #include <QMessageBox>
+#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -138,12 +139,75 @@ QString FirstExistingFile(const QStringList &candidates)
     }
     return QString();
 }
+
+bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
+{
+    const QString baseName = executableInfo.completeBaseName().trimmed();
+    return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
+}
+
+QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
+{
+    if (argumentTemplate.trimmed().isEmpty()) {
+        return QStringList{scriptPath};
+    }
+
+    QStringList args = QProcess::splitCommand(argumentTemplate);
+    bool containsScriptToken = false;
+    for (QString &arg : args) {
+        if (arg.contains(QStringLiteral("{script}"))) {
+            arg.replace(QStringLiteral("{script}"), scriptPath);
+            containsScriptToken = true;
+        }
+    }
+
+    if (!containsScriptToken) {
+        args.push_back(scriptPath);
+    }
+    return args;
+}
+
+bool IsKnownRuntimeNoiseLine(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    return trimmed.startsWith(QStringLiteral("qt.core.qmetaobject.connectslotsbyname: QMetaObject::connectSlotsByName: No matching signal for on_"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such slot "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such signal "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (sender name:"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (receiver name:"));
+}
+
+QString FilterRuntimeNoise(const QString &text, int *suppressedLineCount)
+{
+    if (suppressedLineCount == nullptr) {
+        return text;
+    }
+
+    const QStringList lines = text.split('\n');
+    QStringList kept;
+    kept.reserve(lines.size());
+
+    for (const QString &line : lines) {
+        if (IsKnownRuntimeNoiseLine(line)) {
+            ++(*suppressedLineCount);
+            continue;
+        }
+        kept.push_back(line);
+    }
+
+    return kept.join('\n');
+}
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     : QMainWindow(parent),
       modelTypeCombo(new QComboBox(this)),
       exePathEdit(new QLineEdit(this)),
+      exeArgsEdit(new QLineEdit(this)),
       scriptPathEdit(new QLineEdit(this)),
       workingDirEdit(new QLineEdit(this)),
       artifactsDirEdit(new QLineEdit(this)),
@@ -219,6 +283,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
     exePathEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"));
+    addTextRow(layout, tr("Executable args"), exeArgsEdit);
+    exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted, script path is passed as a positional argument."));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -359,6 +426,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
     saveOnEdit(exePathEdit);
+    saveOnEdit(exeArgsEdit);
     saveOnEdit(scriptPathEdit);
     saveOnEdit(workingDirEdit);
     saveOnEdit(artifactsDirEdit);
@@ -378,6 +446,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
+        suppressedRuntimeNoiseLines = 0;
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -389,8 +458,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     });
 
     connect(runner, &OHQProcessRunner::outputReady, this, [this](const QString &text) {
-        currentRunOutput += text;
-        appendLog(text);
+        int suppressed = 0;
+        const QString filtered = FilterRuntimeNoise(text, &suppressed);
+        suppressedRuntimeNoiseLines += suppressed;
+        currentRunOutput += filtered;
+        if (!filtered.trimmed().isEmpty()) {
+            appendLog(filtered);
+        }
     });
 
     connect(runner, &OHQProcessRunner::runFinished, this, [this](int exitCode) {
@@ -401,6 +475,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runButton->setEnabled(true);
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
+        if (suppressedRuntimeNoiseLines > 0) {
+            appendLog(stamp(tr("Suppressed %1 known Qt runtime warning line(s).").arg(suppressedRuntimeNoiseLines)));
+        }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
@@ -558,8 +635,12 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -883,8 +964,14 @@ void ModelCreatorWindow::runScript()
     saveSettings();
 
     runner->setExecutablePath(exeInfo.absoluteFilePath());
+    const QStringList executableArgs = BuildExecutableArguments(exeArgsEdit->text().trimmed(),
+                                                                scriptInfo.absoluteFilePath());
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo) && exeArgsEdit->text().trimmed().isEmpty()) {
+        appendLog(stamp(tr("Detected GUI executable '%1'. If script does not auto-run, set Executable args (e.g. --script {script} --run).")
+                        .arg(exeInfo.fileName())));
+    }
     appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
-    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath());
+    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
 
 QVector<QPointF> ModelCreatorWindow::loadSeriesFromFile(const QString &path, QString *errorMessage) const
@@ -1773,8 +1860,12 @@ void ModelCreatorWindow::loadSettings()
     });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -1790,6 +1881,7 @@ void ModelCreatorWindow::loadSettings()
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
+    exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
     artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
@@ -1815,6 +1907,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("modelType", modelTypeCombo->currentText());
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());
     settings.setValue("ohqExecutable", exePathEdit->text());
+    settings.setValue("ohqExecutableArgs", exeArgsEdit->text());
     settings.setValue("ohqScript", scriptPathEdit->text());
     settings.setValue("workingDirectory", workingDirEdit->text());
     settings.setValue("artifactsDirectory", artifactsDirEdit->text());
