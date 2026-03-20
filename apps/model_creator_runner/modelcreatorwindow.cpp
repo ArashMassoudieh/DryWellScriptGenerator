@@ -179,6 +179,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       sliceXEdit(new QLineEdit(this)),
       comparisonSummaryLabel(new QLabel(tr("Comparison: n/a"), this)),
       previewScriptButton(new QPushButton(tr("Review/Edit .ohq"), this)),
+      quickRunButton(new QPushButton(tr("Quick Run + Save"), this)),
       generateScriptButton(new QPushButton(tr("Generate starter .ohq"), this)),
       generateAndRunButton(new QPushButton(tr("Generate + Run"), this)),
       runButton(new QPushButton(tr("Run selected .ohq"), this)),
@@ -269,6 +270,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     layout->addWidget(runSectionLabel);
     auto *actions = new QHBoxLayout();
     actions->addWidget(previewScriptButton);
+    actions->addWidget(quickRunButton);
     actions->addWidget(generateScriptButton);
     actions->addWidget(generateAndRunButton);
     actions->addWidget(runButton);
@@ -329,6 +331,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     stopButton->setEnabled(false);
 
     connect(previewScriptButton, &QPushButton::clicked, this, &ModelCreatorWindow::previewScript);
+    connect(quickRunButton, &QPushButton::clicked, this, &ModelCreatorWindow::quickGenerateRunAndSave);
     connect(generateScriptButton, &QPushButton::clicked, this, &ModelCreatorWindow::generateStarterScript);
     connect(generateAndRunButton, &QPushButton::clicked, this, &ModelCreatorWindow::generateAndRunStarterScript);
     connect(runButton, &QPushButton::clicked, this, &ModelCreatorWindow::runScript);
@@ -376,6 +379,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
         previewScriptButton->setEnabled(false);
+        quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
         generateAndRunButton->setEnabled(false);
         runButton->setEnabled(false);
@@ -391,6 +395,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     connect(runner, &OHQProcessRunner::runFinished, this, [this](int exitCode) {
         previewScriptButton->setEnabled(true);
+        quickRunButton->setEnabled(true);
         generateScriptButton->setEnabled(true);
         generateAndRunButton->setEnabled(true);
         runButton->setEnabled(true);
@@ -431,6 +436,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     connect(runner, &OHQProcessRunner::runFailed, this, [this](const QString &reason) {
         previewScriptButton->setEnabled(true);
+        quickRunButton->setEnabled(true);
         generateScriptButton->setEnabled(true);
         generateAndRunButton->setEnabled(true);
         runButton->setEnabled(true);
@@ -582,6 +588,23 @@ void ModelCreatorWindow::applySuggestedDefaults()
 
     saveSettings();
     appendLog(stamp(tr("Applied suggested defaults to empty setup fields.")));
+}
+
+void ModelCreatorWindow::quickGenerateRunAndSave()
+{
+    applySuggestedDefaults();
+
+    if (artifactsDirEdit->text().trimmed().isEmpty()) {
+        const QString fallbackArtifacts = QDir(workingDirEdit->text().trimmed()).filePath("artifacts");
+        artifactsDirEdit->setText(fallbackArtifacts);
+    }
+    QDir().mkpath(artifactsDirEdit->text().trimmed());
+    saveSettings();
+
+    if (!generateStarterScriptInternal()) {
+        return;
+    }
+    runScript();
 }
 
 void ModelCreatorWindow::chooseInflowFile()

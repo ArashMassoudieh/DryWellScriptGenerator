@@ -37,6 +37,7 @@ private slots:
     void chooseDepthProfileFile();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
+    void quickGenerateRunAndSave();
 
     // Generation/run actions.
     void syncEnrichmentPresetForModel();
@@ -120,6 +121,7 @@ private:
     QLineEdit *sliceXEdit;
     QLabel *comparisonSummaryLabel;
     QPushButton *previewScriptButton;
+    QPushButton *quickRunButton;
     QPushButton *generateScriptButton;
     QPushButton *generateAndRunButton;
     QPushButton *runButton;
