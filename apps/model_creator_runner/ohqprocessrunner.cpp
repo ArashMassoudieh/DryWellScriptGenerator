@@ -69,7 +69,9 @@ void OHQProcessRunner::stop()
     }
 }
 
-void OHQProcessRunner::runScript(const QString &scriptFile, const QString &workingDirectory)
+void OHQProcessRunner::runScript(const QString &scriptFile,
+                                 const QString &workingDirectory,
+                                 const QStringList &executableArgs)
 {
     if (isRunning()) {
         emit runFailed(QStringLiteral("OHQ process is already running."));
@@ -96,5 +98,5 @@ void OHQProcessRunner::runScript(const QString &scriptFile, const QString &worki
     }
 
     process->setWorkingDirectory(workingDirectory);
-    process->start(executable, QStringList{scriptFile});
+    process->start(executable, executableArgs);
 }
