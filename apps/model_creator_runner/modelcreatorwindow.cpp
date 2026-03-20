@@ -988,6 +988,27 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
+    QString executablePathToRun = exeInfo.absoluteFilePath();
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
+        const QString siblingOhqPath = QDir(exeInfo.absolutePath()).filePath("OHQ");
+        const QFileInfo siblingOhqInfo(siblingOhqPath);
+        if (siblingOhqInfo.exists() && siblingOhqInfo.isFile() && siblingOhqInfo.isExecutable()) {
+            executablePathToRun = siblingOhqInfo.absoluteFilePath();
+            exePathEdit->setText(executablePathToRun);
+            appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
+                            .arg(exeInfo.fileName(), QFileInfo(executablePathToRun).fileName())));
+        } else {
+            QMessageBox::warning(this,
+                                 tr("GUI executable cannot run scripts directly"),
+                                 tr("The selected executable is OpenHydroQual GUI (%1), which opens the interface but does not run simulations from this workflow.\n\n"
+                                    "Please select the CLI solver binary named 'OHQ' in the same build folder.")
+                                     .arg(exeInfo.fileName()));
+            appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected and no sibling OHQ CLI binary was found.")
+                            .arg(exeInfo.fileName())));
+            return;
+        }
+    }
+
     if (!scriptInfo.exists() || !scriptInfo.isFile()) {
         QMessageBox::warning(this, tr("Missing script"), tr("Please select a valid .ohq script file."));
         return;
@@ -1008,13 +1029,9 @@ void ModelCreatorWindow::runScript()
 
     saveSettings();
 
-    runner->setExecutablePath(exeInfo.absoluteFilePath());
+    runner->setExecutablePath(executablePathToRun);
     const QStringList executableArgs = BuildExecutableArguments(exeArgsEdit->text().trimmed(),
                                                                 scriptInfo.absoluteFilePath());
-    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo) && exeArgsEdit->text().trimmed().isEmpty()) {
-        appendLog(stamp(tr("Detected GUI executable '%1'. If script does not auto-run, set Executable args (e.g. --script {script} --run).")
-                        .arg(exeInfo.fileName())));
-    }
     appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
