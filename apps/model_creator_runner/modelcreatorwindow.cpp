@@ -140,6 +140,17 @@ QString FirstExistingFile(const QStringList &candidates)
     return QString();
 }
 
+QString FirstExecutableFile(const QStringList &candidates)
+{
+    for (const QString &path : candidates) {
+        const QFileInfo info(path);
+        if (!path.trimmed().isEmpty() && info.exists() && info.isFile() && info.isExecutable()) {
+            return info.absoluteFilePath();
+        }
+    }
+    return QString();
+}
+
 bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
 {
     const QString baseName = executableInfo.completeBaseName().trimmed();
@@ -154,6 +165,30 @@ bool LooksLikeScriptFilePath(const QFileInfo &pathInfo)
 bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
 {
     return pathInfo.suffix().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0;
+}
+
+QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
+{
+    QStringList roots;
+    QDir dir(guiExecutableInfo.absolutePath());
+    for (int i = 0; i < 5; ++i) {
+        roots << dir.absolutePath();
+        if (!dir.cdUp()) {
+            break;
+        }
+    }
+
+    QStringList candidates;
+    for (const QString &root : roots) {
+        const QDir rootDir(root);
+        candidates << rootDir.filePath("OHQ")
+                   << rootDir.filePath("build/Release/OHQ")
+                   << rootDir.filePath("build/Debug/OHQ")
+                   << rootDir.filePath("aquifolium/build/OHQ")
+                   << rootDir.filePath("aquifolium/bin/OHQ");
+    }
+
+    return FirstExecutableFile(candidates);
 }
 
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
@@ -581,7 +616,20 @@ void ModelCreatorWindow::chooseExecutable()
 {
     const QString fileName = QFileDialog::getOpenFileName(this, tr("Select OHQ executable"));
     if (!fileName.isEmpty()) {
-        exePathEdit->setText(fileName);
+        QString resolvedPath = fileName;
+        const QFileInfo selectedInfo(fileName);
+        if (LooksLikeGuiOpenHydroQualExecutable(selectedInfo)) {
+            const QString cliPath = FindCliExecutableNearGui(selectedInfo);
+            if (!cliPath.isEmpty()) {
+                resolvedPath = cliPath;
+                appendLog(stamp(tr("Resolved GUI selection '%1' to CLI binary '%2'.")
+                                .arg(selectedInfo.fileName(), QFileInfo(cliPath).fileName())));
+            } else {
+                appendLog(stamp(tr("Selected GUI executable '%1'. Could not auto-find OHQ CLI nearby.")
+                                .arg(selectedInfo.fileName())));
+            }
+        }
+        exePathEdit->setText(resolvedPath);
         saveSettings();
     }
 }
@@ -990,20 +1038,20 @@ void ModelCreatorWindow::runScript()
 
     QString executablePathToRun = exeInfo.absoluteFilePath();
     if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
-        const QString siblingOhqPath = QDir(exeInfo.absolutePath()).filePath("OHQ");
-        const QFileInfo siblingOhqInfo(siblingOhqPath);
-        if (siblingOhqInfo.exists() && siblingOhqInfo.isFile() && siblingOhqInfo.isExecutable()) {
-            executablePathToRun = siblingOhqInfo.absoluteFilePath();
+        const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
+        const QFileInfo discoveredCliInfo(discoveredCliPath);
+        if (!discoveredCliPath.isEmpty()) {
+            executablePathToRun = discoveredCliInfo.absoluteFilePath();
             exePathEdit->setText(executablePathToRun);
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
-                            .arg(exeInfo.fileName(), QFileInfo(executablePathToRun).fileName())));
+                            .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
             QMessageBox::warning(this,
                                  tr("GUI executable cannot run scripts directly"),
                                  tr("The selected executable is OpenHydroQual GUI (%1), which opens the interface but does not run simulations from this workflow.\n\n"
-                                    "Please select the CLI solver binary named 'OHQ' in the same build folder.")
+                                    "Please select the CLI solver binary named 'OHQ'.")
                                      .arg(exeInfo.fileName()));
-            appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected and no sibling OHQ CLI binary was found.")
+            appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected and no nearby OHQ CLI binary was found.")
                             .arg(exeInfo.fileName())));
             return;
         }
