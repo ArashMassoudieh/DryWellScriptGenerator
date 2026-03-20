@@ -259,6 +259,41 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
     return QString();
 }
 
+QString ProbeExecutableHelp(const QString &executablePath, const QStringList &args)
+{
+    QProcess probe;
+    probe.start(executablePath, args);
+    if (!probe.waitForStarted(1500)) {
+        return QString();
+    }
+    probe.waitForFinished(2500);
+    if (probe.state() != QProcess::NotRunning) {
+        probe.kill();
+        probe.waitForFinished(500);
+    }
+    return QString::fromLocal8Bit(probe.readAllStandardOutput() + probe.readAllStandardError());
+}
+
+QString InferScriptArgumentTemplate(const QString &helpText)
+{
+    const QString lower = helpText.toLower();
+    QString templ;
+    if (lower.contains("--script")) {
+        templ = QStringLiteral("--script {script}");
+    } else if (lower.contains("-script")) {
+        templ = QStringLiteral("-script {script}");
+    } else if (lower.contains("--input")) {
+        templ = QStringLiteral("--input {script}");
+    } else if (lower.contains("-i") && lower.contains("script")) {
+        templ = QStringLiteral("-i {script}");
+    }
+
+    if (!templ.isEmpty() && lower.contains("--run")) {
+        templ += QStringLiteral(" --run");
+    }
+    return templ;
+}
+
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
 {
     if (argumentTemplate.trimmed().isEmpty()) {
@@ -1135,14 +1170,27 @@ void ModelCreatorWindow::runScript()
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
-            QMessageBox::warning(this,
-                                 tr("GUI executable cannot run scripts directly"),
-                                 tr("The selected executable is OpenHydroQual GUI (%1), which opens the interface but does not run simulations from this workflow.\n\n"
-                                    "Please select the CLI solver binary named 'OHQ'.")
-                                     .arg(exeInfo.fileName()));
-            appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected and no nearby OHQ CLI binary was found.")
-                            .arg(exeInfo.fileName())));
-            return;
+            QString helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("--help")});
+            if (helpText.trimmed().isEmpty()) {
+                helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("-h")});
+            }
+            const QString inferredArgs = InferScriptArgumentTemplate(helpText);
+            if (!inferredArgs.isEmpty()) {
+                exeArgsEdit->setText(inferredArgs);
+                executablePathToRun = exeInfo.absoluteFilePath();
+                appendLog(stamp(tr("No OHQ CLI found nearby; inferred GUI script args from help output: %1")
+                                .arg(inferredArgs)));
+            } else {
+                QMessageBox::warning(this,
+                                     tr("GUI executable cannot run scripts directly"),
+                                     tr("The selected executable is OpenHydroQual GUI (%1), and no OHQ CLI binary was discovered nearby.\n\n"
+                                        "Also could not infer a script-run argument from '--help'.\n"
+                                        "Please select the CLI solver binary named 'OHQ' or manually set Executable args.")
+                                         .arg(exeInfo.fileName()));
+                appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected, no nearby OHQ CLI found, and no script args could be inferred from help.")
+                                .arg(exeInfo.fileName())));
+                return;
+            }
         }
     }
 
