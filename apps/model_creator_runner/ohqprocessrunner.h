@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 class QProcess;
 
@@ -29,8 +30,11 @@ public:
      * @brief Start OHQ with the given script file in a working directory.
      * @param scriptFile Script path passed to OHQ.
      * @param workingDirectory Process working directory.
+     * @param executableArgs Full argument list passed to executable.
      */
-    void runScript(const QString &scriptFile, const QString &workingDirectory);
+    void runScript(const QString &scriptFile,
+                   const QString &workingDirectory,
+                   const QStringList &executableArgs);
 
 signals:
     /// Emitted once a run process has started.

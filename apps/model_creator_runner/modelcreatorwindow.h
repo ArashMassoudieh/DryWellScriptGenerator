@@ -86,6 +86,7 @@ private:
 
     QComboBox *modelTypeCombo;
     QLineEdit *exePathEdit;
+    QLineEdit *exeArgsEdit;
     QLineEdit *scriptPathEdit;
     QLineEdit *workingDirEdit;
     QLineEdit *artifactsDirEdit;
@@ -139,6 +140,7 @@ private:
     double lastComparisonR2 = 0.0;
     mutable QString lastComparisonHistorySignature;
     QString currentRunOutput;
+    int suppressedRuntimeNoiseLines = 0;
 };
 
 #endif // MODELCREATORWINDOW_H
