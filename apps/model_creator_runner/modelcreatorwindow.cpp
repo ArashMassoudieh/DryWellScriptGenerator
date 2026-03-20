@@ -146,6 +146,16 @@ bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
     return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
 }
 
+bool LooksLikeScriptFilePath(const QFileInfo &pathInfo)
+{
+    return pathInfo.suffix().compare(QStringLiteral("ohq"), Qt::CaseInsensitive) == 0;
+}
+
+bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
+{
+    return pathInfo.suffix().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0;
+}
+
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
 {
     if (argumentTemplate.trimmed().isEmpty()) {
@@ -519,7 +529,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runButton->setEnabled(true);
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
-        QMessageBox::warning(this, tr("Run failed"), reason);
+        QString message = reason;
+        const QFileInfo exeInfo(exePathEdit->text().trimmed());
+        if (reason.contains("not a runnable file", Qt::CaseInsensitive)) {
+            if (LooksLikeScriptFilePath(exeInfo)) {
+                message += tr("\n\nHint: The executable field is set to a .ohq script. Move that path to 'OHQ script' and set 'OHQ executable' to the OHQ binary.");
+            } else if (LooksLikeStaticLibraryPath(exeInfo)) {
+                message += tr("\n\nHint: The executable field is set to a static library (.a). Select the OHQ binary executable instead.");
+            }
+        }
+        QMessageBox::warning(this, tr("Run failed"), message);
         appendLog(stamp(tr("Run failed: %1").arg(reason)));
     });
 
@@ -658,6 +677,14 @@ void ModelCreatorWindow::applySuggestedDefaults()
     };
 
     applyIfEmpty(exePathEdit, suggestedExecutablePath);
+    if (!suggestedExecutablePath.isEmpty()) {
+        const QFileInfo currentExe(exePathEdit->text().trimmed());
+        if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe)) {
+            exePathEdit->setText(suggestedExecutablePath);
+            appendLog(stamp(tr("Replaced invalid executable path with suggested OHQ binary: %1")
+                            .arg(suggestedExecutablePath)));
+        }
+    }
     applyIfEmpty(scriptPathEdit, suggestedScriptPath);
     applyIfEmpty(workingDirEdit, suggestedWorkingDirectory);
     applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
@@ -943,13 +970,21 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
-    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
-        const QString message = tr("The selected executable appears to be the OpenHydroQual GUI (%1).\n\n"
-                                   "For automated script runs, please select the OHQ command-line binary instead (typically named \"OHQ\").")
-                                    .arg(exeInfo.fileName());
-        QMessageBox::warning(this, tr("Wrong executable type"), message);
-        appendLog(stamp(tr("Run cancelled: selected executable is GUI app '%1'; choose the OHQ CLI binary.")
-                        .arg(exeInfo.fileName())));
+    if (LooksLikeScriptFilePath(exeInfo)) {
+        QMessageBox::warning(this,
+                             tr("Executable path is a script"),
+                             tr("The OHQ executable field currently points to a .ohq script file.\n\n"
+                                "Please set OHQ executable to the runnable binary (for example, .../OHQ) and keep the script path in the OHQ script field."));
+        appendLog(stamp(tr("Run cancelled: executable field points to script file '%1'.").arg(exeInfo.fileName())));
+        return;
+    }
+
+    if (LooksLikeStaticLibraryPath(exeInfo)) {
+        QMessageBox::warning(this,
+                             tr("Executable path is a static library"),
+                             tr("The selected path appears to be a static library (.a), not a runnable executable.\n\n"
+                                "Please select the OHQ binary executable."));
+        appendLog(stamp(tr("Run cancelled: executable field points to static library '%1'.").arg(exeInfo.fileName())));
         return;
     }
 
