@@ -139,6 +139,12 @@ QString FirstExistingFile(const QStringList &candidates)
     return QString();
 }
 
+bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
+{
+    const QString baseName = executableInfo.completeBaseName().trimmed();
+    return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
+}
+
 bool IsKnownRuntimeNoiseLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
@@ -602,8 +608,12 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -903,6 +913,16 @@ void ModelCreatorWindow::runScript()
 
     if (!exeInfo.exists() || !exeInfo.isFile()) {
         QMessageBox::warning(this, tr("Missing executable"), tr("Please select a valid OHQ executable."));
+        return;
+    }
+
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
+        const QString message = tr("The selected executable appears to be the OpenHydroQual GUI (%1).\n\n"
+                                   "For automated script runs, please select the OHQ command-line binary instead (typically named \"OHQ\").")
+                                    .arg(exeInfo.fileName());
+        QMessageBox::warning(this, tr("Wrong executable type"), message);
+        appendLog(stamp(tr("Run cancelled: selected executable is GUI app '%1'; choose the OHQ CLI binary.")
+                        .arg(exeInfo.fileName())));
         return;
     }
 
@@ -1817,8 +1837,12 @@ void ModelCreatorWindow::loadSettings()
     });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
