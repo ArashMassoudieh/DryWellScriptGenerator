@@ -222,6 +222,43 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
     return QString();
 }
 
+QString FindCliExecutableUnderRoot(const QString &rootPath)
+{
+    const QDir root(rootPath);
+    if (!root.exists()) {
+        return QString();
+    }
+
+    const QString direct = FirstExecutableFile({
+        root.filePath("OHQ"),
+        root.filePath("build/Release/OHQ"),
+        root.filePath("build/Debug/OHQ"),
+        root.filePath("aquifolium/build/OHQ"),
+        root.filePath("aquifolium/bin/OHQ")
+    });
+    if (!direct.isEmpty()) {
+        return direct;
+    }
+
+    QDirIterator it(root.absolutePath(),
+                    QDir::Files | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QFileInfo info = it.fileInfo();
+        const QString name = info.fileName();
+        const bool looksLikeOhqBinary =
+            name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
+            || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
+            || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
+        if (looksLikeOhqBinary && info.isExecutable()) {
+            return info.absoluteFilePath();
+        }
+    }
+
+    return QString();
+}
+
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
 {
     if (argumentTemplate.trimmed().isEmpty()) {
@@ -645,24 +682,26 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 
 void ModelCreatorWindow::chooseExecutable()
 {
-    const QString fileName = QFileDialog::getOpenFileName(this, tr("Select OHQ executable"));
-    if (!fileName.isEmpty()) {
-        QString resolvedPath = fileName;
-        const QFileInfo selectedInfo(fileName);
-        if (LooksLikeGuiOpenHydroQualExecutable(selectedInfo) || !selectedInfo.isExecutable()) {
-            const QString cliPath = FindCliExecutableNearGui(selectedInfo);
-            if (!cliPath.isEmpty()) {
-                resolvedPath = cliPath;
-                appendLog(stamp(tr("Resolved selection '%1' to CLI binary '%2'.")
-                                .arg(selectedInfo.fileName(), QFileInfo(cliPath).fileName())));
-            } else {
-                appendLog(stamp(tr("Selected path '%1'. Could not auto-find OHQ CLI nearby.")
-                                .arg(selectedInfo.fileName())));
-            }
-        }
-        exePathEdit->setText(resolvedPath);
-        saveSettings();
+    const QString startDir = exePathEdit->text().trimmed().isEmpty()
+        ? FindRepoRoot()
+        : QFileInfo(exePathEdit->text().trimmed()).absolutePath();
+    const QString dir = QFileDialog::getExistingDirectory(this,
+                                                          tr("Select OpenHydroQual folder (search OHQ CLI)"),
+                                                          startDir);
+    if (dir.isEmpty()) return;
+
+    const QString cliPath = FindCliExecutableUnderRoot(dir);
+    if (cliPath.isEmpty()) {
+        QMessageBox::warning(this,
+                             tr("OHQ CLI not found"),
+                             tr("Could not find an executable named OHQ under:\n%1").arg(dir));
+        appendLog(stamp(tr("No OHQ CLI executable found under: %1").arg(dir)));
+        return;
     }
+
+    exePathEdit->setText(cliPath);
+    saveSettings();
+    appendLog(stamp(tr("Selected OHQ CLI executable: %1").arg(cliPath)));
 }
 
 void ModelCreatorWindow::chooseScript()
