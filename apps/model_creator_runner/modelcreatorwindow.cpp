@@ -227,7 +227,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
     addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    templateDirEdit->setPlaceholderText(tr("Suggested: <repo>/templates or OpenHydroQual templates"));
+    templateDirEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/resources"));
     addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
@@ -548,6 +548,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedWorkingDirectory = repoRoot;
     const QString suggestedArtifactsDirectory = QDir(suggestedWorkingDirectory).filePath("artifacts");
     const QString suggestedTemplateDirectory = FirstExistingDirectory({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/resources"),
         QDir(suggestedWorkingDirectory).filePath("templates"),
         QDir(suggestedWorkingDirectory).filePath("template_resources"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
@@ -1763,6 +1764,7 @@ void ModelCreatorWindow::loadSettings()
     const QString defaultWorkingDirectory = repoRoot;
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
     const QString defaultTemplateDirectory = FirstExistingDirectory({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/resources"),
         QDir(defaultWorkingDirectory).filePath("templates"),
         QDir(defaultWorkingDirectory).filePath("template_resources"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
