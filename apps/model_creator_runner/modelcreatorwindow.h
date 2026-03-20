@@ -139,6 +139,7 @@ private:
     double lastComparisonR2 = 0.0;
     mutable QString lastComparisonHistorySignature;
     QString currentRunOutput;
+    int suppressedRuntimeNoiseLines = 0;
 };
 
 #endif // MODELCREATORWINDOW_H
