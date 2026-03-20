@@ -257,6 +257,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
     additionalRow->addWidget(loadCommandsButton);
     layout->addLayout(additionalRow);
+    auto *suggestedDefaultsButton = new QPushButton(tr("Apply suggested defaults"), this);
+    suggestedDefaultsButton->setToolTip(tr("Fill empty setup fields using repository/OpenHydroQual path suggestions."));
+    connect(suggestedDefaultsButton, &QPushButton::clicked, this, &ModelCreatorWindow::applySuggestedDefaults);
+    layout->addWidget(suggestedDefaultsButton);
 
     auto *runSectionLabel = new QLabel(tr("OHQ run controls"), this);
     QFont runSectionFont = runSectionLabel->font();
@@ -530,6 +534,54 @@ void ModelCreatorWindow::chooseGeneratedScriptPath()
         generatedScriptEdit->setText(fileName);
         saveSettings();
     }
+}
+
+void ModelCreatorWindow::applySuggestedDefaults()
+{
+    const QString repoRoot = FindRepoRoot();
+    const QString suggestedWorkingDirectory = repoRoot;
+    const QString suggestedArtifactsDirectory = QDir(suggestedWorkingDirectory).filePath("artifacts");
+    const QString suggestedTemplateDirectory = FirstExistingDirectory({
+        QDir(suggestedWorkingDirectory).filePath("templates"),
+        QDir(suggestedWorkingDirectory).filePath("template_resources"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/templates"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/examples/templates"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/templates")
+    });
+    const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
+    const QString suggestedExecutablePath = FirstExistingFile({
+        QDir(suggestedWorkingDirectory).filePath("DryWellScriptGenerator"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
+    });
+    const QString suggestedScriptPath = FirstExistingFile({
+        QDir(suggestedWorkingDirectory).filePath("drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("bioswale.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("examples/bioswale.ohq")
+    });
+
+    auto applyIfEmpty = [](QLineEdit *edit, const QString &value) {
+        if (edit->text().trimmed().isEmpty() && !value.trimmed().isEmpty()) {
+            edit->setText(value);
+        }
+    };
+
+    applyIfEmpty(exePathEdit, suggestedExecutablePath);
+    applyIfEmpty(scriptPathEdit, suggestedScriptPath);
+    applyIfEmpty(workingDirEdit, suggestedWorkingDirectory);
+    applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
+    applyIfEmpty(templateDirEdit, suggestedTemplateDirectory);
+    applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
+    applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
+    applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
+
+    saveSettings();
+    appendLog(stamp(tr("Applied suggested defaults to empty setup fields.")));
 }
 
 void ModelCreatorWindow::chooseInflowFile()

@@ -36,6 +36,7 @@ private slots:
     void chooseObservationFile();
     void chooseDepthProfileFile();
     void loadAdditionalCommandsFromFile();
+    void applySuggestedDefaults();
 
     // Generation/run actions.
     void syncEnrichmentPresetForModel();
