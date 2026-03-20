@@ -138,6 +138,47 @@ QString FirstExistingFile(const QStringList &candidates)
     }
     return QString();
 }
+
+bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
+{
+    const QString baseName = executableInfo.completeBaseName().trimmed();
+    return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
+}
+
+bool IsKnownRuntimeNoiseLine(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    return trimmed.startsWith(QStringLiteral("qt.core.qmetaobject.connectslotsbyname: QMetaObject::connectSlotsByName: No matching signal for on_"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such slot "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such signal "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (sender name:"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (receiver name:"));
+}
+
+QString FilterRuntimeNoise(const QString &text, int *suppressedLineCount)
+{
+    if (suppressedLineCount == nullptr) {
+        return text;
+    }
+
+    const QStringList lines = text.split('\n');
+    QStringList kept;
+    kept.reserve(lines.size());
+
+    for (const QString &line : lines) {
+        if (IsKnownRuntimeNoiseLine(line)) {
+            ++(*suppressedLineCount);
+            continue;
+        }
+        kept.push_back(line);
+    }
+
+    return kept.join('\n');
+}
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -378,6 +419,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
+        suppressedRuntimeNoiseLines = 0;
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -389,8 +431,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     });
 
     connect(runner, &OHQProcessRunner::outputReady, this, [this](const QString &text) {
-        currentRunOutput += text;
-        appendLog(text);
+        int suppressed = 0;
+        const QString filtered = FilterRuntimeNoise(text, &suppressed);
+        suppressedRuntimeNoiseLines += suppressed;
+        currentRunOutput += filtered;
+        if (!filtered.trimmed().isEmpty()) {
+            appendLog(filtered);
+        }
     });
 
     connect(runner, &OHQProcessRunner::runFinished, this, [this](int exitCode) {
@@ -401,6 +448,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runButton->setEnabled(true);
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
+        if (suppressedRuntimeNoiseLines > 0) {
+            appendLog(stamp(tr("Suppressed %1 known Qt runtime warning line(s).").arg(suppressedRuntimeNoiseLines)));
+        }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
@@ -558,8 +608,12 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -859,6 +913,16 @@ void ModelCreatorWindow::runScript()
 
     if (!exeInfo.exists() || !exeInfo.isFile()) {
         QMessageBox::warning(this, tr("Missing executable"), tr("Please select a valid OHQ executable."));
+        return;
+    }
+
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
+        const QString message = tr("The selected executable appears to be the OpenHydroQual GUI (%1).\n\n"
+                                   "For automated script runs, please select the OHQ command-line binary instead (typically named \"OHQ\").")
+                                    .arg(exeInfo.fileName());
+        QMessageBox::warning(this, tr("Wrong executable type"), message);
+        appendLog(stamp(tr("Run cancelled: selected executable is GUI app '%1'; choose the OHQ CLI binary.")
+                        .arg(exeInfo.fileName())));
         return;
     }
 
@@ -1773,8 +1837,12 @@ void ModelCreatorWindow::loadSettings()
     });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
