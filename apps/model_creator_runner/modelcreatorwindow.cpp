@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QMap>
 #include <QMessageBox>
+#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -145,6 +146,27 @@ bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
     return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
 }
 
+QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
+{
+    if (argumentTemplate.trimmed().isEmpty()) {
+        return QStringList{scriptPath};
+    }
+
+    QStringList args = QProcess::splitCommand(argumentTemplate);
+    bool containsScriptToken = false;
+    for (QString &arg : args) {
+        if (arg.contains(QStringLiteral("{script}"))) {
+            arg.replace(QStringLiteral("{script}"), scriptPath);
+            containsScriptToken = true;
+        }
+    }
+
+    if (!containsScriptToken) {
+        args.push_back(scriptPath);
+    }
+    return args;
+}
+
 bool IsKnownRuntimeNoiseLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
@@ -185,6 +207,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     : QMainWindow(parent),
       modelTypeCombo(new QComboBox(this)),
       exePathEdit(new QLineEdit(this)),
+      exeArgsEdit(new QLineEdit(this)),
       scriptPathEdit(new QLineEdit(this)),
       workingDirEdit(new QLineEdit(this)),
       artifactsDirEdit(new QLineEdit(this)),
@@ -260,6 +283,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
     exePathEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"));
+    addTextRow(layout, tr("Executable args"), exeArgsEdit);
+    exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted, script path is passed as a positional argument."));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -400,6 +426,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
     saveOnEdit(exePathEdit);
+    saveOnEdit(exeArgsEdit);
     saveOnEdit(scriptPathEdit);
     saveOnEdit(workingDirEdit);
     saveOnEdit(artifactsDirEdit);
@@ -947,8 +974,14 @@ void ModelCreatorWindow::runScript()
     saveSettings();
 
     runner->setExecutablePath(exeInfo.absoluteFilePath());
+    const QStringList executableArgs = BuildExecutableArguments(exeArgsEdit->text().trimmed(),
+                                                                scriptInfo.absoluteFilePath());
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo) && exeArgsEdit->text().trimmed().isEmpty()) {
+        appendLog(stamp(tr("Detected GUI executable '%1'. If script does not auto-run, set Executable args (e.g. --script {script} --run).")
+                        .arg(exeInfo.fileName())));
+    }
     appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
-    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath());
+    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
 
 QVector<QPointF> ModelCreatorWindow::loadSeriesFromFile(const QString &path, QString *errorMessage) const
@@ -1858,6 +1891,7 @@ void ModelCreatorWindow::loadSettings()
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
+    exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
     artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
@@ -1883,6 +1917,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("modelType", modelTypeCombo->currentText());
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());
     settings.setValue("ohqExecutable", exePathEdit->text());
+    settings.setValue("ohqExecutableArgs", exeArgsEdit->text());
     settings.setValue("ohqScript", scriptPathEdit->text());
     settings.setValue("workingDirectory", workingDirEdit->text());
     settings.setValue("artifactsDirectory", artifactsDirEdit->text());

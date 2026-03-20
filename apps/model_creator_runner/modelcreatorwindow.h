@@ -86,6 +86,7 @@ private:
 
     QComboBox *modelTypeCombo;
     QLineEdit *exePathEdit;
+    QLineEdit *exeArgsEdit;
     QLineEdit *scriptPathEdit;
     QLineEdit *workingDirEdit;
     QLineEdit *artifactsDirEdit;
