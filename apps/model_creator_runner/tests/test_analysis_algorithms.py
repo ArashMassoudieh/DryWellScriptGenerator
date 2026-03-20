@@ -59,6 +59,7 @@ def is_known_preset(preset):
         "Bioswale_Underdrain",
         "Bioswale_Underdrain_GW",
         "Bioswale_SuiteStyle",
+        "Bioswale_LegacyStyle",
     }
 
 
@@ -105,6 +106,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_known_preset("Bioswale_Underdrain"))
         self.assertTrue(is_known_preset("Bioswale_Underdrain_GW"))
         self.assertTrue(is_known_preset("Bioswale_SuiteStyle"))
+        self.assertTrue(is_known_preset("Bioswale_LegacyStyle"))
         self.assertFalse(is_known_preset("Drywell_Unknown"))
 
     def test_preset_model_compatibility(self):

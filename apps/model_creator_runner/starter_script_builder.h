@@ -33,7 +33,7 @@ struct StarterScriptOptions
     // Supported: "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
     //            "Drywell_PretreatmentChambers", "Drywell_LegacyStyle",
     //            "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
-    //            "Bioswale_SuiteStyle"
+    //            "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
     QString enrichmentPreset;
 };
 

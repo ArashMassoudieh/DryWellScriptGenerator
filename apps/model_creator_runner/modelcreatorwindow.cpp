@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSignalBlocker>
 #include <QSettings>
 #include <QTabWidget>
 #include <QTextStream>
@@ -194,14 +195,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     tabs->addTab(runTab, tr("Setup + Run"));
 
     modelTypeCombo->addItems({"Drywell", "Bioswale"});
-    enrichmentPresetCombo->addItem(tr("None"), "");
-    enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
-    enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
-    enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
-    enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
-    enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
-    enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
-    enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
+    syncEnrichmentPresetForModel();
 
     auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) {
         auto *row = new QHBoxLayout();
@@ -223,12 +217,18 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Model type"), modelTypeCombo);
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
+    exePathEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
+    scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
+    workingDirEdit->setPlaceholderText(tr("Suggested: this repository root"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
+    artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
     addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
+    templateDirEdit->setPlaceholderText(tr("Suggested: <repo>/templates or OpenHydroQual templates"));
     addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
+    generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
     addTextRow(layout, tr("Simulation start"), simulationStartEdit);
     addTextRow(layout, tr("Simulation end"), simulationEndEdit);
@@ -438,26 +438,30 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 void ModelCreatorWindow::syncEnrichmentPresetForModel()
 {
     const QString modelType = modelTypeCombo->currentText().trimmed();
-    const QString preset = enrichmentPresetCombo->currentData().toString().trimmed();
-    if (preset.isEmpty()) {
-        return;
-    }
-
+    const QString previousPreset = enrichmentPresetCombo->currentData().toString().trimmed();
     const bool drywellModel = modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0;
-    const bool bioswaleModel = modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
-    const bool drywellPreset = preset.startsWith(QStringLiteral("Drywell_"));
-    const bool bioswalePreset = preset.startsWith(QStringLiteral("Bioswale_"));
-
-    if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
-        enrichmentPresetCombo->setCurrentIndex(0);
-        appendLog(stamp(tr("Preset '%1' is incompatible with model type '%2'; reset to None.")
-                        .arg(preset, modelType)));
-        QMessageBox::information(this,
-                                 tr("Preset reset"),
-                                 tr("The selected enrichment preset was not compatible with model type '%1' and was reset to None.")
-                                     .arg(modelType));
-        saveSettings();
+    const QSignalBlocker blocker(enrichmentPresetCombo);
+    enrichmentPresetCombo->clear();
+    enrichmentPresetCombo->addItem(tr("None"), "");
+    if (drywellModel) {
+        enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
+        enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
+        enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
+        enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
+    } else {
+        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
+        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
+        enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
+        enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
     }
+
+    const int index = enrichmentPresetCombo->findData(previousPreset);
+    enrichmentPresetCombo->setCurrentIndex(index >= 0 ? index : 0);
+    if (index < 0 && !previousPreset.isEmpty()) {
+        appendLog(stamp(tr("Preset '%1' hidden for model type '%2'; reset to None.")
+                        .arg(previousPreset, modelType)));
+    }
+    saveSettings();
 }
 
 void ModelCreatorWindow::chooseExecutable()
@@ -529,9 +533,39 @@ void ModelCreatorWindow::chooseInflowFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         inflowFileEdit->setText(fileName);
+        suggestSimulationWindowFromInflow(fileName);
         saveSettings();
         refreshPlots();
     }
+}
+
+void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path)
+{
+    QString error;
+    const QVector<QPointF> points = loadSeriesFromFile(path, &error);
+    if (points.isEmpty()) {
+        return;
+    }
+
+    double minX = points.first().x();
+    double maxX = points.first().x();
+    for (const QPointF &pt : points) {
+        minX = qMin(minX, pt.x());
+        maxX = qMax(maxX, pt.x());
+    }
+
+    const QString currentStart = simulationStartEdit->text().trimmed();
+    const QString currentEnd = simulationEndEdit->text().trimmed();
+    const bool usingDefaults = (currentStart.isEmpty() && currentEnd.isEmpty())
+        || (currentStart == "44435" && currentEnd == "44438");
+    if (!usingDefaults) {
+        return;
+    }
+
+    simulationStartEdit->setText(QString::number(minX, 'g', 12));
+    simulationEndEdit->setText(QString::number(maxX, 'g', 12));
+    appendLog(stamp(tr("Suggested simulation window from inflow file: start=%1, end=%2")
+                    .arg(simulationStartEdit->text(), simulationEndEdit->text())));
 }
 
 void ModelCreatorWindow::chooseObservationFile()

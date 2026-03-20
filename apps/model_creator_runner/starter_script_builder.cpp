@@ -41,7 +41,8 @@ bool IsKnownPreset(const QString &preset)
         QStringLiteral("Drywell_LegacyStyle"),
         QStringLiteral("Bioswale_Underdrain"),
         QStringLiteral("Bioswale_Underdrain_GW"),
-        QStringLiteral("Bioswale_SuiteStyle")
+        QStringLiteral("Bioswale_SuiteStyle"),
+        QStringLiteral("Bioswale_LegacyStyle")
     };
     return knownPresets.contains(preset.trimmed());
 }
@@ -105,6 +106,12 @@ void AppendEnrichmentPreset(QTextStream &ts, const StarterScriptOptions &options
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=420,y=-360,head=-2[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Suite_Catchment_to_Underdrain\n";
         ts << "create link;from=Underdrain,to=GW,type=pipe_to_fixedhead_link,name=Suite_Underdrain_to_GW\n";
+    } else if (preset == QStringLiteral("Bioswale_LegacyStyle")) {
+        ts << "\n# enrichment_preset: Bioswale_LegacyStyle\n";
+        ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=300,y=-300,diameter=0.15[m],length=35[m],slope=0.01\n";
+        ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=420,y=-360,head=-2[m],Storage=100000[m~^3]\n";
+        ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Legacy_Catchment_to_Underdrain\n";
+        ts << "create link;from=Underdrain,to=GW,type=pipe_to_fixedhead_link,name=Legacy_Underdrain_to_GW\n";
     }
 }
 }
