@@ -558,7 +558,6 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = FirstExistingFile({
-        QDir(suggestedWorkingDirectory).filePath("DryWellScriptGenerator"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
@@ -884,7 +883,7 @@ void ModelCreatorWindow::runScript()
     saveSettings();
 
     runner->setExecutablePath(exeInfo.absoluteFilePath());
-    appendLog(stamp(tr("Running loaded script without generation: %1").arg(scriptInfo.absoluteFilePath())));
+    appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath());
 }
 
@@ -1774,7 +1773,6 @@ void ModelCreatorWindow::loadSettings()
     });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = FirstExistingFile({
-        QDir(defaultWorkingDirectory).filePath("DryWellScriptGenerator"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
