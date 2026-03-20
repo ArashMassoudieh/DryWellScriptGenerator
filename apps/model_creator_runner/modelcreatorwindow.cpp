@@ -618,14 +618,14 @@ void ModelCreatorWindow::chooseExecutable()
     if (!fileName.isEmpty()) {
         QString resolvedPath = fileName;
         const QFileInfo selectedInfo(fileName);
-        if (LooksLikeGuiOpenHydroQualExecutable(selectedInfo)) {
+        if (LooksLikeGuiOpenHydroQualExecutable(selectedInfo) || !selectedInfo.isExecutable()) {
             const QString cliPath = FindCliExecutableNearGui(selectedInfo);
             if (!cliPath.isEmpty()) {
                 resolvedPath = cliPath;
-                appendLog(stamp(tr("Resolved GUI selection '%1' to CLI binary '%2'.")
+                appendLog(stamp(tr("Resolved selection '%1' to CLI binary '%2'.")
                                 .arg(selectedInfo.fileName(), QFileInfo(cliPath).fileName())));
             } else {
-                appendLog(stamp(tr("Selected GUI executable '%1'. Could not auto-find OHQ CLI nearby.")
+                appendLog(stamp(tr("Selected path '%1'. Could not auto-find OHQ CLI nearby.")
                                 .arg(selectedInfo.fileName())));
             }
         }
@@ -727,7 +727,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     applyIfEmpty(exePathEdit, suggestedExecutablePath);
     if (!suggestedExecutablePath.isEmpty()) {
         const QFileInfo currentExe(exePathEdit->text().trimmed());
-        if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe)) {
+        if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe) || !currentExe.isExecutable()) {
             exePathEdit->setText(suggestedExecutablePath);
             appendLog(stamp(tr("Replaced invalid executable path with suggested OHQ binary: %1")
                             .arg(suggestedExecutablePath)));
@@ -1037,6 +1037,25 @@ void ModelCreatorWindow::runScript()
     }
 
     QString executablePathToRun = exeInfo.absoluteFilePath();
+    if (!exeInfo.isExecutable()) {
+        const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
+        const QFileInfo discoveredCliInfo(discoveredCliPath);
+        if (!discoveredCliPath.isEmpty()) {
+            executablePathToRun = discoveredCliInfo.absoluteFilePath();
+            exePathEdit->setText(executablePathToRun);
+            appendLog(stamp(tr("Selected non-runnable path '%1'; auto-switched to CLI binary '%2'.")
+                            .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Executable is not runnable"),
+                                 tr("Selected path is not an executable file: %1\n\nPlease select the OHQ CLI binary.")
+                                    .arg(exeInfo.absoluteFilePath()));
+            appendLog(stamp(tr("Run cancelled: selected executable path is not runnable '%1'.")
+                            .arg(exeInfo.fileName())));
+            return;
+        }
+    }
+
     if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
