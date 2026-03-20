@@ -1,0 +1,144 @@
+#ifndef MODELCREATORWINDOW_H
+#define MODELCREATORWINDOW_H
+
+#include <QDateTime>
+#include <QMainWindow>
+#include <QPointF>
+#include <QStringList>
+#include <QVector>
+
+class QComboBox;
+class QLineEdit;
+class QPushButton;
+class QTabWidget;
+class QTextEdit;
+class QLabel;
+class OHQProcessRunner;
+class SimpleLinePlotWidget;
+
+class ModelCreatorWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    /// Main UI window for starter generation, OHQ execution, plotting, and export workflows.
+    explicit ModelCreatorWindow(QWidget *parent = nullptr);
+
+private slots:
+    // File/folder selection helpers.
+    void chooseExecutable();
+    void chooseScript();
+    void chooseWorkingDirectory();
+    void chooseArtifactsDirectory();
+    void chooseTemplateDirectory();
+    void chooseGeneratedScriptPath();
+    void chooseInflowFile();
+    void chooseObservationFile();
+    void chooseDepthProfileFile();
+    void loadAdditionalCommandsFromFile();
+    void applySuggestedDefaults();
+    void quickGenerateRunAndSave();
+
+    // Generation/run actions.
+    void syncEnrichmentPresetForModel();
+    void previewScript();
+    void generateStarterScript();
+    void generateAndRunStarterScript();
+    void runScript();
+
+    // Analysis/export actions.
+    void refreshPlots();
+    void exportArtifacts();
+    void compareOutputVsObservation();
+    void loadOutputParams();
+    void updateOutputPlotFromSelection();
+    void computeDepthProfileFromOutput();
+    void exportPlotDataCsv();
+    void exportAllDepthSlicesCsv();
+    void clearComparisonHistory();
+
+private:
+    void suggestSimulationWindowFromInflow(const QString &path);
+    /// Shared starter-generation implementation used by Generate and Generate + Run.
+    bool generateStarterScriptInternal();
+    /// Parse a numeric series from text/csv-like file formats into points.
+    QVector<QPointF> loadSeriesFromFile(const QString &path, QString *errorMessage) const;
+    /// Load numeric output columns from configured OHQ output file.
+    bool loadOutputColumns(QString *errorMessage);
+    /// Compute interpolated depth-slice series at @p targetX for selected columns.
+    QVector<QPointF> computeDepthSliceSeries(double targetX, int xIdx, int yIdx, int depthIdx) const;
+    /// Append latest comparison metrics snapshot to history file (if enabled).
+    void appendComparisonHistory() const;
+    /// Discover exportable files under current working directory tree.
+    QStringList collectExportArtifacts() const;
+    /// Append plain text lines to UI log pane.
+    void appendLog(const QString &text);
+    /// Restore persisted user settings into UI controls.
+    void loadSettings();
+    /// Persist current UI selections/paths.
+    void saveSettings() const;
+    /// Discover files modified during/after current run window.
+    QStringList collectRunArtifacts() const;
+    /// Copy discovered artifacts into configured artifacts directory.
+    void copyArtifacts(const QStringList &artifacts);
+    /// Write manifest CSV for copied/discovered artifacts.
+    void writeArtifactManifest(const QStringList &artifacts);
+
+    QComboBox *modelTypeCombo;
+    QLineEdit *exePathEdit;
+    QLineEdit *scriptPathEdit;
+    QLineEdit *workingDirEdit;
+    QLineEdit *artifactsDirEdit;
+    QLineEdit *templateDirEdit;
+    QLineEdit *generatedScriptEdit;
+    QComboBox *enrichmentPresetCombo;
+    QLineEdit *inflowFileEdit;
+    QLineEdit *simulationStartEdit;
+    QLineEdit *simulationEndEdit;
+    QLineEdit *outputSeriesFileEdit;
+    QLineEdit *observationFileEdit;
+    QLineEdit *depthProfileFileEdit;
+    QLineEdit *observationObjectEdit;
+    QLineEdit *observationExpressionEdit;
+    QLineEdit *observationNameEdit;
+    QTextEdit *additionalCommandsEdit;
+    QTabWidget *tabs;
+    QTextEdit *logView;
+    SimpleLinePlotWidget *inflowPlot;
+    SimpleLinePlotWidget *outputPlot;
+    SimpleLinePlotWidget *observationPlot;
+    SimpleLinePlotWidget *depthProfilePlot;
+    QPushButton *refreshPlotsButton;
+    QPushButton *compareButton;
+    QPushButton *reloadOutputColumnsButton;
+    QPushButton *computeDepthSliceButton;
+    QPushButton *exportPlotDataButton;
+    QPushButton *exportAllDepthSlicesButton;
+    QPushButton *clearComparisonHistoryButton;
+    QComboBox *outputXAxisCombo;
+    QComboBox *outputYAxisCombo;
+    QComboBox *depthColumnCombo;
+    QLineEdit *sliceXEdit;
+    QLabel *comparisonSummaryLabel;
+    QPushButton *previewScriptButton;
+    QPushButton *quickRunButton;
+    QPushButton *generateScriptButton;
+    QPushButton *generateAndRunButton;
+    QPushButton *runButton;
+    QPushButton *exportArtifactsButton;
+    QPushButton *stopButton;
+    OHQProcessRunner *runner;
+    QDateTime runStartedAt;
+    QVector<QVector<double>> outputNumericColumns;
+    QStringList outputNumericHeaders;
+    bool lastComparisonValid = false;
+    int lastComparisonN = 0;
+    double lastComparisonRmse = 0.0;
+    double lastComparisonMae = 0.0;
+    double lastComparisonBias = 0.0;
+    double lastComparisonR2 = 0.0;
+    mutable QString lastComparisonHistorySignature;
+    QString currentRunOutput;
+};
+
+#endif // MODELCREATORWINDOW_H
