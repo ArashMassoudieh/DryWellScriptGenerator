@@ -188,7 +188,38 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
                    << rootDir.filePath("aquifolium/bin/OHQ");
     }
 
-    return FirstExecutableFile(candidates);
+    const QString nearby = FirstExecutableFile(candidates);
+    if (!nearby.isEmpty()) {
+        return nearby;
+    }
+
+    const QStringList fallbackRoots = {
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual")
+    };
+    for (const QString &root : fallbackRoots) {
+        QDir rootDir(root);
+        if (!rootDir.exists()) {
+            continue;
+        }
+        QDirIterator it(rootDir.absolutePath(),
+                        QDir::Files | QDir::NoSymLinks,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            const QFileInfo fileInfo = it.fileInfo();
+            const QString name = fileInfo.fileName();
+            const bool looksLikeOhqBinary =
+                name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
+                || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
+                || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
+            if (looksLikeOhqBinary && fileInfo.isExecutable()) {
+                return fileInfo.absoluteFilePath();
+            }
+        }
+    }
+
+    return QString();
 }
 
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
