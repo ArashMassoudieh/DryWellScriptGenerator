@@ -2,14 +2,14 @@
 # Qt Version Auto-Config (Qt5 / Qt6)
 #####################################################################
 
-isEqual(QT_MAJOR_VERSION, 6) {
+QT += core gui widgets
+
+greaterThan(QT_MAJOR_VERSION, 5) {
     message(">>> Building with Qt 6.x")
-    QT += core gui widgets
+    QT += core5compat
     DEFINES += QT6_BUILD
-}
-else: isEqual(QT_MAJOR_VERSION, 5) {
+} else {
     message(">>> Building with Qt 5.x")
-    QT += core gui widgets
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtWidgets
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/QtGui
     DEFINES += QT5_BUILD
@@ -20,6 +20,7 @@ else: isEqual(QT_MAJOR_VERSION, 5) {
 #####################################################################
 CONFIG -= c++11
 CONFIG += c++17
+CONFIG += no_lflags_merge
 QMAKE_CXXFLAGS += -std=c++17
 
 #####################################################################
@@ -28,6 +29,7 @@ QMAKE_CXXFLAGS += -std=c++17
 unix:!macx {
     QMAKE_CXXFLAGS += -fopenmp
     QMAKE_LFLAGS   += -fopenmp
+    QMAKE_LFLAGS   += -Wl,--no-as-needed
     LIBS           += -lgomp
 }
 
@@ -116,6 +118,7 @@ SOURCES += \
     mainwindow.cpp \
     paths.cpp \
     postprocess.cpp \
+    qt_jsonvalue_compat.cpp \
     scad_generator.cpp \
     solver_runner.cpp \
     threedmap.cpp \
@@ -246,6 +249,14 @@ CONFIG(use_VTK) {
 
 OPENHYDROQUAL_STATIC = $${PWD}/OHQ-static
 LIBS += -L$${OPENHYDROQUAL_STATIC} -lOpenHydroQual
+
+# Keep QtCore after OpenHydroQual for static-lib dependent symbol resolution
+# (e.g., QJsonValueConstRef symbols referenced from libOpenHydroQual.a).
+greaterThan(QT_MAJOR_VERSION, 5) {
+    LIBS += -L$$[QT_INSTALL_LIBS] -lQt6Core -lQt6Core5Compat
+} else {
+    LIBS += -L$$[QT_INSTALL_LIBS] -lQt5Core
+}
 
 #####################################################################
 # Misc
