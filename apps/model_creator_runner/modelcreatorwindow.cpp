@@ -230,11 +230,17 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
+    inflowFileEdit->setPlaceholderText(tr("Suggested: <repo>/inflow.csv"));
     addTextRow(layout, tr("Simulation start"), simulationStartEdit);
+    simulationStartEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
     addTextRow(layout, tr("Simulation end"), simulationEndEdit);
+    simulationEndEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
     addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
+    outputSeriesFileEdit->setPlaceholderText(tr("Suggested: OHQ_output.txt"));
     addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
+    observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
+    depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
     observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
@@ -444,15 +450,16 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
     enrichmentPresetCombo->clear();
     enrichmentPresetCombo->addItem(tr("None"), "");
     if (drywellModel) {
+        enrichmentPresetCombo->addItem(tr("Drywell (DryWellSuite style)"), "Drywell_SuiteStyle");
+        enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
         enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
         enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
         enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
-        enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
     } else {
-        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
-        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
         enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
+        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
+        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
     }
 
     const int index = enrichmentPresetCombo->findData(previousPreset);

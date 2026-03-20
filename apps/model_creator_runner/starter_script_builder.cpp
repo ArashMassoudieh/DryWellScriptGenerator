@@ -38,6 +38,7 @@ bool IsKnownPreset(const QString &preset)
         QStringLiteral("Drywell_MonitoringWell"),
         QStringLiteral("Drywell_GroundwaterBoundary"),
         QStringLiteral("Drywell_PretreatmentChambers"),
+        QStringLiteral("Drywell_SuiteStyle"),
         QStringLiteral("Drywell_LegacyStyle"),
         QStringLiteral("Bioswale_Underdrain"),
         QStringLiteral("Bioswale_Underdrain_GW"),
@@ -82,6 +83,12 @@ void AppendEnrichmentPreset(QTextStream &ts, const StarterScriptOptions &options
         ts << "create block;type=Pond,name=Sedimentation_Chamber,_width=180,_height=180,x=-120,y=20,bottom_elevation=0[m],Storage=0[m~^3],alpha=60,beta=2.3\n";
         ts << "create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=surfacewater_to_surfacewater_link,name=Pretreat_Link_1\n";
         ts << "create link;from=Sedimentation_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=Pretreat_Link_2\n";
+    } else if (preset == QStringLiteral("Drywell_SuiteStyle")) {
+        ts << "\n# enrichment_preset: Drywell_SuiteStyle\n";
+        ts << "create block;type=Well,name=Monitoring_Well,_width=180,_height=180,x=350,y=-120,bottom_elevation=-2[m],depth=4[m],diameter=0.3[m]\n";
+        ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
+        ts << "create link;from=Infiltration_Pond,to=Monitoring_Well,type=soil_to_well_link,name=Suite_Pond_to_MonitoringWell\n";
+        ts << "create link;from=Infiltration_Pond,to=GW,type=soil_to_fixedhead_link,name=Suite_Pond_to_GW\n";
     } else if (preset == QStringLiteral("Drywell_LegacyStyle")) {
         ts << "\n# enrichment_preset: Drywell_LegacyStyle\n";
         ts << "create block;type=Pond,name=Side_Settling_Chamber,_width=180,_height=180,x=-260,y=40,bottom_elevation=0[m],Storage=0[m~^3],alpha=50,beta=2.2\n";

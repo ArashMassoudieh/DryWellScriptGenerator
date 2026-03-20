@@ -55,6 +55,7 @@ def is_known_preset(preset):
         "Drywell_MonitoringWell",
         "Drywell_GroundwaterBoundary",
         "Drywell_PretreatmentChambers",
+        "Drywell_SuiteStyle",
         "Drywell_LegacyStyle",
         "Bioswale_Underdrain",
         "Bioswale_Underdrain_GW",
@@ -102,6 +103,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_known_preset("Drywell_MonitoringWell"))
         self.assertTrue(is_known_preset("Drywell_GroundwaterBoundary"))
         self.assertTrue(is_known_preset("Drywell_PretreatmentChambers"))
+        self.assertTrue(is_known_preset("Drywell_SuiteStyle"))
         self.assertTrue(is_known_preset("Drywell_LegacyStyle"))
         self.assertTrue(is_known_preset("Bioswale_Underdrain"))
         self.assertTrue(is_known_preset("Bioswale_Underdrain_GW"))
