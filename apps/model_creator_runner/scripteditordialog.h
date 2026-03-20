@@ -4,6 +4,8 @@
 #include <QDialog>
 
 class QTextEdit;
+class QComboBox;
+class QPushButton;
 
 class ScriptEditorDialog : public QDialog
 {
@@ -16,7 +18,11 @@ public:
     QString scriptText() const;
 
 private:
+    void insertSelectedSnippet();
+
     QTextEdit *editor;
+    QComboBox *snippetCombo;
+    QPushButton *insertSnippetButton;
 };
 
 #endif // SCRIPTEDITORDIALOG_H
