@@ -103,6 +103,40 @@ bool InterpolateYSorted(const QVector<QPointF> &sortedSeries, double x, double *
 
     return false;
 }
+
+QString FindRepoRoot()
+{
+    QDir dir(QDir::currentPath());
+    for (int i = 0; i < 8; ++i) {
+        if (QFileInfo::exists(dir.filePath("DryWellScriptGenerator.pro"))) {
+            return dir.absolutePath();
+        }
+        if (!dir.cdUp()) {
+            break;
+        }
+    }
+    return QDir::currentPath();
+}
+
+QString FirstExistingDirectory(const QStringList &candidates)
+{
+    for (const QString &path : candidates) {
+        if (!path.trimmed().isEmpty() && QFileInfo(path).exists() && QFileInfo(path).isDir()) {
+            return QFileInfo(path).absoluteFilePath();
+        }
+    }
+    return QString();
+}
+
+QString FirstExistingFile(const QStringList &candidates)
+{
+    for (const QString &path : candidates) {
+        if (!path.trimmed().isEmpty() && QFileInfo(path).exists() && QFileInfo(path).isFile()) {
+            return QFileInfo(path).absoluteFilePath();
+        }
+    }
+    return QString();
+}
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -1609,20 +1643,43 @@ void ModelCreatorWindow::appendLog(const QString &text)
 void ModelCreatorWindow::loadSettings()
 {
     QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
-    const QString defaultWorkingDirectory = QDir::currentPath();
+    const QString repoRoot = FindRepoRoot();
+    const QString defaultWorkingDirectory = repoRoot;
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
-    const QString defaultTemplateDirectory = QDir(defaultWorkingDirectory).filePath("templates");
+    const QString defaultTemplateDirectory = FirstExistingDirectory({
+        QDir(defaultWorkingDirectory).filePath("templates"),
+        QDir(defaultWorkingDirectory).filePath("template_resources"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/templates"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/examples/templates"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/templates")
+    });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
+    const QString defaultExecutablePath = FirstExistingFile({
+        QDir(defaultWorkingDirectory).filePath("DryWellScriptGenerator"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
+    });
+    const QString defaultScriptPath = FirstExistingFile({
+        QDir(defaultWorkingDirectory).filePath("drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("bioswale.ohq"),
+        QDir(defaultWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("examples/bioswale.ohq")
+    });
 
     modelTypeCombo->setCurrentText(settings.value("modelType", "Drywell").toString());
     const QString enrichmentPreset = settings.value("enrichmentPreset").toString();
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
-    exePathEdit->setText(settings.value("ohqExecutable").toString());
-    scriptPathEdit->setText(settings.value("ohqScript").toString());
+    exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
+    scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
     artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
-    templateDirEdit->setText(settings.value("templateDirectory", defaultTemplateDirectory).toString());
+    templateDirEdit->setText(settings.value("templateDirectory",
+                                            defaultTemplateDirectory.isEmpty() ? QDir(defaultWorkingDirectory).filePath("templates")
+                                                                               : defaultTemplateDirectory).toString());
     generatedScriptEdit->setText(settings.value("generatedScriptPath", defaultGeneratedScriptPath).toString());
     inflowFileEdit->setText(settings.value("inflowFile").toString());
     simulationStartEdit->setText(settings.value("simulationStart", "44435").toString());
