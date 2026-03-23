@@ -1,6 +1,8 @@
 # ================================
 # OpenHydroQual - Static Library
 # ================================
+# This project builds libOpenHydroQual.a used by higher-level apps.
+# It compiles OHQ engine sources directly from OHQPATH.
 
 QT += core
 QT -= gui widgets
@@ -29,6 +31,9 @@ QMAKE_CXXFLAGS += -std=c++17
 # MACHINE-SPECIFIC PATHS
 # --------------------------------
 
+# IMPORTANT:
+# Enable exactly one machine profile below so OHQPATH and output dirs match
+# the local workstation layout.
 CONFIG += PowerEdge
 #CONFIG += Hooman
 #CONFIG += Arash
