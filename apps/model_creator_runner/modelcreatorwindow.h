@@ -130,6 +130,7 @@ private:
     QPushButton *exportArtifactsButton;
     QPushButton *stopButton;
     OHQProcessRunner *runner;
+    /// Timestamp captured when a run begins (used for artifact recency checks).
     QDateTime runStartedAt;
     QVector<QVector<double>> outputNumericColumns;
     QStringList outputNumericHeaders;
@@ -140,7 +141,9 @@ private:
     double lastComparisonBias = 0.0;
     double lastComparisonR2 = 0.0;
     mutable QString lastComparisonHistorySignature;
+    /// Raw (filtered) process output accumulated during current run.
     QString currentRunOutput;
+    /// Count of known non-actionable runtime warning lines suppressed in UI log.
     int suppressedRuntimeNoiseLines = 0;
 };
 

@@ -47,8 +47,11 @@ signals:
     void runFailed(const QString &reason);
 
 private:
+    /// Underlying child process used to launch OHQ/OpenHydroQual binaries.
     QProcess *process;
+    /// Full path to configured executable.
     QString executable;
+    /// Tracks user-requested stop to distinguish cancel vs crash.
     bool stopRequested = false;
 };
 

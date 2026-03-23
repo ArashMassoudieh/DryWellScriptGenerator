@@ -6,12 +6,15 @@
 OHQProcessRunner::OHQProcessRunner(QObject *parent)
     : QObject(parent), process(new QProcess(this))
 {
+    // Forward process lifecycle to UI-friendly signals.
     connect(process, &QProcess::started, this, &OHQProcessRunner::runStarted);
 
+    // Stream stdout incrementally for live logging.
     connect(process, &QProcess::readyReadStandardOutput, this, [this]() {
         emit outputReady(QString::fromLocal8Bit(process->readAllStandardOutput()));
     });
 
+    // Stream stderr incrementally for live logging.
     connect(process, &QProcess::readyReadStandardError, this, [this]() {
         emit outputReady(QString::fromLocal8Bit(process->readAllStandardError()));
     });
