@@ -69,8 +69,12 @@ void OHQProcessRunner::stop()
     }
 }
 
-void OHQProcessRunner::runScript(const QString &scriptFile, const QString &workingDirectory)
+void OHQProcessRunner::runScript(const QString &scriptFile,
+                                 const QString &workingDirectory,
+                                 const QStringList &executableArgs)
 {
+    // Keep this runner thin: validation + process lifecycle only.
+    // Argument construction/discovery stays in ModelCreatorWindow.
     if (isRunning()) {
         emit runFailed(QStringLiteral("OHQ process is already running."));
         return;
@@ -96,5 +100,5 @@ void OHQProcessRunner::runScript(const QString &scriptFile, const QString &worki
     }
 
     process->setWorkingDirectory(workingDirectory);
-    process->start(executable, QStringList{scriptFile});
+    process->start(executable, executableArgs);
 }

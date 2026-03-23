@@ -86,6 +86,8 @@ private:
 
     QComboBox *modelTypeCombo;
     QLineEdit *exePathEdit;
+    /// Optional executable argument template (supports {script} token).
+    QLineEdit *exeArgsEdit;
     QLineEdit *scriptPathEdit;
     QLineEdit *workingDirEdit;
     QLineEdit *artifactsDirEdit;
@@ -139,6 +141,7 @@ private:
     double lastComparisonR2 = 0.0;
     mutable QString lastComparisonHistorySignature;
     QString currentRunOutput;
+    int suppressedRuntimeNoiseLines = 0;
 };
 
 #endif // MODELCREATORWINDOW_H
