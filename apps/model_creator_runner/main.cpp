@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include <QApplication>
 
 #include "modelcreatorwindow.h"

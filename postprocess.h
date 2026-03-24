@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef POSTPROCESS_H
 #define POSTPROCESS_H
 

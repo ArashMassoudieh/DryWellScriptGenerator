@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "DryWellDialog.h"

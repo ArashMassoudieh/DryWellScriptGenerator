@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 /*
 #include "solver_runner.h"
 #include "paths.h"

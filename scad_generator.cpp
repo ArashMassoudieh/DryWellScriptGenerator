@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "scad_generator.h"
 #include <QDebug>
 #include <math.h>
