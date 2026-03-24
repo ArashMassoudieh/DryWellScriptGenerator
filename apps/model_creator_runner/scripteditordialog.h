@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef SCRIPTEDITORDIALOG_H
 #define SCRIPTEDITORDIALOG_H
 

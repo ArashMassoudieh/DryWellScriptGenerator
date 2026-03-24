@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef THREEDMAP_H
 #define THREEDMAP_H
 
