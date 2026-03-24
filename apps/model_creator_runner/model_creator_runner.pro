@@ -1,3 +1,8 @@
+# --------------------------------
+# ModelCreatorRunner project
+# - Lightweight runner UI for generating/running .ohq scripts.
+# - Depends only on Qt modules listed below.
+# --------------------------------
 QT += core gui widgets
 
 CONFIG += c++17

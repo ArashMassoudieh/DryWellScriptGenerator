@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef SCAD_GENERATOR_H
 #define SCAD_GENERATOR_H
 

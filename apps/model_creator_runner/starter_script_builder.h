@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef STARTER_SCRIPT_BUILDER_H
 #define STARTER_SCRIPT_BUILDER_H
 

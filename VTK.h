@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #pragma once
 //#include "stdafx.h"
 #include "vtkAutoInit.h"

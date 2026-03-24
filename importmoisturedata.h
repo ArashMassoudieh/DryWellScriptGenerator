@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef IMPORTMOISTUREDATA_H
 #define IMPORTMOISTUREDATA_H
 
