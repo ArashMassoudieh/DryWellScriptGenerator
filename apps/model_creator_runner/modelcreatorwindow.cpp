@@ -142,6 +142,8 @@ QString FirstExistingFile(const QStringList &candidates)
 
 QString FirstExecutableFile(const QStringList &candidates)
 {
+    // Return the first candidate that is both present and runnable.
+    // This keeps discovery deterministic (first-known-good path wins).
     for (const QString &path : candidates) {
         const QFileInfo info(path);
         if (!path.trimmed().isEmpty() && info.exists() && info.isFile() && info.isExecutable()) {
@@ -169,6 +171,8 @@ bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
 
 QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
 {
+    // Heuristic search anchored around the selected GUI binary path.
+    // We walk up a few parent folders and probe common OHQ build layouts.
     QStringList roots;
     QDir dir(guiExecutableInfo.absolutePath());
     for (int i = 0; i < 5; ++i) {
@@ -194,6 +198,7 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
     }
 
     const QStringList fallbackRoots = {
+        // Environment-specific fallback roots used in this project.
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual")
     };
@@ -224,6 +229,8 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
 
 QString FindCliExecutableUnderRoot(const QString &rootPath)
 {
+    // Root-based discovery used by the "Browse" flow (folder selection).
+    // First try common direct locations, then recurse as a safety net.
     const QDir root(rootPath);
     if (!root.exists()) {
         return QString();
@@ -261,6 +268,8 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
 
 QString ProbeExecutableHelp(const QString &executablePath, const QStringList &args)
 {
+    // Small bounded probe to avoid hanging UI while querying help output.
+    // We keep timeouts short and forcibly kill long-running processes.
     QProcess probe;
     probe.start(executablePath, args);
     if (!probe.waitForStarted(1500)) {
@@ -276,6 +285,8 @@ QString ProbeExecutableHelp(const QString &executablePath, const QStringList &ar
 
 QString InferScriptArgumentTemplate(const QString &helpText)
 {
+    // Best-effort parser for common script invocation flags.
+    // This does not guarantee support, but gives users a practical default.
     const QString lower = helpText.toLower();
     QString templ;
     if (lower.contains("--script")) {
@@ -717,6 +728,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 
 void ModelCreatorWindow::chooseExecutable()
 {
+    // Intentionally folder-based selection: users commonly picked non-executable
+    // files when selecting "any file". We now ask for a root and auto-find OHQ.
     const QString startDir = exePathEdit->text().trimmed().isEmpty()
         ? FindRepoRoot()
         : QFileInfo(exePathEdit->text().trimmed()).absolutePath();
@@ -1124,6 +1137,7 @@ void ModelCreatorWindow::runScript()
     }
 
     if (LooksLikeScriptFilePath(exeInfo)) {
+        // Frequent misconfiguration: script path copied into executable field.
         QMessageBox::warning(this,
                              tr("Executable path is a script"),
                              tr("The OHQ executable field currently points to a .ohq script file.\n\n"
@@ -1133,6 +1147,7 @@ void ModelCreatorWindow::runScript()
     }
 
     if (LooksLikeStaticLibraryPath(exeInfo)) {
+        // Frequent misconfiguration: static library path picked as executable.
         QMessageBox::warning(this,
                              tr("Executable path is a static library"),
                              tr("The selected path appears to be a static library (.a), not a runnable executable.\n\n"
@@ -1143,6 +1158,7 @@ void ModelCreatorWindow::runScript()
 
     QString executablePathToRun = exeInfo.absoluteFilePath();
     if (!exeInfo.isExecutable()) {
+        // Recover from non-runnable selections by attempting nearby CLI discovery.
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
         if (!discoveredCliPath.isEmpty()) {
@@ -1162,6 +1178,8 @@ void ModelCreatorWindow::runScript()
     }
 
     if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
+        // GUI binary typically opens UI rather than running batch script directly.
+        // Prefer switching to CLI; if unavailable, probe --help and infer args.
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
         if (!discoveredCliPath.isEmpty()) {
