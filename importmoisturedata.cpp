@@ -11,6 +11,7 @@ ImportMoistureData::ImportMoistureData(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ImportMoistureData)
 {
+    // Wire all dialog actions to explicit slots (legacy SIGNAL/SLOT style retained for compatibility).
     ui->setupUi(this);
     connect(ui->ChooseFolder,SIGNAL(clicked()),this,SLOT(on_choosefolder()));
     connect(ui->pushButtonExport ,SIGNAL(clicked()),this,SLOT(on_exporttoParaview()));
@@ -21,8 +22,13 @@ ImportMoistureData::ImportMoistureData(QWidget *parent) :
 
 void ImportMoistureData::SetMode(_mode Mode)
 {
+    // Current UI only customizes the 2D export label; import/export math branches on `mode`.
     mode = Mode;
-    ui->Export_Radial_coordinate->setText("Export 2D mapped");
+    if (mode == _mode::planar2d) {
+        ui->Export_Radial_coordinate->setText("Export 2D mapped (planar)");
+    } else {
+        ui->Export_Radial_coordinate->setText("Export 2D mapped");
+    }
 }
 
 ImportMoistureData::~ImportMoistureData()
@@ -32,6 +38,7 @@ ImportMoistureData::~ImportMoistureData()
 
 void ImportMoistureData::on_choosefolder()
 {
+    // Input directory is expected to contain one CSV per snapshot/time step.
     QString dir = QFileDialog::getExistingDirectory(this, tr("Open Directory"),
                                                  "/home",
                                                  QFileDialog::ShowDirsOnly
@@ -42,19 +49,30 @@ void ImportMoistureData::on_choosefolder()
     QStringList csvs = directory.entryList(QStringList() << "*.csv" << "*.csv",QDir::Files);
     if (mode==_mode::radial)
     {   foreach(QString filename, csvs) {
+            // Radial mode: parser constructor resolves expected EC/MC format.
             CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),ECvsMC::EC);
             snapshots.push_back(points);
         }
     }
-    else if (mode==_mode::rectangular)
+    else if (mode==_mode::rectangular || mode==_mode::planar2d)
     {
         vector<int> xyzval;
-        xyzval.push_back(1); xyzval.push_back(2); xyzval.push_back(3); xyzval.push_back(5);
+        if (mode == _mode::planar2d) {
+            // Planar 2D mode CSV column mapping: x,y,value (z reuses y as flat placeholder).
+            // Expected columns: [x, y, value].
+            xyzval.push_back(1); xyzval.push_back(2); xyzval.push_back(2); xyzval.push_back(3);
+        } else {
+            // Rectangular mode CSV column mapping: x,y,z,value columns.
+            xyzval.push_back(1); xyzval.push_back(2); xyzval.push_back(3); xyzval.push_back(5);
+        }
         ifstream SchedFile(ScheduleFileName.toStdString());
         foreach(QString filename, csvs) {
+            // Attach schedule timestamp (`hrs`) from companion schedule file.
             vector<string> schedline = aquiutils::getline(SchedFile);
             CPointSet<CPoint3d> points((dir+"/"+filename).toStdString(),xyzval);
-            points.hrs = aquiutils::atof(schedline[0]);
+            if (!schedline.empty()) {
+                points.hrs = aquiutils::atof(schedline[0]);
+            }
             snapshots.push_back(points);
         }
     }
@@ -68,6 +86,7 @@ void ImportMoistureData::on_choosefolder()
 
 void ImportMoistureData::on_exporttoParaview()
 {
+    // Export both point-cloud and meshed representation for each snapshot.
     QString dir = QFileDialog::getExistingDirectory(this, tr("Save Directory"),
                                                  "/home",
                                                  QFileDialog::ShowDirsOnly
@@ -87,6 +106,7 @@ void ImportMoistureData::on_exporttoParaview()
 
 void ImportMoistureData::on_exportRadialtoParaview()
 {
+    // Build a consistent radial center from first snapshot bounds.
     QString dir = QFileDialog::getExistingDirectory(this, tr("Save Directory"),
                                                  "/home",
                                                  QFileDialog::ShowDirsOnly
@@ -102,12 +122,14 @@ void ImportMoistureData::on_exportRadialtoParaview()
     {
         if (mode == _mode::radial)
         {   CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
+            // Smooth to regular 2D grid before writing VTP.
             CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(2,5,span);
 
             cylendical_points_kernel_smooth.WriteToVtp2D(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp");
         }
-        if (mode == _mode::rectangular)
+        if (mode == _mode::rectangular || mode == _mode::planar2d)
         {
+            // Rectangular mode exports both standard and "long" 2D mappings.
             CPointSet<CPoint> cylendical_points = snapshots[i].MapTo2DV();
             CPointSet<CPoint> cylendical_points_kernel_smooth = cylendical_points.MapToGrid(1,1,span,true);
             cylendical_points_kernel_smooth.WriteToVtp2D(dir.toStdString()+"/MC_"+aquiutils::numbertostring(i+1)+".vtp");
@@ -123,6 +145,7 @@ void ImportMoistureData::on_exportRadialtoParaview()
 
 void ImportMoistureData::on_export_timeseries()
 {
+    // Export a single-point moisture time-series with kernel smoothing in cylindrical space.
     QString fileName = QFileDialog::getSaveFileName(this,
                                                     tr("Save"), "",
                                                     tr("csv files (*.csv)"));
@@ -145,9 +168,11 @@ void ImportMoistureData::on_export_timeseries()
     {
         CPointSet<CPoint> cylendical_points = snapshots[i].MapToCylindrical((range3d.x(0)+range3d.x(1))/2.0,(range3d.y(0)+range3d.y(1))/2.0);
         //out.append(initial_time + cylendical_points.hrs/24.0 , cylendical_points.KernelSmoothValue(point,span));
+        // Legacy radial mode uses index-based hourly increments.
         if (mode==_mode::radial)
             out.append(initial_time + double(i)/24.0 , cylendical_points.KernelSmoothValue(point,span));
         else
+            // Rectangular mode uses imported schedule timestamps.
             out.append(snapshots[i].hrs , cylendical_points.KernelSmoothValue(point,span));
 
     }
@@ -160,8 +185,9 @@ void ImportMoistureData::on_export_timeseries()
 void ImportMoistureData::on_export_profiles()
 {
 
-    if (mode == _mode::rectangular)
+    if (mode == _mode::rectangular || mode == _mode::planar2d)
     {   double initial_time = 44438.3993;
+        // Profile export supported for rectangular and planar 2D modes.
         vector<double> span = {0.5, 0.2};
         CTimeSeriesSet<double> profile_data;
         for (int i=0; i<snapshots.size(); i++)
