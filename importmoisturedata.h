@@ -20,8 +20,8 @@ public:
     /// Parsed per-time-step point clouds loaded from selected directory.
     vector<CPointSet<CPoint3d>> snapshots;
     /// Import mode controls expected CSV shape and downstream export mapping logic.
-    enum class _mode {radial, rectangular} mode = _mode::radial;
-    /// Set import/export mode (radial vs rectangular).
+    enum class _mode {radial, rectangular, planar2d} mode = _mode::radial;
+    /// Set import/export mode (radial vs rectangular vs planar 2D).
     void SetMode(_mode Mode);
     /// Optional schedule file used by rectangular mode to attach timestamps.
     QString ScheduleFileName;
