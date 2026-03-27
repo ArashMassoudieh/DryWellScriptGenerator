@@ -29,6 +29,16 @@
     </layout>
    </item>
    <item>
+    <widget class="QLabel" name="modeHelpLabel">
+     <property name="text">
+      <string>Radial: EC/MC CSV. Rectangular 3D: x,y,z,value. Planar 2D: x,y,value.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QPushButton" name="ChooseFolder">
      <property name="text">
       <string>ChooseFolder</string>

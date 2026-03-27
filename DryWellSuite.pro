@@ -11,6 +11,7 @@ SUBDIRS += drywell_legacy \
 
 # Keep the existing project untouched as the legacy/stable app target.
 # This points to the original DryWell desktop application.
+# NOTE: importmoisturedata.cpp/.h/.ui live in this legacy target.
 drywell_legacy.file = DryWellScriptGenerator.pro
 
 # New executable where model creation + run + export workflows will be implemented.

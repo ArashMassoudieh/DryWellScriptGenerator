@@ -43,8 +43,13 @@ void ImportMoistureData::SetMode(_mode Mode)
     }
     if (mode == _mode::planar2d) {
         ui->Export_Radial_coordinate->setText("Export 2D mapped (planar)");
+        ui->modeHelpLabel->setText("Planar 2D mode expects CSV columns: x, y, value.");
+    } else if (mode == _mode::rectangular) {
+        ui->Export_Radial_coordinate->setText("Export 2D mapped");
+        ui->modeHelpLabel->setText("Rectangular 3D mode expects CSV columns: x, y, z, value (schedule optional).");
     } else {
         ui->Export_Radial_coordinate->setText("Export 2D mapped");
+        ui->modeHelpLabel->setText("Radial mode expects EC/MC-style CSV snapshots.");
     }
 }
 
