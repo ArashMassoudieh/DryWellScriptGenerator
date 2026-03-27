@@ -10,6 +10,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 ## Current state
 - Minimal runner UI implemented with user-friendly options for both **Drywell** and **Bioswale** starter scripts.
+- Setup now auto-detects OpenHydroQual defaults from likely roots (repo-adjacent `OpenHydroQual`, selected folders, and known legacy paths), so the OHQ executable field can be left empty in normal runs.
 - Starter generation inputs now include:
   - model type
   - template resources directory
@@ -17,6 +18,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - model enrichment preset (optional blocks/links)
   - inflow file
   - simulation start/end
+  - optional Ksat CLI scale factors (`--ksat-scale`, `--ksat-scale-g`, `--ksat-scale-uw`) appended at run-time
   - OHQ output series file name
   - optional observation file + soil layer/object + moisture expression + observation series name
   - optional raw "additional OHQ commands" appended to generated starter scripts
