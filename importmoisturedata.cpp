@@ -6,6 +6,8 @@
 #include "BTC.h"
 #include "BTCSet.h"
 #include <qdebug.h>
+#include <QComboBox>
+#include <QSignalBlocker>
 
 ImportMoistureData::ImportMoistureData(QWidget *parent) :
     QDialog(parent),
@@ -18,12 +20,27 @@ ImportMoistureData::ImportMoistureData(QWidget *parent) :
     connect(ui->Export_Radial_coordinate ,SIGNAL(clicked()),this,SLOT(on_exportRadialtoParaview()));
     connect(ui->pushButtonExportTimeSeries, SIGNAL(clicked()),this, SLOT(on_export_timeseries()));
     connect(ui->ExportProfiles, SIGNAL(clicked()),this, SLOT(on_export_profiles()));
+
+    ui->modeCombo->clear();
+    ui->modeCombo->addItem("Radial", static_cast<int>(_mode::radial));
+    ui->modeCombo->addItem("Rectangular 3D", static_cast<int>(_mode::rectangular));
+    ui->modeCombo->addItem("Planar 2D", static_cast<int>(_mode::planar2d));
+    connect(ui->modeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        const auto selectedMode = static_cast<_mode>(ui->modeCombo->itemData(idx).toInt());
+        SetMode(selectedMode);
+    });
+    SetMode(mode);
 }
 
 void ImportMoistureData::SetMode(_mode Mode)
 {
     // Current UI only customizes the 2D export label; import/export math branches on `mode`.
     mode = Mode;
+    if (ui && ui->modeCombo) {
+        const QSignalBlocker blocker(ui->modeCombo);
+        const int comboIndex = ui->modeCombo->findData(static_cast<int>(mode));
+        if (comboIndex >= 0) ui->modeCombo->setCurrentIndex(comboIndex);
+    }
     if (mode == _mode::planar2d) {
         ui->Export_Radial_coordinate->setText("Export 2D mapped (planar)");
     } else {
