@@ -244,6 +244,18 @@ bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
     return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
 }
 
+bool IsGuiExecutableOrAlias(const QFileInfo &executableInfo)
+{
+    if (LooksLikeGuiOpenHydroQualExecutable(executableInfo)) {
+        return true;
+    }
+    const QString canonical = executableInfo.canonicalFilePath();
+    if (!canonical.isEmpty()) {
+        return LooksLikeGuiOpenHydroQualExecutable(QFileInfo(canonical));
+    }
+    return false;
+}
+
 bool LooksLikeScriptFilePath(const QFileInfo &pathInfo)
 {
     return pathInfo.suffix().compare(QStringLiteral("ohq"), Qt::CaseInsensitive) == 0;
@@ -1262,7 +1274,7 @@ void ModelCreatorWindow::runScript()
         // Recover from non-runnable selections by attempting nearby CLI discovery.
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
-        if (!discoveredCliPath.isEmpty()) {
+        if (!discoveredCliPath.isEmpty() && !IsGuiExecutableOrAlias(discoveredCliInfo)) {
             executablePathToRun = discoveredCliInfo.absoluteFilePath();
             exePathEdit->setText(executablePathToRun);
             appendLog(stamp(tr("Selected non-runnable path '%1'; auto-switched to CLI binary '%2'.")
@@ -1280,24 +1292,22 @@ void ModelCreatorWindow::runScript()
 
     if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
         // GUI binary typically opens UI rather than running batch script directly.
-        // Prefer switching to CLI; if unavailable, fall back to explicit script args.
+        // Prefer switching to CLI; if unavailable, stop and ask for the CLI binary.
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
-        if (!discoveredCliPath.isEmpty()) {
+        if (!discoveredCliPath.isEmpty() && !IsGuiExecutableOrAlias(discoveredCliInfo)) {
             executablePathToRun = discoveredCliInfo.absoluteFilePath();
             exePathEdit->setText(executablePathToRun);
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
-            if (exeArgsEdit->text().trimmed().isEmpty()) {
-                exeArgsEdit->setText(QStringLiteral("--script {script} --run"));
-                appendLog(stamp(tr("No nearby OHQ CLI found; using GUI fallback args: %1")
-                                .arg(exeArgsEdit->text().trimmed())));
-            } else {
-                appendLog(stamp(tr("No nearby OHQ CLI found; using configured GUI args: %1")
-                                .arg(exeArgsEdit->text().trimmed())));
-            }
-            executablePathToRun = exeInfo.absoluteFilePath();
+            QMessageBox::warning(this,
+                                 tr("GUI executable cannot run .ohq scripts"),
+                                 tr("OpenHydroQual GUI was selected, but no OHQ CLI solver binary was found nearby.\n\n"
+                                    "Please select the CLI solver executable named 'OHQ' (for example in build/Release/OHQ)."));
+            appendLog(stamp(tr("Run cancelled: selected executable '%1' resolves to OpenHydroQual GUI and no OHQ CLI was discovered.")
+                            .arg(exeInfo.absoluteFilePath())));
+            return;
         }
     }
 
