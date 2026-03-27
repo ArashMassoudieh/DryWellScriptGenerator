@@ -154,6 +154,75 @@ QString FirstExecutableFile(const QStringList &candidates)
     return QString();
 }
 
+void AppendUniquePath(QStringList *paths, const QString &path)
+{
+    if (paths == nullptr) {
+        return;
+    }
+    const QString normalized = QFileInfo(path).absoluteFilePath();
+    if (normalized.trimmed().isEmpty()) {
+        return;
+    }
+    if (!paths->contains(normalized)) {
+        paths->push_back(normalized);
+    }
+}
+
+QStringList CandidateOpenHydroQualRoots(const QString &repoRoot, const QStringList &hintRoots = {})
+{
+    QStringList roots;
+    for (const QString &hint : hintRoots) {
+        const QFileInfo info(hint);
+        if (info.exists()) {
+            AppendUniquePath(&roots, info.isDir() ? info.absoluteFilePath() : info.absolutePath());
+        }
+    }
+
+    const QDir repoDir(repoRoot);
+    AppendUniquePath(&roots, repoDir.filePath("OpenHydroQual"));
+    AppendUniquePath(&roots, repoDir.filePath("../OpenHydroQual"));
+    AppendUniquePath(&roots, repoDir.filePath("../../OpenHydroQual"));
+    AppendUniquePath(&roots, QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"));
+    AppendUniquePath(&roots, QStringLiteral("/home/arash/Projects/OpenHydroQual"));
+    return roots;
+}
+
+QString DetectTemplateDirectory(const QStringList &rootCandidates, const QString &workingDirectory)
+{
+    QStringList candidates;
+    for (const QString &rootPath : rootCandidates) {
+        const QDir root(rootPath);
+        if (!root.exists()) {
+            continue;
+        }
+        candidates << root.filePath("resources")
+                   << root.filePath("templates")
+                   << root.filePath("template_resources")
+                   << root.filePath("aquifolium/examples/templates")
+                   << root.filePath("aquifolium/templates");
+    }
+
+    if (!workingDirectory.trimmed().isEmpty()) {
+        const QDir wd(workingDirectory);
+        candidates << wd.filePath("templates")
+                   << wd.filePath("template_resources");
+    }
+    return FirstExistingDirectory(candidates);
+}
+
+QString FindCliExecutableUnderRoot(const QString &rootPath);
+
+QString DetectExecutablePath(const QStringList &rootCandidates)
+{
+    for (const QString &rootPath : rootCandidates) {
+        const QString candidate = FindCliExecutableUnderRoot(rootPath);
+        if (!candidate.isEmpty()) {
+            return candidate;
+        }
+    }
+    return QString();
+}
+
 bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
 {
     const QString baseName = executableInfo.completeBaseName().trimmed();
@@ -749,6 +818,17 @@ void ModelCreatorWindow::chooseExecutable()
     }
 
     exePathEdit->setText(cliPath);
+    if (workingDirEdit->text().trimmed().isEmpty()) {
+        workingDirEdit->setText(FindRepoRoot());
+    }
+    if (templateDirEdit->text().trimmed().isEmpty()) {
+        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, cliPath});
+        const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, workingDirEdit->text().trimmed());
+        if (!detectedTemplate.isEmpty()) {
+            templateDirEdit->setText(detectedTemplate);
+            appendLog(stamp(tr("Auto-detected template resources directory: %1").arg(detectedTemplate)));
+        }
+    }
     saveSettings();
     appendLog(stamp(tr("Selected OHQ CLI executable: %1").arg(cliPath)));
 }
@@ -771,6 +851,23 @@ void ModelCreatorWindow::chooseWorkingDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select working directory"));
     if (!dir.isEmpty()) {
         workingDirEdit->setText(dir);
+        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, exePathEdit->text().trimmed()});
+        if (exePathEdit->text().trimmed().isEmpty()) {
+            const QString detectedExecutable = DetectExecutablePath(rootCandidates);
+            if (!detectedExecutable.isEmpty()) {
+                exePathEdit->setText(detectedExecutable);
+                appendLog(stamp(tr("Auto-detected OHQ executable from selected working directory: %1")
+                                .arg(detectedExecutable)));
+            }
+        }
+        if (templateDirEdit->text().trimmed().isEmpty()) {
+            const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, dir);
+            if (!detectedTemplate.isEmpty()) {
+                templateDirEdit->setText(detectedTemplate);
+                appendLog(stamp(tr("Auto-detected template resources from selected working directory: %1")
+                                .arg(detectedTemplate)));
+            }
+        }
         saveSettings();
     }
 }
@@ -810,26 +907,14 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString repoRoot = FindRepoRoot();
     const QString suggestedWorkingDirectory = repoRoot;
     const QString suggestedArtifactsDirectory = QDir(suggestedWorkingDirectory).filePath("artifacts");
-    const QString suggestedTemplateDirectory = FirstExistingDirectory({
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/resources"),
-        QDir(suggestedWorkingDirectory).filePath("templates"),
-        QDir(suggestedWorkingDirectory).filePath("template_resources"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/templates"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/examples/templates"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/templates")
+    const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot, {
+        workingDirEdit->text().trimmed(),
+        exePathEdit->text().trimmed(),
+        templateDirEdit->text().trimmed()
     });
+    const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
-    const QString suggestedExecutablePath = FirstExistingFile({
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
-    });
+    const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("bioswale.ohq"),
@@ -2115,26 +2200,10 @@ void ModelCreatorWindow::loadSettings()
     const QString repoRoot = FindRepoRoot();
     const QString defaultWorkingDirectory = repoRoot;
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
-    const QString defaultTemplateDirectory = FirstExistingDirectory({
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/resources"),
-        QDir(defaultWorkingDirectory).filePath("templates"),
-        QDir(defaultWorkingDirectory).filePath("template_resources"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/examples/templates"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/templates"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/examples/templates"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/templates")
-    });
+    const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot);
+    const QString defaultTemplateDirectory = DetectTemplateDirectory(rootCandidates, defaultWorkingDirectory);
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
-    const QString defaultExecutablePath = FirstExistingFile({
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
-    });
+    const QString defaultExecutablePath = DetectExecutablePath(rootCandidates);
     const QString defaultScriptPath = FirstExistingFile({
         QDir(defaultWorkingDirectory).filePath("drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("bioswale.ohq"),
