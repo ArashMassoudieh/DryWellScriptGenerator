@@ -435,6 +435,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       inflowFileEdit(new QLineEdit(this)),
       simulationStartEdit(new QLineEdit(this)),
       simulationEndEdit(new QLineEdit(this)),
+      ksatScaleEdit(new QLineEdit(this)),
+      ksatScaleGEdit(new QLineEdit(this)),
+      ksatScaleUwEdit(new QLineEdit(this)),
       outputSeriesFileEdit(new QLineEdit(this)),
       observationFileEdit(new QLineEdit(this)),
       depthProfileFileEdit(new QLineEdit(this)),
@@ -522,6 +525,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     simulationStartEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
     addTextRow(layout, tr("Simulation end"), simulationEndEdit);
     simulationEndEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
+    addTextRow(layout, tr("Ksat scale (all soils, optional)"), ksatScaleEdit);
+    ksatScaleEdit->setPlaceholderText(tr("e.g. 1.0 (adds --ksat-scale)"));
+    addTextRow(layout, tr("Ksat scale-g (optional)"), ksatScaleGEdit);
+    ksatScaleGEdit->setPlaceholderText(tr("e.g. 3.0 (adds --ksat-scale-g)"));
+    addTextRow(layout, tr("Ksat scale-uw (optional)"), ksatScaleUwEdit);
+    ksatScaleUwEdit->setPlaceholderText(tr("e.g. 30.0 (adds --ksat-scale-uw)"));
     addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
     outputSeriesFileEdit->setPlaceholderText(tr("Suggested: OHQ_output.txt"));
     addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
@@ -654,6 +663,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(inflowFileEdit);
     saveOnEdit(simulationStartEdit);
     saveOnEdit(simulationEndEdit);
+    saveOnEdit(ksatScaleEdit);
+    saveOnEdit(ksatScaleGEdit);
+    saveOnEdit(ksatScaleUwEdit);
     saveOnEdit(outputSeriesFileEdit);
     saveOnEdit(observationFileEdit);
     saveOnEdit(depthProfileFileEdit);
@@ -1386,6 +1398,24 @@ void ModelCreatorWindow::runScript()
         executableArgs = BuildExecutableArguments(configuredArgsTemplate,
                                                   scriptInfo.absoluteFilePath());
     }
+
+    auto appendFlagIfPresent = [&executableArgs](const QString &flag, const QString &value) {
+        const QString trimmed = value.trimmed();
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < executableArgs.size(); ++i) {
+            const QString arg = executableArgs.at(i);
+            if (arg == flag || arg.startsWith(flag + "=")) {
+                return;
+            }
+        }
+        executableArgs << flag << trimmed;
+    };
+    appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
+    appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
+    appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
+
     if (scriptRequired) {
         appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
     } else {
@@ -2299,6 +2329,9 @@ void ModelCreatorWindow::loadSettings()
     inflowFileEdit->setText(settings.value("inflowFile").toString());
     simulationStartEdit->setText(settings.value("simulationStart", "44435").toString());
     simulationEndEdit->setText(settings.value("simulationEnd", "44438").toString());
+    ksatScaleEdit->setText(settings.value("ksatScale").toString());
+    ksatScaleGEdit->setText(settings.value("ksatScaleG").toString());
+    ksatScaleUwEdit->setText(settings.value("ksatScaleUw").toString());
     outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
@@ -2323,6 +2356,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("inflowFile", inflowFileEdit->text());
     settings.setValue("simulationStart", simulationStartEdit->text());
     settings.setValue("simulationEnd", simulationEndEdit->text());
+    settings.setValue("ksatScale", ksatScaleEdit->text());
+    settings.setValue("ksatScaleG", ksatScaleGEdit->text());
+    settings.setValue("ksatScaleUw", ksatScaleUwEdit->text());
     settings.setValue("outputSeriesFile", outputSeriesFileEdit->text());
     settings.setValue("observationFile", observationFileEdit->text());
     settings.setValue("depthProfileFile", depthProfileFileEdit->text());

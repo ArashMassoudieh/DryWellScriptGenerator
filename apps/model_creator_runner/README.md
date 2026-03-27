@@ -18,6 +18,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - model enrichment preset (optional blocks/links)
   - inflow file
   - simulation start/end
+  - optional Ksat CLI scale factors (`--ksat-scale`, `--ksat-scale-g`, `--ksat-scale-uw`) appended at run-time
   - OHQ output series file name
   - optional observation file + soil layer/object + moisture expression + observation series name
   - optional raw "additional OHQ commands" appended to generated starter scripts

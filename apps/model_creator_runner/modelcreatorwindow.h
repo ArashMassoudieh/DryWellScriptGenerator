@@ -98,6 +98,9 @@ private:
     QLineEdit *inflowFileEdit;
     QLineEdit *simulationStartEdit;
     QLineEdit *simulationEndEdit;
+    QLineEdit *ksatScaleEdit;
+    QLineEdit *ksatScaleGEdit;
+    QLineEdit *ksatScaleUwEdit;
     QLineEdit *outputSeriesFileEdit;
     QLineEdit *observationFileEdit;
     QLineEdit *depthProfileFileEdit;
