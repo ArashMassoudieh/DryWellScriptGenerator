@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 /********************************************************************************
 ** Form generated from reading UI file 'mainwindow.ui'
 **

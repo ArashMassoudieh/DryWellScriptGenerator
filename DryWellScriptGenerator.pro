@@ -1,4 +1,11 @@
 #####################################################################
+# Project Overview
+# - Main DryWell desktop application project file.
+# - Pulls UI + analysis + export features and links OpenHydroQual deps.
+# - Machine profile sections below must set OHQPATH/VTK paths correctly.
+#####################################################################
+
+#####################################################################
 # Qt Version Auto-Config (Qt5 / Qt6)
 #####################################################################
 
@@ -58,6 +65,9 @@ DEFINES += use_VTK
 # Machine-Specific OHQPATH
 #####################################################################
 
+# IMPORTANT:
+# Enable exactly one machine profile below so OHQPATH/VTK paths resolve.
+# If paths are wrong, build/link/runtime issues are expected.
 CONFIG += PowerEdge
 DEFINES += PowerEdge
 

@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "dialogrosemead.h"
 #include "ui_dialogrosemead.h"
 #include <QFileDialog>
