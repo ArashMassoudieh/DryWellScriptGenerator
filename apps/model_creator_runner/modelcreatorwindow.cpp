@@ -1295,6 +1295,11 @@ void ModelCreatorWindow::runScript()
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
+            if (exeArgsEdit->text().trimmed().isEmpty()) {
+                exeArgsEdit->setText(QStringLiteral("--script {script} --run"));
+                appendLog(stamp(tr("No nearby OHQ CLI discovered; applying GUI script-run args: %1")
+                                .arg(exeArgsEdit->text().trimmed())));
+            }
             appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; running selected executable directly.")
                             .arg(exeInfo.absoluteFilePath())));
         }
