@@ -254,13 +254,11 @@ bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
     return pathInfo.suffix().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0;
 }
 
-bool LooksLikeOhqBinaryName(const QString &fileName)
+bool LooksLikeCliOhqBinaryName(const QString &fileName)
 {
     return fileName.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
         || fileName.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
-        || fileName.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive)
-        || fileName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0
-        || fileName.compare(QStringLiteral("OpenHydroQual.exe"), Qt::CaseInsensitive) == 0;
+        || fileName.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
 }
 
 QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
@@ -312,7 +310,7 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         while (it.hasNext()) {
             it.next();
             const QFileInfo fileInfo = it.fileInfo();
-            if (LooksLikeOhqBinaryName(fileInfo.fileName()) && fileInfo.isExecutable()) {
+            if (LooksLikeCliOhqBinaryName(fileInfo.fileName()) && fileInfo.isExecutable()) {
                 return fileInfo.absoluteFilePath();
             }
         }
@@ -352,51 +350,12 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
     while (it.hasNext()) {
         it.next();
         const QFileInfo info = it.fileInfo();
-        if (LooksLikeOhqBinaryName(info.fileName()) && info.isExecutable()) {
+        if (LooksLikeCliOhqBinaryName(info.fileName()) && info.isExecutable()) {
             return info.absoluteFilePath();
         }
     }
 
     return QString();
-}
-
-QString ProbeExecutableHelp(const QString &executablePath, const QStringList &args)
-{
-    // Small bounded probe to avoid hanging UI while querying help output.
-    // We keep timeouts short and forcibly kill long-running processes.
-    QProcess probe;
-    probe.start(executablePath, args);
-    if (!probe.waitForStarted(1500)) {
-        return QString();
-    }
-    probe.waitForFinished(2500);
-    if (probe.state() != QProcess::NotRunning) {
-        probe.kill();
-        probe.waitForFinished(500);
-    }
-    return QString::fromLocal8Bit(probe.readAllStandardOutput() + probe.readAllStandardError());
-}
-
-QString InferScriptArgumentTemplate(const QString &helpText)
-{
-    // Best-effort parser for common script invocation flags.
-    // This does not guarantee support, but gives users a practical default.
-    const QString lower = helpText.toLower();
-    QString templ;
-    if (lower.contains("--script")) {
-        templ = QStringLiteral("--script {script}");
-    } else if (lower.contains("-script")) {
-        templ = QStringLiteral("-script {script}");
-    } else if (lower.contains("--input")) {
-        templ = QStringLiteral("--input {script}");
-    } else if (lower.contains("-i") && lower.contains("script")) {
-        templ = QStringLiteral("-i {script}");
-    }
-
-    if (!templ.isEmpty() && lower.contains("--run")) {
-        templ += QStringLiteral(" --run");
-    }
-    return templ;
 }
 
 QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
@@ -1321,7 +1280,7 @@ void ModelCreatorWindow::runScript()
 
     if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
         // GUI binary typically opens UI rather than running batch script directly.
-        // Prefer switching to CLI; if unavailable, probe --help and infer args.
+        // Prefer switching to CLI; if unavailable, stop and ask for CLI selection.
         const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
         const QFileInfo discoveredCliInfo(discoveredCliPath);
         if (!discoveredCliPath.isEmpty()) {
@@ -1330,27 +1289,14 @@ void ModelCreatorWindow::runScript()
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
-            QString helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("--help")});
-            if (helpText.trimmed().isEmpty()) {
-                helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("-h")});
-            }
-            const QString inferredArgs = InferScriptArgumentTemplate(helpText);
-            if (!inferredArgs.isEmpty()) {
-                exeArgsEdit->setText(inferredArgs);
-                executablePathToRun = exeInfo.absoluteFilePath();
-                appendLog(stamp(tr("No OHQ CLI found nearby; inferred GUI script args from help output: %1")
-                                .arg(inferredArgs)));
-            } else {
-                QMessageBox::warning(this,
-                                     tr("GUI executable cannot run scripts directly"),
-                                     tr("The selected executable is OpenHydroQual GUI (%1), and no OHQ CLI binary was discovered nearby.\n\n"
-                                        "Also could not infer a script-run argument from '--help'.\n"
-                                        "Please select the CLI solver binary named 'OHQ' or manually set Executable args.")
-                                         .arg(exeInfo.fileName()));
-                appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected, no nearby OHQ CLI found, and no script args could be inferred from help.")
-                                .arg(exeInfo.fileName())));
-                return;
-            }
+            QMessageBox::warning(this,
+                                 tr("GUI executable cannot run scripts directly"),
+                                 tr("The selected executable is OpenHydroQual GUI (%1), and no OHQ CLI binary was discovered nearby.\n\n"
+                                    "Please select the CLI solver binary named 'OHQ'.")
+                                     .arg(exeInfo.fileName()));
+            appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected and no nearby OHQ CLI found.")
+                            .arg(exeInfo.fileName())));
+            return;
         }
     }
 
