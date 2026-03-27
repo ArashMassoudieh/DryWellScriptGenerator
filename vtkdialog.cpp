@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "vtkdialog.h"
 #include "ui_vtkdialog.h"
 #include "QFileDialog"

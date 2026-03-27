@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "ohqprocessrunner.h"
 
 #include <QFileInfo>
@@ -6,12 +7,15 @@
 OHQProcessRunner::OHQProcessRunner(QObject *parent)
     : QObject(parent), process(new QProcess(this))
 {
+    // Forward process lifecycle to UI-friendly signals.
     connect(process, &QProcess::started, this, &OHQProcessRunner::runStarted);
 
+    // Stream stdout incrementally for live logging.
     connect(process, &QProcess::readyReadStandardOutput, this, [this]() {
         emit outputReady(QString::fromLocal8Bit(process->readAllStandardOutput()));
     });
 
+    // Stream stderr incrementally for live logging.
     connect(process, &QProcess::readyReadStandardError, this, [this]() {
         emit outputReady(QString::fromLocal8Bit(process->readAllStandardError()));
     });
@@ -69,8 +73,12 @@ void OHQProcessRunner::stop()
     }
 }
 
-void OHQProcessRunner::runScript(const QString &scriptFile, const QString &workingDirectory)
+void OHQProcessRunner::runScript(const QString &scriptFile,
+                                 const QString &workingDirectory,
+                                 const QStringList &executableArgs)
 {
+    // Keep this runner thin: validation + process lifecycle only.
+    // Argument construction/discovery stays in ModelCreatorWindow.
     if (isRunning()) {
         emit runFailed(QStringLiteral("OHQ process is already running."));
         return;
@@ -96,5 +104,5 @@ void OHQProcessRunner::runScript(const QString &scriptFile, const QString &worki
     }
 
     process->setWorkingDirectory(workingDirectory);
-    process->start(executable, QStringList{scriptFile});
+    process->start(executable, executableArgs);
 }

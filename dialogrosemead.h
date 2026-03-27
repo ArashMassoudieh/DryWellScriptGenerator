@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef DIALOGROSEMEAD_H
 #define DIALOGROSEMEAD_H
 

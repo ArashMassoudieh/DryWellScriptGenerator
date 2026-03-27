@@ -1,3 +1,4 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "modelcreatorwindow.h"
 
 #include "ohqprocessrunner.h"
@@ -19,6 +20,7 @@
 #include <QLineEdit>
 #include <QMap>
 #include <QMessageBox>
+#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -138,12 +140,234 @@ QString FirstExistingFile(const QStringList &candidates)
     }
     return QString();
 }
+
+QString FirstExecutableFile(const QStringList &candidates)
+{
+    // Return the first candidate that is both present and runnable.
+    // This keeps discovery deterministic (first-known-good path wins).
+    for (const QString &path : candidates) {
+        const QFileInfo info(path);
+        if (!path.trimmed().isEmpty() && info.exists() && info.isFile() && info.isExecutable()) {
+            return info.absoluteFilePath();
+        }
+    }
+    return QString();
+}
+
+bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
+{
+    const QString baseName = executableInfo.completeBaseName().trimmed();
+    return baseName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0;
+}
+
+bool LooksLikeScriptFilePath(const QFileInfo &pathInfo)
+{
+    return pathInfo.suffix().compare(QStringLiteral("ohq"), Qt::CaseInsensitive) == 0;
+}
+
+bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
+{
+    return pathInfo.suffix().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0;
+}
+
+QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
+{
+    // Heuristic search anchored around the selected GUI binary path.
+    // We walk up a few parent folders and probe common OHQ build layouts.
+    QStringList roots;
+    QDir dir(guiExecutableInfo.absolutePath());
+    for (int i = 0; i < 5; ++i) {
+        roots << dir.absolutePath();
+        if (!dir.cdUp()) {
+            break;
+        }
+    }
+
+    QStringList candidates;
+    for (const QString &root : roots) {
+        const QDir rootDir(root);
+        candidates << rootDir.filePath("OHQ")
+                   << rootDir.filePath("build/Release/OHQ")
+                   << rootDir.filePath("build/Debug/OHQ")
+                   << rootDir.filePath("aquifolium/build/OHQ")
+                   << rootDir.filePath("aquifolium/bin/OHQ");
+    }
+
+    const QString nearby = FirstExecutableFile(candidates);
+    if (!nearby.isEmpty()) {
+        return nearby;
+    }
+
+    const QStringList fallbackRoots = {
+        // Environment-specific fallback roots used in this project.
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual")
+    };
+    for (const QString &root : fallbackRoots) {
+        QDir rootDir(root);
+        if (!rootDir.exists()) {
+            continue;
+        }
+        QDirIterator it(rootDir.absolutePath(),
+                        QDir::Files | QDir::NoSymLinks,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            const QFileInfo fileInfo = it.fileInfo();
+            const QString name = fileInfo.fileName();
+            const bool looksLikeOhqBinary =
+                name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
+                || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
+                || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
+            if (looksLikeOhqBinary && fileInfo.isExecutable()) {
+                return fileInfo.absoluteFilePath();
+            }
+        }
+    }
+
+    return QString();
+}
+
+QString FindCliExecutableUnderRoot(const QString &rootPath)
+{
+    // Root-based discovery used by the "Browse" flow (folder selection).
+    // First try common direct locations, then recurse as a safety net.
+    const QDir root(rootPath);
+    if (!root.exists()) {
+        return QString();
+    }
+
+    const QString direct = FirstExecutableFile({
+        root.filePath("OHQ"),
+        root.filePath("build/Release/OHQ"),
+        root.filePath("build/Debug/OHQ"),
+        root.filePath("aquifolium/build/OHQ"),
+        root.filePath("aquifolium/bin/OHQ")
+    });
+    if (!direct.isEmpty()) {
+        return direct;
+    }
+
+    QDirIterator it(root.absolutePath(),
+                    QDir::Files | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QFileInfo info = it.fileInfo();
+        const QString name = info.fileName();
+        const bool looksLikeOhqBinary =
+            name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
+            || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
+            || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
+        if (looksLikeOhqBinary && info.isExecutable()) {
+            return info.absoluteFilePath();
+        }
+    }
+
+    return QString();
+}
+
+QString ProbeExecutableHelp(const QString &executablePath, const QStringList &args)
+{
+    // Small bounded probe to avoid hanging UI while querying help output.
+    // We keep timeouts short and forcibly kill long-running processes.
+    QProcess probe;
+    probe.start(executablePath, args);
+    if (!probe.waitForStarted(1500)) {
+        return QString();
+    }
+    probe.waitForFinished(2500);
+    if (probe.state() != QProcess::NotRunning) {
+        probe.kill();
+        probe.waitForFinished(500);
+    }
+    return QString::fromLocal8Bit(probe.readAllStandardOutput() + probe.readAllStandardError());
+}
+
+QString InferScriptArgumentTemplate(const QString &helpText)
+{
+    // Best-effort parser for common script invocation flags.
+    // This does not guarantee support, but gives users a practical default.
+    const QString lower = helpText.toLower();
+    QString templ;
+    if (lower.contains("--script")) {
+        templ = QStringLiteral("--script {script}");
+    } else if (lower.contains("-script")) {
+        templ = QStringLiteral("-script {script}");
+    } else if (lower.contains("--input")) {
+        templ = QStringLiteral("--input {script}");
+    } else if (lower.contains("-i") && lower.contains("script")) {
+        templ = QStringLiteral("-i {script}");
+    }
+
+    if (!templ.isEmpty() && lower.contains("--run")) {
+        templ += QStringLiteral(" --run");
+    }
+    return templ;
+}
+
+QStringList BuildExecutableArguments(const QString &argumentTemplate, const QString &scriptPath)
+{
+    if (argumentTemplate.trimmed().isEmpty()) {
+        return QStringList{scriptPath};
+    }
+
+    QStringList args = QProcess::splitCommand(argumentTemplate);
+    bool containsScriptToken = false;
+    for (QString &arg : args) {
+        if (arg.contains(QStringLiteral("{script}"))) {
+            arg.replace(QStringLiteral("{script}"), scriptPath);
+            containsScriptToken = true;
+        }
+    }
+
+    if (!containsScriptToken) {
+        args.push_back(scriptPath);
+    }
+    return args;
+}
+
+bool IsKnownRuntimeNoiseLine(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    return trimmed.startsWith(QStringLiteral("qt.core.qmetaobject.connectslotsbyname: QMetaObject::connectSlotsByName: No matching signal for on_"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such slot "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect: No such signal "))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (sender name:"))
+        || trimmed.startsWith(QStringLiteral("qt.core.qobject.connect: QObject::connect:  (receiver name:"));
+}
+
+QString FilterRuntimeNoise(const QString &text, int *suppressedLineCount)
+{
+    if (suppressedLineCount == nullptr) {
+        return text;
+    }
+
+    const QStringList lines = text.split('\n');
+    QStringList kept;
+    kept.reserve(lines.size());
+
+    for (const QString &line : lines) {
+        if (IsKnownRuntimeNoiseLine(line)) {
+            ++(*suppressedLineCount);
+            continue;
+        }
+        kept.push_back(line);
+    }
+
+    return kept.join('\n');
+}
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     : QMainWindow(parent),
       modelTypeCombo(new QComboBox(this)),
       exePathEdit(new QLineEdit(this)),
+      exeArgsEdit(new QLineEdit(this)),
       scriptPathEdit(new QLineEdit(this)),
       workingDirEdit(new QLineEdit(this)),
       artifactsDirEdit(new QLineEdit(this)),
@@ -219,6 +443,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
     exePathEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"));
+    addTextRow(layout, tr("Executable args"), exeArgsEdit);
+    exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted, script path is passed as a positional argument."));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -359,6 +586,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
     saveOnEdit(exePathEdit);
+    saveOnEdit(exeArgsEdit);
     saveOnEdit(scriptPathEdit);
     saveOnEdit(workingDirEdit);
     saveOnEdit(artifactsDirEdit);
@@ -378,6 +606,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
+        suppressedRuntimeNoiseLines = 0;
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -389,8 +618,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     });
 
     connect(runner, &OHQProcessRunner::outputReady, this, [this](const QString &text) {
-        currentRunOutput += text;
-        appendLog(text);
+        int suppressed = 0;
+        const QString filtered = FilterRuntimeNoise(text, &suppressed);
+        suppressedRuntimeNoiseLines += suppressed;
+        currentRunOutput += filtered;
+        if (!filtered.trimmed().isEmpty()) {
+            appendLog(filtered);
+        }
     });
 
     connect(runner, &OHQProcessRunner::runFinished, this, [this](int exitCode) {
@@ -401,6 +635,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runButton->setEnabled(true);
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
+        if (suppressedRuntimeNoiseLines > 0) {
+            appendLog(stamp(tr("Suppressed %1 known Qt runtime warning line(s).").arg(suppressedRuntimeNoiseLines)));
+        }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
@@ -442,7 +679,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runButton->setEnabled(true);
         exportArtifactsButton->setEnabled(true);
         stopButton->setEnabled(false);
-        QMessageBox::warning(this, tr("Run failed"), reason);
+        QString message = reason;
+        const QFileInfo exeInfo(exePathEdit->text().trimmed());
+        if (reason.contains("not a runnable file", Qt::CaseInsensitive)) {
+            if (LooksLikeScriptFilePath(exeInfo)) {
+                message += tr("\n\nHint: The executable field is set to a .ohq script. Move that path to 'OHQ script' and set 'OHQ executable' to the OHQ binary.");
+            } else if (LooksLikeStaticLibraryPath(exeInfo)) {
+                message += tr("\n\nHint: The executable field is set to a static library (.a). Select the OHQ binary executable instead.");
+            }
+        }
+        QMessageBox::warning(this, tr("Run failed"), message);
         appendLog(stamp(tr("Run failed: %1").arg(reason)));
     });
 
@@ -483,11 +729,28 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 
 void ModelCreatorWindow::chooseExecutable()
 {
-    const QString fileName = QFileDialog::getOpenFileName(this, tr("Select OHQ executable"));
-    if (!fileName.isEmpty()) {
-        exePathEdit->setText(fileName);
-        saveSettings();
+    // Intentionally folder-based selection: users commonly picked non-executable
+    // files when selecting "any file". We now ask for a root and auto-find OHQ.
+    const QString startDir = exePathEdit->text().trimmed().isEmpty()
+        ? FindRepoRoot()
+        : QFileInfo(exePathEdit->text().trimmed()).absolutePath();
+    const QString dir = QFileDialog::getExistingDirectory(this,
+                                                          tr("Select OpenHydroQual folder (search OHQ CLI)"),
+                                                          startDir);
+    if (dir.isEmpty()) return;
+
+    const QString cliPath = FindCliExecutableUnderRoot(dir);
+    if (cliPath.isEmpty()) {
+        QMessageBox::warning(this,
+                             tr("OHQ CLI not found"),
+                             tr("Could not find an executable named OHQ under:\n%1").arg(dir));
+        appendLog(stamp(tr("No OHQ CLI executable found under: %1").arg(dir)));
+        return;
     }
+
+    exePathEdit->setText(cliPath);
+    saveSettings();
+    appendLog(stamp(tr("Selected OHQ CLI executable: %1").arg(cliPath)));
 }
 
 void ModelCreatorWindow::chooseScript()
@@ -558,8 +821,12 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -577,6 +844,14 @@ void ModelCreatorWindow::applySuggestedDefaults()
     };
 
     applyIfEmpty(exePathEdit, suggestedExecutablePath);
+    if (!suggestedExecutablePath.isEmpty()) {
+        const QFileInfo currentExe(exePathEdit->text().trimmed());
+        if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe) || !currentExe.isExecutable()) {
+            exePathEdit->setText(suggestedExecutablePath);
+            appendLog(stamp(tr("Replaced invalid executable path with suggested OHQ binary: %1")
+                            .arg(suggestedExecutablePath)));
+        }
+    }
     applyIfEmpty(scriptPathEdit, suggestedScriptPath);
     applyIfEmpty(workingDirEdit, suggestedWorkingDirectory);
     applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
@@ -862,6 +1137,82 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
+    if (LooksLikeScriptFilePath(exeInfo)) {
+        // Frequent misconfiguration: script path copied into executable field.
+        QMessageBox::warning(this,
+                             tr("Executable path is a script"),
+                             tr("The OHQ executable field currently points to a .ohq script file.\n\n"
+                                "Please set OHQ executable to the runnable binary (for example, .../OHQ) and keep the script path in the OHQ script field."));
+        appendLog(stamp(tr("Run cancelled: executable field points to script file '%1'.").arg(exeInfo.fileName())));
+        return;
+    }
+
+    if (LooksLikeStaticLibraryPath(exeInfo)) {
+        // Frequent misconfiguration: static library path picked as executable.
+        QMessageBox::warning(this,
+                             tr("Executable path is a static library"),
+                             tr("The selected path appears to be a static library (.a), not a runnable executable.\n\n"
+                                "Please select the OHQ binary executable."));
+        appendLog(stamp(tr("Run cancelled: executable field points to static library '%1'.").arg(exeInfo.fileName())));
+        return;
+    }
+
+    QString executablePathToRun = exeInfo.absoluteFilePath();
+    if (!exeInfo.isExecutable()) {
+        // Recover from non-runnable selections by attempting nearby CLI discovery.
+        const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
+        const QFileInfo discoveredCliInfo(discoveredCliPath);
+        if (!discoveredCliPath.isEmpty()) {
+            executablePathToRun = discoveredCliInfo.absoluteFilePath();
+            exePathEdit->setText(executablePathToRun);
+            appendLog(stamp(tr("Selected non-runnable path '%1'; auto-switched to CLI binary '%2'.")
+                            .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Executable is not runnable"),
+                                 tr("Selected path is not an executable file: %1\n\nPlease select the OHQ CLI binary.")
+                                    .arg(exeInfo.absoluteFilePath()));
+            appendLog(stamp(tr("Run cancelled: selected executable path is not runnable '%1'.")
+                            .arg(exeInfo.fileName())));
+            return;
+        }
+    }
+
+    if (LooksLikeGuiOpenHydroQualExecutable(exeInfo)) {
+        // GUI binary typically opens UI rather than running batch script directly.
+        // Prefer switching to CLI; if unavailable, probe --help and infer args.
+        const QString discoveredCliPath = FindCliExecutableNearGui(exeInfo);
+        const QFileInfo discoveredCliInfo(discoveredCliPath);
+        if (!discoveredCliPath.isEmpty()) {
+            executablePathToRun = discoveredCliInfo.absoluteFilePath();
+            exePathEdit->setText(executablePathToRun);
+            appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
+                            .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
+        } else {
+            QString helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("--help")});
+            if (helpText.trimmed().isEmpty()) {
+                helpText = ProbeExecutableHelp(exeInfo.absoluteFilePath(), {QStringLiteral("-h")});
+            }
+            const QString inferredArgs = InferScriptArgumentTemplate(helpText);
+            if (!inferredArgs.isEmpty()) {
+                exeArgsEdit->setText(inferredArgs);
+                executablePathToRun = exeInfo.absoluteFilePath();
+                appendLog(stamp(tr("No OHQ CLI found nearby; inferred GUI script args from help output: %1")
+                                .arg(inferredArgs)));
+            } else {
+                QMessageBox::warning(this,
+                                     tr("GUI executable cannot run scripts directly"),
+                                     tr("The selected executable is OpenHydroQual GUI (%1), and no OHQ CLI binary was discovered nearby.\n\n"
+                                        "Also could not infer a script-run argument from '--help'.\n"
+                                        "Please select the CLI solver binary named 'OHQ' or manually set Executable args.")
+                                         .arg(exeInfo.fileName()));
+                appendLog(stamp(tr("Run cancelled: GUI executable '%1' selected, no nearby OHQ CLI found, and no script args could be inferred from help.")
+                                .arg(exeInfo.fileName())));
+                return;
+            }
+        }
+    }
+
     if (!scriptInfo.exists() || !scriptInfo.isFile()) {
         QMessageBox::warning(this, tr("Missing script"), tr("Please select a valid .ohq script file."));
         return;
@@ -882,9 +1233,11 @@ void ModelCreatorWindow::runScript()
 
     saveSettings();
 
-    runner->setExecutablePath(exeInfo.absoluteFilePath());
+    runner->setExecutablePath(executablePathToRun);
+    const QStringList executableArgs = BuildExecutableArguments(exeArgsEdit->text().trimmed(),
+                                                                scriptInfo.absoluteFilePath());
     appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
-    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath());
+    runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
 
 QVector<QPointF> ModelCreatorWindow::loadSeriesFromFile(const QString &path, QString *errorMessage) const
@@ -1773,8 +2126,12 @@ void ModelCreatorWindow::loadSettings()
     });
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = FirstExistingFile({
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual/aquifolium/bin/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Release/OHQ"),
+        QStringLiteral("/home/arash/Projects/OpenHydroQual/build/Debug/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/build/OHQ"),
         QStringLiteral("/home/arash/Projects/OpenHydroQual/aquifolium/bin/OHQ")
     });
@@ -1790,6 +2147,7 @@ void ModelCreatorWindow::loadSettings()
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
+    exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
     artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
@@ -1815,6 +2173,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("modelType", modelTypeCombo->currentText());
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());
     settings.setValue("ohqExecutable", exePathEdit->text());
+    settings.setValue("ohqExecutableArgs", exeArgsEdit->text());
     settings.setValue("ohqScript", scriptPathEdit->text());
     settings.setValue("workingDirectory", workingDirEdit->text());
     settings.setValue("artifactsDirectory", artifactsDirEdit->text());

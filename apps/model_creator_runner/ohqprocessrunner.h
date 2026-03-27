@@ -1,8 +1,10 @@
+// NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #ifndef OHQPROCESSRUNNER_H
 #define OHQPROCESSRUNNER_H
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 class QProcess;
 
@@ -29,8 +31,11 @@ public:
      * @brief Start OHQ with the given script file in a working directory.
      * @param scriptFile Script path passed to OHQ.
      * @param workingDirectory Process working directory.
+     * @param executableArgs Full argument list passed to executable.
      */
-    void runScript(const QString &scriptFile, const QString &workingDirectory);
+    void runScript(const QString &scriptFile,
+                   const QString &workingDirectory,
+                   const QStringList &executableArgs);
 
 signals:
     /// Emitted once a run process has started.
@@ -43,8 +48,11 @@ signals:
     void runFailed(const QString &reason);
 
 private:
+    /// Underlying child process used to launch OHQ/OpenHydroQual binaries.
     QProcess *process;
+    /// Full path to configured executable.
     QString executable;
+    /// Tracks user-requested stop to distinguish cancel vs crash.
     bool stopRequested = false;
 };
 

@@ -1,3 +1,9 @@
+# --------------------------------
+# ModelCreatorRunner project
+# - Lightweight runner UI for generating/running .ohq scripts.
+# - Depends only on Qt modules listed below.
+# - Does NOT compile importmoisturedata.* (that dialog remains in legacy app).
+# --------------------------------
 QT += core gui widgets
 
 CONFIG += c++17
