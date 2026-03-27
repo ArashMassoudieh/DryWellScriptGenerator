@@ -254,6 +254,15 @@ bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
     return pathInfo.suffix().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0;
 }
 
+bool LooksLikeOhqBinaryName(const QString &fileName)
+{
+    return fileName.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
+        || fileName.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
+        || fileName.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive)
+        || fileName.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0
+        || fileName.compare(QStringLiteral("OpenHydroQual.exe"), Qt::CaseInsensitive) == 0;
+}
+
 QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
 {
     // Heuristic search anchored around the selected GUI binary path.
@@ -271,10 +280,15 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
     for (const QString &root : roots) {
         const QDir rootDir(root);
         candidates << rootDir.filePath("OHQ")
+                   << rootDir.filePath("OpenHydroQual")
                    << rootDir.filePath("build/Release/OHQ")
+                   << rootDir.filePath("build/Release/OpenHydroQual")
                    << rootDir.filePath("build/Debug/OHQ")
+                   << rootDir.filePath("build/Debug/OpenHydroQual")
                    << rootDir.filePath("aquifolium/build/OHQ")
-                   << rootDir.filePath("aquifolium/bin/OHQ");
+                   << rootDir.filePath("aquifolium/build/OpenHydroQual")
+                   << rootDir.filePath("aquifolium/bin/OHQ")
+                   << rootDir.filePath("aquifolium/bin/OpenHydroQual");
     }
 
     const QString nearby = FirstExecutableFile(candidates);
@@ -298,12 +312,7 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         while (it.hasNext()) {
             it.next();
             const QFileInfo fileInfo = it.fileInfo();
-            const QString name = fileInfo.fileName();
-            const bool looksLikeOhqBinary =
-                name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
-                || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
-                || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
-            if (looksLikeOhqBinary && fileInfo.isExecutable()) {
+            if (LooksLikeOhqBinaryName(fileInfo.fileName()) && fileInfo.isExecutable()) {
                 return fileInfo.absoluteFilePath();
             }
         }
@@ -323,10 +332,15 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
 
     const QString direct = FirstExecutableFile({
         root.filePath("OHQ"),
+        root.filePath("OpenHydroQual"),
         root.filePath("build/Release/OHQ"),
+        root.filePath("build/Release/OpenHydroQual"),
         root.filePath("build/Debug/OHQ"),
+        root.filePath("build/Debug/OpenHydroQual"),
         root.filePath("aquifolium/build/OHQ"),
-        root.filePath("aquifolium/bin/OHQ")
+        root.filePath("aquifolium/build/OpenHydroQual"),
+        root.filePath("aquifolium/bin/OHQ"),
+        root.filePath("aquifolium/bin/OpenHydroQual")
     });
     if (!direct.isEmpty()) {
         return direct;
@@ -338,12 +352,7 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
     while (it.hasNext()) {
         it.next();
         const QFileInfo info = it.fileInfo();
-        const QString name = info.fileName();
-        const bool looksLikeOhqBinary =
-            name.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
-            || name.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) == 0
-            || name.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
-        if (looksLikeOhqBinary && info.isExecutable()) {
+        if (LooksLikeOhqBinaryName(info.fileName()) && info.isExecutable()) {
             return info.absoluteFilePath();
         }
     }
@@ -1256,6 +1265,7 @@ void ModelCreatorWindow::runScript()
                                  tr("Missing executable"),
                                  tr("Could not auto-detect an OHQ executable.\n\n"
                                     "Select the OpenHydroQual folder (or OHQ binary) once, or set an explicit executable path."));
+            appendLog(stamp(tr("Run cancelled: OHQ executable was empty and auto-detection failed.")));
             return;
         }
     }
@@ -1264,6 +1274,7 @@ void ModelCreatorWindow::runScript()
         QMessageBox::warning(this,
                              tr("Missing executable"),
                              tr("Could not find a valid OHQ executable: %1").arg(resolvedExecutable));
+        appendLog(stamp(tr("Run cancelled: executable path does not exist: %1").arg(resolvedExecutable)));
         return;
     }
 
@@ -1345,18 +1356,31 @@ void ModelCreatorWindow::runScript()
 
     if (!scriptInfo.exists() || !scriptInfo.isFile()) {
         QMessageBox::warning(this, tr("Missing script"), tr("Please select a valid .ohq script file."));
+        appendLog(stamp(tr("Run cancelled: missing script file.")));
         return;
     }
 
     if (!wdInfo.exists() || !wdInfo.isDir()) {
         QMessageBox::warning(this, tr("Missing directory"), tr("Please select a valid working directory."));
+        appendLog(stamp(tr("Run cancelled: missing working directory.")));
         return;
     }
 
     if (!artifactsDirEdit->text().trimmed().isEmpty()) {
-        const QFileInfo artifactsDirInfo(artifactsDirEdit->text());
+        const QString artifactsPath = artifactsDirEdit->text().trimmed();
+        if (!QDir(artifactsPath).exists()) {
+            if (QDir().mkpath(artifactsPath)) {
+                appendLog(stamp(tr("Created artifacts directory: %1").arg(artifactsPath)));
+            } else {
+                QMessageBox::warning(this, tr("Invalid artifacts directory"), tr("Unable to create artifacts directory: %1").arg(artifactsPath));
+                appendLog(stamp(tr("Run cancelled: failed to create artifacts directory '%1'.").arg(artifactsPath)));
+                return;
+            }
+        }
+        const QFileInfo artifactsDirInfo(artifactsPath);
         if (!artifactsDirInfo.exists() || !artifactsDirInfo.isDir()) {
             QMessageBox::warning(this, tr("Invalid artifacts directory"), tr("Please select a valid artifacts directory or leave it empty."));
+            appendLog(stamp(tr("Run cancelled: artifacts path is not a directory '%1'.").arg(artifactsPath)));
             return;
         }
     }
