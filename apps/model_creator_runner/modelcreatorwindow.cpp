@@ -1059,32 +1059,56 @@ void ModelCreatorWindow::loadAdditionalCommandsFromFile()
 
 void ModelCreatorWindow::previewScript()
 {
-    StarterScriptOptions options;
-    options.templateDirectory = templateDirEdit->text().trimmed();
-    options.outputFile = generatedScriptEdit->text().trimmed();
-    options.modelType = modelTypeCombo->currentText();
-    options.enrichmentPreset = enrichmentPresetCombo->currentData().toString();
-    options.inflowFile = inflowFileEdit->text().trimmed();
-    options.simulationStart = simulationStartEdit->text().trimmed();
-    options.simulationEnd = simulationEndEdit->text().trimmed();
-    options.outputSeriesFile = outputSeriesFileEdit->text().trimmed();
-    options.observationFile = observationFileEdit->text().trimmed();
-    options.observationObject = observationObjectEdit->text().trimmed();
-    options.observationExpression = observationExpressionEdit->text().trimmed();
-    options.observationName = observationNameEdit->text().trimmed();
-    options.additionalCommands = additionalCommandsEdit->toPlainText();
-
     QString scriptText;
-    QString error;
-    const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
-
-    if (!canBuildDraft) {
-        const QString filePath = scriptPathEdit->text().trimmed();
-        if (filePath.isEmpty()) {
-            QMessageBox::information(this, tr("No script available"), tr("Could not build draft from current inputs and no script file is selected.\nReason: %1").arg(error));
+    const QString selectedScriptPath = scriptPathEdit->text().trimmed();
+    if (!selectedScriptPath.isEmpty()) {
+        QFile file(selectedScriptPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QMessageBox::warning(this,
+                                 tr("Cannot open script"),
+                                 tr("Failed to open selected script file for review.\nReason: %1")
+                                     .arg(file.errorString()));
             return;
         }
+        scriptText = QString::fromUtf8(file.readAll());
+        appendLog(stamp(tr("Loaded selected script for review: %1").arg(selectedScriptPath)));
+    } else {
+        StarterScriptOptions options;
+        options.templateDirectory = templateDirEdit->text().trimmed();
+        options.outputFile = generatedScriptEdit->text().trimmed();
+        options.modelType = modelTypeCombo->currentText();
+        options.enrichmentPreset = enrichmentPresetCombo->currentData().toString();
+        options.inflowFile = inflowFileEdit->text().trimmed();
+        options.simulationStart = simulationStartEdit->text().trimmed();
+        options.simulationEnd = simulationEndEdit->text().trimmed();
+        options.outputSeriesFile = outputSeriesFileEdit->text().trimmed();
+        options.observationFile = observationFileEdit->text().trimmed();
+        options.observationObject = observationObjectEdit->text().trimmed();
+        options.observationExpression = observationExpressionEdit->text().trimmed();
+        options.observationName = observationNameEdit->text().trimmed();
+        options.additionalCommands = additionalCommandsEdit->toPlainText();
 
+        QString error;
+        const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
+        if (!canBuildDraft) {
+            QMessageBox::information(this, tr("No script available"),
+                                     tr("Could not build draft from current inputs and no script file is selected.\nReason: %1").arg(error));
+            return;
+        }
+    }
+
+    StarterScriptOptions options;
+    options.outputFile = generatedScriptEdit->text().trimmed();
+    if (options.outputFile.trimmed().isEmpty()) {
+        options.outputFile = selectedScriptPath;
+    }
+
+    if (scriptText.isEmpty()) {
+        const QString filePath = scriptPathEdit->text().trimmed();
+        if (filePath.isEmpty()) {
+            QMessageBox::information(this, tr("No script available"), tr("No script content is available to review."));
+            return;
+        }
         QFile file(filePath);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QMessageBox::warning(this,
