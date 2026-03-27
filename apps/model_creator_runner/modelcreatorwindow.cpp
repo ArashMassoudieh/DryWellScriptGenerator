@@ -377,16 +377,10 @@ QStringList BuildExecutableArguments(const QString &argumentTemplate, const QStr
     }
 
     QStringList args = QProcess::splitCommand(argumentTemplate);
-    bool containsScriptToken = false;
     for (QString &arg : args) {
         if (arg.contains(QStringLiteral("{script}"))) {
             arg.replace(QStringLiteral("{script}"), scriptPath);
-            containsScriptToken = true;
         }
-    }
-
-    if (!containsScriptToken) {
-        args.push_back(scriptPath);
     }
     return args;
 }
@@ -1311,9 +1305,15 @@ void ModelCreatorWindow::runScript()
         }
     }
 
-    if (!scriptInfo.exists() || !scriptInfo.isFile()) {
+    const QString configuredArgsTemplate = exeArgsEdit->text().trimmed();
+    const bool executableLooksLikeCli = LooksLikeCliOhqBinaryName(QFileInfo(executablePathToRun).fileName());
+    const bool templateReferencesScript = configuredArgsTemplate.contains(QStringLiteral("{script}"));
+    const bool passScriptByDefault = configuredArgsTemplate.isEmpty() && executableLooksLikeCli;
+    const bool scriptRequired = templateReferencesScript || passScriptByDefault;
+
+    if (scriptRequired && (!scriptInfo.exists() || !scriptInfo.isFile())) {
         QMessageBox::warning(this, tr("Missing script"), tr("Please select a valid .ohq script file."));
-        appendLog(stamp(tr("Run cancelled: missing script file.")));
+        appendLog(stamp(tr("Run cancelled: missing script file required by executable args.")));
         return;
     }
 
@@ -1345,9 +1345,21 @@ void ModelCreatorWindow::runScript()
     saveSettings();
 
     runner->setExecutablePath(executablePathToRun);
-    const QStringList executableArgs = BuildExecutableArguments(exeArgsEdit->text().trimmed(),
-                                                                scriptInfo.absoluteFilePath());
-    appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
+    QStringList executableArgs;
+    if (passScriptByDefault) {
+        executableArgs = QStringList{scriptInfo.absoluteFilePath()};
+    } else {
+        executableArgs = BuildExecutableArguments(configuredArgsTemplate,
+                                                  scriptInfo.absoluteFilePath());
+    }
+    if (scriptRequired) {
+        appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
+    } else {
+        appendLog(stamp(tr("Running executable without implicit script argument: %1")
+                        .arg(QFileInfo(executablePathToRun).fileName())));
+    }
+    appendLog(stamp(tr("Executable args: %1")
+                    .arg(executableArgs.join(' ').trimmed().isEmpty() ? tr("(none)") : executableArgs.join(' '))));
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
 
