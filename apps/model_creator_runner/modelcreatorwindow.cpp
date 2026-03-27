@@ -1346,8 +1346,16 @@ void ModelCreatorWindow::runScript()
                                     .arg(guiArgs)));
                 }
             }
-            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; running selected executable directly.")
+            QMessageBox::warning(this,
+                                 tr("Executable cannot solve model"),
+                                 tr("Selected executable is OpenHydroQual GUI and no OHQ CLI solver was discovered nearby.\n\n"
+                                    "This opens the UI but does not run the model solve workflow automatically.\n"
+                                    "Please select either:\n"
+                                    "  1) OHQ CLI solver binary, or\n"
+                                    "  2) your custom model-runner executable (the one that calls Create()+Solve())."));
+            appendLog(stamp(tr("Run cancelled: selected executable '%1' is GUI-only and no solver CLI/custom runner was found.")
                             .arg(exeInfo.absoluteFilePath())));
+            return;
         }
     }
 
