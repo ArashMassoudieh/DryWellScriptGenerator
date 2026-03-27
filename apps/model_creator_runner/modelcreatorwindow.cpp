@@ -1331,31 +1331,8 @@ void ModelCreatorWindow::runScript()
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
-            const QString guiArgs = exeArgsEdit->text().trimmed();
-            if (guiArgs == QStringLiteral("--script {script} --run")) {
-                exeArgsEdit->clear();
-                appendLog(stamp(tr("Removed legacy GUI fallback args (--script {script} --run); running executable with configured/native arguments.")));
-            } else if (!guiArgs.isEmpty()) {
-                const QFileInfo argInfo(guiArgs);
-                const bool looksLikeSingleScriptPathArg =
-                    !guiArgs.contains(' ')
-                    && argInfo.suffix().compare(QStringLiteral("ohq"), Qt::CaseInsensitive) == 0;
-                if (looksLikeSingleScriptPathArg) {
-                    exeArgsEdit->clear();
-                    appendLog(stamp(tr("Removed script-path executable args for GUI run (%1); OpenHydroQual expects a configuration input format, not raw .ohq path.")
-                                    .arg(guiArgs)));
-                }
-            }
-            QMessageBox::warning(this,
-                                 tr("Executable cannot solve model"),
-                                 tr("Selected executable is OpenHydroQual GUI and no OHQ CLI solver was discovered nearby.\n\n"
-                                    "This opens the UI but does not run the model solve workflow automatically.\n"
-                                    "Please select either:\n"
-                                    "  1) OHQ CLI solver binary, or\n"
-                                    "  2) your custom model-runner executable (the one that calls Create()+Solve())."));
-            appendLog(stamp(tr("Run cancelled: selected executable '%1' is GUI-only and no solver CLI/custom runner was found.")
+            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; proceeding with selected executable.")
                             .arg(exeInfo.absoluteFilePath())));
-            return;
         }
     }
 
