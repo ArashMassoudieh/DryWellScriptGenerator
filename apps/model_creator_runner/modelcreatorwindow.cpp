@@ -223,6 +223,21 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
     return QString();
 }
 
+QString DetectExecutablePathFromContext(const QString &repoRoot,
+                                        const QString &workingDirectory,
+                                        const QString &scriptPath,
+                                        const QString &templateDirectory,
+                                        const QString &configuredExecutable)
+{
+    const QStringList roots = CandidateOpenHydroQualRoots(repoRoot, {
+        workingDirectory,
+        scriptPath,
+        templateDirectory,
+        configuredExecutable
+    });
+    return DetectExecutablePath(roots);
+}
+
 bool LooksLikeGuiOpenHydroQualExecutable(const QFileInfo &executableInfo)
 {
     const QString baseName = executableInfo.completeBaseName().trimmed();
@@ -510,8 +525,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     addTextRow(layout, tr("Model type"), modelTypeCombo);
     addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
-    addFileRow(layout, tr("OHQ executable"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
-    exePathEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/aquifolium/build/OHQ"));
+    addFileRow(layout, tr("OHQ executable (optional)"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
+    exePathEdit->setPlaceholderText(tr("Optional: auto-detected from OpenHydroQual roots when empty"));
+    exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
     exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
     exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted, script path is passed as a positional argument."));
@@ -1213,12 +1229,41 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
-    const QFileInfo exeInfo(exePathEdit->text());
+    const QString configuredExecutable = exePathEdit->text().trimmed();
+    const QString autoDetectedExecutable = DetectExecutablePathFromContext(FindRepoRoot(),
+                                                                           workingDirEdit->text().trimmed(),
+                                                                           scriptPathEdit->text().trimmed(),
+                                                                           templateDirEdit->text().trimmed(),
+                                                                           configuredExecutable);
+    QString resolvedExecutable = configuredExecutable;
+    if (resolvedExecutable.isEmpty() && !autoDetectedExecutable.isEmpty()) {
+        resolvedExecutable = autoDetectedExecutable;
+        exePathEdit->setText(resolvedExecutable);
+        appendLog(stamp(tr("Auto-detected OHQ executable: %1").arg(resolvedExecutable)));
+    }
+
+    QFileInfo exeInfo(resolvedExecutable);
     const QFileInfo scriptInfo(scriptPathEdit->text());
     const QFileInfo wdInfo(workingDirEdit->text());
 
     if (!exeInfo.exists() || !exeInfo.isFile()) {
-        QMessageBox::warning(this, tr("Missing executable"), tr("Please select a valid OHQ executable."));
+        if (!autoDetectedExecutable.isEmpty()) {
+            exeInfo = QFileInfo(autoDetectedExecutable);
+            resolvedExecutable = autoDetectedExecutable;
+            exePathEdit->setText(resolvedExecutable);
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Missing executable"),
+                                 tr("Could not auto-detect an OHQ executable.\n\n"
+                                    "Select the OpenHydroQual folder (or OHQ binary) once, or set an explicit executable path."));
+            return;
+        }
+    }
+
+    if (!exeInfo.exists() || !exeInfo.isFile()) {
+        QMessageBox::warning(this,
+                             tr("Missing executable"),
+                             tr("Could not find a valid OHQ executable: %1").arg(resolvedExecutable));
         return;
     }
 

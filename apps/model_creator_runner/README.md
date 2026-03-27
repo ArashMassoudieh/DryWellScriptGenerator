@@ -10,7 +10,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 ## Current state
 - Minimal runner UI implemented with user-friendly options for both **Drywell** and **Bioswale** starter scripts.
-- Setup now auto-detects OpenHydroQual defaults from likely roots (repo-adjacent `OpenHydroQual`, selected folders, and known legacy paths), reducing manual folder/file picking for OHQ executable + template resources.
+- Setup now auto-detects OpenHydroQual defaults from likely roots (repo-adjacent `OpenHydroQual`, selected folders, and known legacy paths), so the OHQ executable field can be left empty in normal runs.
 - Starter generation inputs now include:
   - model type
   - template resources directory
