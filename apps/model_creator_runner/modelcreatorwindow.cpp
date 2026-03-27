@@ -1323,6 +1323,16 @@ void ModelCreatorWindow::runScript()
             if (guiArgs == QStringLiteral("--script {script} --run")) {
                 exeArgsEdit->clear();
                 appendLog(stamp(tr("Removed legacy GUI fallback args (--script {script} --run); running executable with configured/native arguments.")));
+            } else if (!guiArgs.isEmpty()) {
+                const QFileInfo argInfo(guiArgs);
+                const bool looksLikeSingleScriptPathArg =
+                    !guiArgs.contains(' ')
+                    && argInfo.suffix().compare(QStringLiteral("ohq"), Qt::CaseInsensitive) == 0;
+                if (looksLikeSingleScriptPathArg) {
+                    exeArgsEdit->clear();
+                    appendLog(stamp(tr("Removed script-path executable args for GUI run (%1); OpenHydroQual expects a configuration input format, not raw .ohq path.")
+                                    .arg(guiArgs)));
+                }
             }
             appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; running selected executable directly.")
                             .arg(exeInfo.absoluteFilePath())));
