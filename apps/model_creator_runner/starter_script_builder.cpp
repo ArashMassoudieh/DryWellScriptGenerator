@@ -115,12 +115,12 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset)
         ts << "create link;from=Infiltration_Pond,to=GW,type=soil_to_fixedhead_link,name=Legacy_Pond_to_GW\n";
     } else if (preset == QStringLiteral("VN_Drywell")) {
         ts << "\n# enrichment_preset: VN_Drywell\n";
-        ts << "create block;type=Pond,name=Pretreatment_Chamber,_width=190,_height=190,x=-210,y=35,bottom_elevation=0[m],Storage=0[m~^3],alpha=55,beta=2.25\n";
-        ts << "create block;type=Well,name=Observation_Well,_width=180,_height=180,x=360,y=-130,bottom_elevation=-2.5[m],depth=4.5[m],diameter=0.3[m]\n";
-        ts << "create block;type=fixed_head,name=VN_GW,_width=180,_height=180,x=70,y=-420,head=-3[m],Storage=100000[m~^3]\n";
-        ts << "create link;from=Pretreatment_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=VN_Pretreat_to_Pond\n";
-        ts << "create link;from=Infiltration_Pond,to=Observation_Well,type=soil_to_well_link,name=VN_Pond_to_ObservationWell\n";
-        ts << "create link;from=Infiltration_Pond,to=VN_GW,type=soil_to_fixedhead_link,name=VN_Pond_to_GW\n";
+        ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],depth=0[m],porosity=1,x=780.8,y=975.36\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23400,_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+        ts << "create block;type=junction_elastic,name=Junction_elastic,_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+        ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+        ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,name=Well_to_junction\n";
+        ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,name=Junction_to_well\n";
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";

@@ -26,8 +26,8 @@ DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
         GP.well_depth = (16.0 + 24.0) * 0.3048;
         GP.well_radious = 6.0 * 0.3048;
         GP.pond_radius = 20.0;
-        GP.n_layers = 20;
-        GP.n_layer_deep = 30;
+        GP.n_layers = 5;
+        GP.n_layer_deep = 45;
         GP.nr = 20;
         ui->filename_text->setText("vn_drywell.ohq");
     }
@@ -117,12 +117,12 @@ void DryWellDialog::On_Generate_Model()
     file.write(QString("create block;type=Pond,inflow=%1,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n")
                    .arg(inflowSeries).toUtf8());
     if (structureVariant == StructureVariant::VNDrywell) {
-        file.write("create block;type=Pond,name=VN_Pretreatment_Chamber,_width=190,_height=190,x=-210,y=35,bottom_elevation=0[m],Storage=0[m~^3],alpha=55,beta=2.25\n");
-        file.write("create block;type=Well,name=VN_Observation_Well,_width=180,_height=180,x=360,y=-130,bottom_elevation=-2.5[m],depth=4.5[m],diameter=0.3[m]\n");
-        file.write("create block;type=fixed_head,name=VN_GW,_width=180,_height=180,x=70,y=-420,head=-3[m],Storage=100000[m~^3]\n");
-        file.write("create link;from=VN_Pretreatment_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=VN_Pretreat_to_Pond\n");
-        file.write("create link;from=Infiltration_Pond,to=VN_Observation_Well,type=soil_to_well_link,name=VN_Pond_to_ObservationWell\n");
-        file.write("create link;from=Infiltration_Pond,to=VN_GW,type=soil_to_fixedhead_link,name=VN_Pond_to_GW\n");
+        file.write("create block;type=Well_aggregate,name=Well_c,_height=9753.6,_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],depth=0[m],porosity=1,x=780.8,y=975.36\n");
+        file.write("create block;type=Well_aggregate,name=Well_g,_height=23400,_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],depth=0.01[m],porosity=0.5,x=780.8,y=12192\n");
+        file.write("create block;type=junction_elastic,name=Junction_elastic,_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n");
+        file.write("create link;from=Well_c,to=Well_g,type=Sewer_pipe,name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n");
+        file.write("create link;from=Well_c,to=Junction_elastic,type=darcy_connector,name=Well_to_junction\n");
+        file.write("create link;from=Junction_elastic,to=Well_g,type=darcy_connector,name=Junction_to_well\n");
     }
 
 #ifndef Brett
@@ -1094,5 +1094,4 @@ void DryWellDialog::On_CreateVTK()
     vtkDialog->show();
 #endif
 }
-
 
