@@ -41,12 +41,25 @@ bool IsKnownPreset(const QString &preset)
         QStringLiteral("Drywell_PretreatmentChambers"),
         QStringLiteral("Drywell_SuiteStyle"),
         QStringLiteral("Drywell_LegacyStyle"),
+        QStringLiteral("VN_Drywell"),
         QStringLiteral("Bioswale_Underdrain"),
         QStringLiteral("Bioswale_Underdrain_GW"),
         QStringLiteral("Bioswale_SuiteStyle"),
         QStringLiteral("Bioswale_LegacyStyle")
     };
     return knownPresets.contains(preset.trimmed());
+}
+
+bool IsDrywellLikeModel(const QString &modelType)
+{
+    return modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0
+        || modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+}
+
+bool IsKnownModelType(const QString &modelType)
+{
+    return IsDrywellLikeModel(modelType)
+        || modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
 }
 
 bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType)
@@ -56,7 +69,7 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
         return true;
     }
 
-    const bool drywellModel = modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0;
+    const bool drywellModel = IsDrywellLikeModel(modelType);
     const bool bioswaleModel = modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
     const bool drywellPreset = trimmedPreset.startsWith(QStringLiteral("Drywell_"));
     const bool bioswalePreset = trimmedPreset.startsWith(QStringLiteral("Bioswale_"));
@@ -64,12 +77,14 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
         return false;
     }
+    if (trimmedPreset == QStringLiteral("VN_Drywell") && !drywellModel) {
+        return false;
+    }
     return true;
 }
 
-void AppendEnrichmentPreset(QTextStream &ts, const StarterScriptOptions &options)
+void AppendEnrichmentPreset(QTextStream &ts, const QString &preset)
 {
-    const QString preset = options.enrichmentPreset.trimmed();
     if (preset == QStringLiteral("Drywell_MonitoringWell")) {
         ts << "\n# enrichment_preset: Drywell_MonitoringWell\n";
         ts << "create block;type=Well,name=Monitoring_Well,_width=180,_height=180,x=350,y=-120,bottom_elevation=-2[m],depth=4[m],diameter=0.3[m]\n";
@@ -98,6 +113,14 @@ void AppendEnrichmentPreset(QTextStream &ts, const StarterScriptOptions &options
         ts << "create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=surfacewater_to_surfacewater_link,name=Legacy_Link_1\n";
         ts << "create link;from=Sedimentation_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=Legacy_Link_2\n";
         ts << "create link;from=Infiltration_Pond,to=GW,type=soil_to_fixedhead_link,name=Legacy_Pond_to_GW\n";
+    } else if (preset == QStringLiteral("VN_Drywell")) {
+        ts << "\n# enrichment_preset: VN_Drywell\n";
+        ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],depth=0[m],porosity=1,x=780.8,y=975.36\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23400,_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+        ts << "create block;type=junction_elastic,name=Junction_elastic,_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+        ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+        ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,name=Well_to_junction\n";
+        ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,name=Junction_to_well\n";
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
@@ -132,6 +155,12 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         if (errorMessage) *errorMessage = QStringLiteral("Internal error: script output buffer is null.");
         return false;
     }
+    if (!IsKnownModelType(options.modelType)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Unknown model type: %1").arg(options.modelType);
+        }
+        return false;
+    }
 
     const QFileInfo templateInfo(options.templateDirectory);
     if (!templateInfo.exists() || !templateInfo.isDir()) {
@@ -164,7 +193,11 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const QString enrichmentPreset = options.enrichmentPreset.trimmed();
+    QString enrichmentPreset = options.enrichmentPreset.trimmed();
+    if (enrichmentPreset.isEmpty()
+        && options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        enrichmentPreset = QStringLiteral("VN_Drywell");
+    }
     if (!enrichmentPreset.isEmpty() && !IsKnownPreset(enrichmentPreset)) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Unknown enrichment preset: %1").arg(enrichmentPreset);
@@ -215,6 +248,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
               "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
               "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
               "depression_storage=0[m],depth=0[m],elevation=0[m]\n";
+    } else if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        // Keep VN base block minimal; the VN_Drywell enrichment appends VN-specific structure.
+        ts << "create block;type=Pond,name=Infiltration_Pond,inflow=" << inflow
+           << ",bottom_elevation=0[m],Storage=0[m~^3],x=0,y=0\n";
     } else {
         ts << "create block;type=Pond,inflow=" << inflow
            << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
@@ -229,7 +266,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
            << ",error_structure=normal,error_standard_deviation=1\n";
     }
 
-    AppendEnrichmentPreset(ts, options);
+    AppendEnrichmentPreset(ts, enrichmentPreset);
 
     const QString extra = options.additionalCommands.trimmed();
     if (!extra.isEmpty()) {
