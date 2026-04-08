@@ -129,7 +129,7 @@ void DryWellDialog::On_Generate_Model()
             "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
             "depth=0[m],porosity=1,x=780.8,y=975.36\n");
         file.write(
-            "create block;type=Well_aggregate,name=Well_g,_height=23400,"
+            "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
             "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
             "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n");
         file.write(

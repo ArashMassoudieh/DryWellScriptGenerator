@@ -83,7 +83,7 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     return true;
 }
 
-void AppendEnrichmentPreset(QTextStream &ts, const QString &preset)
+void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QString &inflowFile = QString())
 {
     if (preset == QStringLiteral("Drywell_MonitoringWell")) {
         ts << "\n# enrichment_preset: Drywell_MonitoringWell\n";
@@ -117,8 +117,8 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset)
         ts << "\n# enrichment_preset: VN_Drywell\n";
         ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
               "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
-              "depth=0[m],porosity=1,x=780.8,y=975.36\n";
-        ts << "create block;type=Well_aggregate,name=Well_g,_height=23400,"
+              "depth=0[m],porosity=1,x=780.8,y=975.36,inflow=" << inflowFile << "\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
               "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
               "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
         ts << "create block;type=junction_elastic,name=Junction_elastic,"
@@ -258,9 +258,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
               "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
               "depression_storage=0[m],depth=0[m],elevation=0[m]\n";
     } else if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        // Keep VN base block minimal; the VN_Drywell enrichment appends VN-specific structure.
-        ts << "create block;type=Pond,name=Infiltration_Pond,inflow=" << inflow
-           << ",bottom_elevation=0[m],Storage=0[m~^3],x=0,y=0\n";
+        ts << "# VN_Drywell base generated via enrichment preset block\n";
     } else {
         ts << "create block;type=Pond,inflow=" << inflow
            << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
@@ -275,7 +273,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
            << ",error_structure=normal,error_standard_deviation=1\n";
     }
 
-    AppendEnrichmentPreset(ts, enrichmentPreset);
+    AppendEnrichmentPreset(ts, enrichmentPreset, inflow);
 
     const QString extra = options.additionalCommands.trimmed();
     if (!extra.isEmpty()) {
