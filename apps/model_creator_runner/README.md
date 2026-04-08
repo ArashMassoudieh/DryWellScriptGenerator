@@ -22,9 +22,10 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - OHQ output series file name
   - optional observation file + soil layer/object + moisture expression + observation series name
   - optional raw "additional OHQ commands" appended to generated starter scripts
-    - includes **Load file** to import reusable command snippets from `.txt`/`.ohq`
+    - includes **Load file** to import reusable command snippets from `.txt`/`.ohq`/`.csv`
 - Supports **Review/Edit .ohq**, **Generate starter .ohq**, and **Generate + Run** actions.
 - Adds **Quick Run + Save** to apply suggested defaults, generate starter script, run OHQ, and save/copy artifacts to the artifacts directory in one flow.
+- For VN workflows, **Additional OHQ commands → Load file** now accepts `.ohq`, `.txt`, and `.csv`, so you can quickly load full OHQ files plus soil/moisture layer snippets.
 - Built-in enrichment presets include monitoring-well, groundwater-boundary, pretreatment-chambers, and both `VN_Drywell` + `VN_Drywell_Pro` (drywell), plus underdrain / underdrain+groundwater (bioswale) starter additions.
 - For `VN_Drywell`, if `VN_ref.ohq` exists in the selected template directory, starter generation will use that reference script directly (plus optional additional commands). Otherwise the default runner preset is `VN_Drywell_Pro`.
 - Can execute an OHQ binary with a selected `.ohq` script and stream logs.

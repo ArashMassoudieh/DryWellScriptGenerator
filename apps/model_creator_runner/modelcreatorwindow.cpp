@@ -550,6 +550,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
     additionalRow->addWidget(additionalCommandsEdit, 1);
     auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
+    loadCommandsButton->setToolTip(
+        tr("Load VN layer/moisture snippets (.csv/.txt) or a full .ohq script into Additional OHQ commands."));
     connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
     additionalRow->addWidget(loadCommandsButton);
     layout->addLayout(additionalRow);
@@ -1049,9 +1051,9 @@ void ModelCreatorWindow::chooseDepthProfileFile()
 void ModelCreatorWindow::loadAdditionalCommandsFromFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Load additional OHQ commands"),
+                                                          tr("Load soil/moisture layers or OHQ commands"),
                                                           {},
-                                                          tr("Text files (*.txt *.ohq);;All files (*.*)"));
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (fileName.isEmpty()) {
         return;
     }
