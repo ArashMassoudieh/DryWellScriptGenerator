@@ -1256,8 +1256,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+    const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
-    if (options.templateDirectory.isEmpty()) {
+    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
         QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template resources directory first."));
         return false;
     }
@@ -1267,12 +1269,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (options.inflowFile.isEmpty()) {
+    if (!vnModel && options.inflowFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
         return false;
     }
 
-    if (options.outputSeriesFile.isEmpty()) {
+    if (!vnModel && options.outputSeriesFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing output filename"), tr("Please provide the OHQ output series filename."));
         return false;
     }
