@@ -24,7 +24,7 @@ DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
         // DepthtoGroundWater=142ft, DepthofWell_total=40ft, rw_c_t=6ft, ROI=20m.
         GP.depth_to_gw = 142.0 * 0.3048;
         GP.well_depth = (16.0 + 24.0) * 0.3048;
-        GP.well_radious = 6.0 * 0.3048;
+        GP.well_radious = 4.0 * 0.3048;
         GP.pond_radius = 20.0;
         GP.n_layers = 5;
         GP.n_layer_deep = 45;
@@ -1094,4 +1094,3 @@ void DryWellDialog::On_CreateVTK()
     vtkDialog->show();
 #endif
 }
-

@@ -248,6 +248,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
               "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
               "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
               "depression_storage=0[m],depth=0[m],elevation=0[m]\n";
+    } else if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        // Keep VN base block minimal; the VN_Drywell enrichment appends VN-specific structure.
+        ts << "create block;type=Pond,name=Infiltration_Pond,inflow=" << inflow
+           << ",bottom_elevation=0[m],Storage=0[m~^3],x=0,y=0\n";
     } else {
         ts << "create block;type=Pond,inflow=" << inflow
            << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
