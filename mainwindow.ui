@@ -28,6 +28,7 @@
      <string>Create Model</string>
     </property>
     <addaction name="actionDrwWell"/>
+    <addaction name="actionVN_Drywell"/>
     <addaction name="actionBioswale"/>
    </widget>
    <widget class="QMenu" name="menuImport">
@@ -49,6 +50,11 @@
   <action name="actionBioswale">
    <property name="text">
     <string>Bioswale</string>
+   </property>
+  </action>
+  <action name="actionVN_Drywell">
+   <property name="text">
+    <string>VN_Drywell</string>
    </property>
   </action>
   <action name="actionImport_Moisture_Data">
