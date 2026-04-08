@@ -480,7 +480,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     auto *layout = new QVBoxLayout(runTab);
     tabs->addTab(runTab, tr("Setup + Run"));
 
-    modelTypeCombo->addItems({"Drywell", "Bioswale"});
+    modelTypeCombo->addItems({"Drywell", "VN_Drywell", "Bioswale"});
     syncEnrichmentPresetForModel();
 
     auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) {
@@ -773,6 +773,7 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
     const QString modelType = modelTypeCombo->currentText().trimmed();
     const QString previousPreset = enrichmentPresetCombo->currentData().toString().trimmed();
     const bool drywellModel = modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0;
+    const bool vnDrywellModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const QSignalBlocker blocker(enrichmentPresetCombo);
     enrichmentPresetCombo->clear();
     enrichmentPresetCombo->addItem(tr("None"), "");
@@ -782,6 +783,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
         enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
         enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
+    } else if (vnDrywellModel) {
+        enrichmentPresetCombo->addItem(tr("VN Drywell (default OHQ structure)"), "VN_Drywell");
     } else {
         enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
@@ -919,8 +922,10 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("bioswale.ohq"),
         QDir(suggestedWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("examples/vn_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("examples/bioswale.ohq")
     });
 
@@ -2293,8 +2298,10 @@ void ModelCreatorWindow::loadSettings()
     const QString defaultExecutablePath = DetectExecutablePath(rootCandidates);
     const QString defaultScriptPath = FirstExistingFile({
         QDir(defaultWorkingDirectory).filePath("drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("vn_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("bioswale.ohq"),
         QDir(defaultWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("examples/vn_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("examples/bioswale.ohq")
     });
 
