@@ -10,8 +10,8 @@ struct StarterScriptOptions
     QString templateDirectory;
     /// Destination path for writing generated starter script text.
     QString outputFile;
-    /// Base model flavor for starter creation ("Drywell" or "Bioswale").
-    QString modelType = "Drywell";    // Drywell | Bioswale
+    /// Base model flavor for starter creation ("Drywell", "VN_Drywell", or "Bioswale").
+    QString modelType = "Drywell";    // Drywell | VN_Drywell | Bioswale
     /// Input inflow time series file path.
     QString inflowFile;
     /// Simulation start time (OHQ numeric timestamp).

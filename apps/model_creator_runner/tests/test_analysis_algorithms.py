@@ -68,7 +68,7 @@ def is_known_preset(preset):
 def is_preset_compatible_with_model(preset, model_type):
     if not preset:
         return True
-    drywell_model = model_type.lower() == "drywell"
+    drywell_model = model_type.lower() in {"drywell", "vn_drywell"}
     bioswale_model = model_type.lower() == "bioswale"
     drywell_preset = preset.startswith("Drywell_")
     bioswale_preset = preset.startswith("Bioswale_")
@@ -119,6 +119,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_preset_compatible_with_model("", "Drywell"))
         self.assertTrue(is_preset_compatible_with_model("Drywell_MonitoringWell", "Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "Drywell"))
+        self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "VN_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("Bioswale_Underdrain", "Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("Bioswale_Underdrain", "Drywell"))
         self.assertFalse(is_preset_compatible_with_model("Drywell_MonitoringWell", "Bioswale"))

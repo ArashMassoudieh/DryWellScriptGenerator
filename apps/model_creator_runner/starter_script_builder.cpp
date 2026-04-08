@@ -50,6 +50,18 @@ bool IsKnownPreset(const QString &preset)
     return knownPresets.contains(preset.trimmed());
 }
 
+bool IsDrywellLikeModel(const QString &modelType)
+{
+    return modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0
+        || modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+}
+
+bool IsKnownModelType(const QString &modelType)
+{
+    return IsDrywellLikeModel(modelType)
+        || modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
+}
+
 bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType)
 {
     const QString trimmedPreset = preset.trimmed();
@@ -57,7 +69,7 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
         return true;
     }
 
-    const bool drywellModel = modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0;
+    const bool drywellModel = IsDrywellLikeModel(modelType);
     const bool bioswaleModel = modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
     const bool drywellPreset = trimmedPreset.startsWith(QStringLiteral("Drywell_"));
     const bool bioswalePreset = trimmedPreset.startsWith(QStringLiteral("Bioswale_"));
@@ -71,9 +83,8 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     return true;
 }
 
-void AppendEnrichmentPreset(QTextStream &ts, const StarterScriptOptions &options)
+void AppendEnrichmentPreset(QTextStream &ts, const QString &preset)
 {
-    const QString preset = options.enrichmentPreset.trimmed();
     if (preset == QStringLiteral("Drywell_MonitoringWell")) {
         ts << "\n# enrichment_preset: Drywell_MonitoringWell\n";
         ts << "create block;type=Well,name=Monitoring_Well,_width=180,_height=180,x=350,y=-120,bottom_elevation=-2[m],depth=4[m],diameter=0.3[m]\n";
@@ -144,6 +155,12 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         if (errorMessage) *errorMessage = QStringLiteral("Internal error: script output buffer is null.");
         return false;
     }
+    if (!IsKnownModelType(options.modelType)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Unknown model type: %1").arg(options.modelType);
+        }
+        return false;
+    }
 
     const QFileInfo templateInfo(options.templateDirectory);
     if (!templateInfo.exists() || !templateInfo.isDir()) {
@@ -176,7 +193,11 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const QString enrichmentPreset = options.enrichmentPreset.trimmed();
+    QString enrichmentPreset = options.enrichmentPreset.trimmed();
+    if (enrichmentPreset.isEmpty()
+        && options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        enrichmentPreset = QStringLiteral("VN_Drywell");
+    }
     if (!enrichmentPreset.isEmpty() && !IsKnownPreset(enrichmentPreset)) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Unknown enrichment preset: %1").arg(enrichmentPreset);
@@ -241,7 +262,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
            << ",error_structure=normal,error_standard_deviation=1\n";
     }
 
-    AppendEnrichmentPreset(ts, options);
+    AppendEnrichmentPreset(ts, enrichmentPreset);
 
     const QString extra = options.additionalCommands.trimmed();
     if (!extra.isEmpty()) {
