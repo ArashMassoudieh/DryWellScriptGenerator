@@ -10,8 +10,8 @@ struct StarterScriptOptions
     QString templateDirectory;
     /// Destination path for writing generated starter script text.
     QString outputFile;
-    /// Base model flavor for starter creation ("Drywell" or "Bioswale").
-    QString modelType = "Drywell";    // Drywell | Bioswale
+    /// Base model flavor for starter creation ("Drywell", "VN_Drywell", or "Bioswale").
+    QString modelType = "Drywell";    // Drywell | VN_Drywell | Bioswale
     /// Input inflow time series file path.
     QString inflowFile;
     /// Simulation start time (OHQ numeric timestamp).
@@ -33,7 +33,7 @@ struct StarterScriptOptions
     // Optional preset that appends extra model blocks/links.
     // Supported: "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
     //            "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
-    //            "Drywell_LegacyStyle",
+    //            "Drywell_LegacyStyle", "VN_Drywell",
     //            "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
     //            "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
     QString enrichmentPreset;
