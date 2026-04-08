@@ -12,11 +12,15 @@
 #include "paths.h"
 #include "solver_runner.h"
 
-DryWellDialog::DryWellDialog(QWidget *parent)
+DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
     : QDialog(parent)
     , ui(new Ui::DryWellDialog)
+    , structureVariant(variant)
 {
     ui->setupUi(this);
+    if (structureVariant == StructureVariant::VNDrywell) {
+        setWindowTitle(tr("VN_Drywell"));
+    }
     connect(ui->file_push_bottom, SIGNAL(clicked()),this, SLOT(On_File_Select()));
     connect(ui->Generate_Model, SIGNAL(clicked()),this, SLOT(On_Generate_Model()));
     connect(ui->pushReadLayers, SIGNAL(clicked()),this,SLOT(On_ReadLayer_Info()));
@@ -98,6 +102,14 @@ void DryWellDialog::On_Generate_Model()
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
     file.write("setvalue; object=system, quantity=maximum_time_allowed, value=4800\n");
     file.write(QString("create block;type=Pond,inflow=%1Data/Inflow_Corrected_New_Khiem.csv,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n").arg(base).toUtf8());
+    if (structureVariant == StructureVariant::VNDrywell) {
+        file.write("create block;type=Pond,name=VN_Pretreatment_Chamber,_width=190,_height=190,x=-210,y=35,bottom_elevation=0[m],Storage=0[m~^3],alpha=55,beta=2.25\n");
+        file.write("create block;type=Well,name=VN_Observation_Well,_width=180,_height=180,x=360,y=-130,bottom_elevation=-2.5[m],depth=4.5[m],diameter=0.3[m]\n");
+        file.write("create block;type=fixed_head,name=VN_GW,_width=180,_height=180,x=70,y=-420,head=-3[m],Storage=100000[m~^3]\n");
+        file.write("create link;from=VN_Pretreatment_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=VN_Pretreat_to_Pond\n");
+        file.write("create link;from=Infiltration_Pond,to=VN_Observation_Well,type=soil_to_well_link,name=VN_Pond_to_ObservationWell\n");
+        file.write("create link;from=Infiltration_Pond,to=VN_GW,type=soil_to_fixedhead_link,name=VN_Pond_to_GW\n");
+    }
 
 #ifndef Brett
     //file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
@@ -1068,7 +1080,6 @@ void DryWellDialog::On_CreateVTK()
     vtkDialog->show();
 #endif
 }
-
 
 
 
