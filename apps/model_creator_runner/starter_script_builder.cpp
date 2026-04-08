@@ -178,6 +178,21 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
               "name=Junction_to_well\n";
     } else if (preset == QStringLiteral("VN_Drywell_Pro")) {
         ts << "\n# enrichment_preset: VN_Drywell_Pro\n";
+        ts << "setvalue; object=system, quantity=shakescalered, value=0.75\n";
+        ts << "setvalue; object=system, quantity=shakescale, value=0.05\n";
+        ts << "setvalue; object=system, quantity=pmute, value=0.02\n";
+        ts << "setvalue; object=system, quantity=ngen, value=40\n";
+        ts << "setvalue; object=system, quantity=pcross, value=1\n";
+        ts << "setvalue; object=system, quantity=maxpop, value=40\n";
+        ts << "setvalue; object=system, quantity=write_solution_details, value=No\n";
+        ts << "setvalue; object=system, quantity=nr_tolerance, value=0.001\n";
+        ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor_fail, value=0.2\n";
+        ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor, value=0.75\n";
+        ts << "setvalue; object=system, quantity=n_threads, value=4\n";
+        ts << "setvalue; object=system, quantity=minimum_timestep, value=1e-06\n";
+        ts << "setvalue; object=system, quantity=initial_time_step, value=0.01\n";
+        ts << "setvalue; object=system, quantity=c_n_weight, value=1\n";
+        ts << "setvalue; object=system, quantity=maximum_time_allowed, value=4800\n";
         ts << "create block;type=Pond,name=Infiltration_Pond,_width=200,_height=200,"
               "x=-5971,y=-249,bottom_elevation=0[m],Storage=0[m~^3],alpha=86.061,"
               "beta=2.766,inflow=" << inflowFile << "\n";
@@ -196,6 +211,24 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
               "name=Well_to_junction\n";
         ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
               "name=Junction_to_well\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_1,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_2,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_3,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_4,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_5,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_6,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_7,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_8,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_9,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_10,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_11,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_12,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n";
+        ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=new_Van_alpha,low=0.00001,high=10\n";
+        ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=beta,low=0.5,high=5\n";
+        ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=theta_t,low=0.01,high=0.13\n";
+        ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n";
+        ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n";
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
