@@ -26,6 +26,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 - Supports **Review/Edit .ohq**, **Generate starter .ohq**, and **Generate + Run** actions.
 - Adds **Quick Run + Save** to apply suggested defaults, generate starter script, run OHQ, and save/copy artifacts to the artifacts directory in one flow.
 - Built-in enrichment presets include monitoring-well, groundwater-boundary, pretreatment-chambers, and `VN_Drywell` (drywell), plus underdrain / underdrain+groundwater (bioswale) starter additions.
+- For `VN_Drywell`, if `VN_ref.ohq` exists in the selected template directory, starter generation will use that reference script directly (plus optional additional commands).
 - Can execute an OHQ binary with a selected `.ohq` script and stream logs.
 - Includes stop/cancel support for a running process.
 - Includes an **Export run artifacts** action to copy discovered `.vtk/.vtp/.vtu/.csv/.txt` files from the working directory tree (preserving relative folders) and write `export_manifest.csv`.

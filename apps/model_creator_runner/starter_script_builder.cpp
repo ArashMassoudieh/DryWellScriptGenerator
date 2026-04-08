@@ -33,6 +33,22 @@ bool IsNumber(const QString &value)
     return ok;
 }
 
+bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Unable to read file: %1").arg(path);
+        }
+        return false;
+    }
+    QTextStream in(&file);
+    if (text) {
+        *text = in.readAll();
+    }
+    return true;
+}
+
 bool IsKnownPreset(const QString &preset)
 {
     static const QStringList knownPresets = {
@@ -175,6 +191,21 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (!templateInfo.exists() || !templateInfo.isDir()) {
         if (errorMessage) *errorMessage = QStringLiteral("Template resources directory is not valid.");
         return false;
+    }
+
+    const bool vnModelType = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    const QString vnReferenceScript = TemplateFile(options.templateDirectory, QStringLiteral("VN_ref.ohq"));
+    if (vnModelType && QFileInfo(vnReferenceScript).exists()) {
+        QString vnText;
+        if (!LoadEntireFile(vnReferenceScript, &vnText, errorMessage)) {
+            return false;
+        }
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            vnText += "\n\n# additional_commands\n" + extra + "\n";
+        }
+        *scriptText = vnText;
+        return true;
     }
 
     for (const QString &templateFile : RequiredTemplates()) {
