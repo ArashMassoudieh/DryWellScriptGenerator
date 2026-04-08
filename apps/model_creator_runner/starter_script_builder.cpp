@@ -49,6 +49,34 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
     return true;
 }
 
+bool AppendSnippetFile(const QString &path, const QString &label, QString *scriptText, QString *errorMessage)
+{
+    if (path.trimmed().isEmpty()) {
+        return true;
+    }
+    QString snippet;
+    if (!LoadEntireFile(path, &snippet, errorMessage)) {
+        return false;
+    }
+    if (snippet.trimmed().isEmpty()) {
+        return true;
+    }
+    if (scriptText == nullptr) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Internal error: script output buffer is null.");
+        }
+        return false;
+    }
+    if (!scriptText->isEmpty() && !scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+    *scriptText += QStringLiteral("\n# %1 snippet loaded from %2\n")
+                       .arg(label, path);
+    *scriptText += snippet.trimmed();
+    *scriptText += '\n';
+    return true;
+}
+
 bool IsKnownPreset(const QString &preset)
 {
     static const QStringList knownPresets = {
@@ -58,6 +86,7 @@ bool IsKnownPreset(const QString &preset)
         QStringLiteral("Drywell_SuiteStyle"),
         QStringLiteral("Drywell_LegacyStyle"),
         QStringLiteral("VN_Drywell"),
+        QStringLiteral("VN_Drywell_Pro"),
         QStringLiteral("Bioswale_Underdrain"),
         QStringLiteral("Bioswale_Underdrain_GW"),
         QStringLiteral("Bioswale_SuiteStyle"),
@@ -93,7 +122,8 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
         return false;
     }
-    if (trimmedPreset == QStringLiteral("VN_Drywell") && !drywellModel) {
+    if ((trimmedPreset == QStringLiteral("VN_Drywell")
+         || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !drywellModel) {
         return false;
     }
     return true;
@@ -134,6 +164,26 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
         ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
               "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
               "depth=0[m],porosity=1,x=780.8,y=975.36,inflow=" << inflowFile << "\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
+              "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
+              "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+        ts << "create block;type=junction_elastic,name=Junction_elastic,"
+              "_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+        ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,"
+              "name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],"
+              "length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+        ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,"
+              "name=Well_to_junction\n";
+        ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
+              "name=Junction_to_well\n";
+    } else if (preset == QStringLiteral("VN_Drywell_Pro")) {
+        ts << "\n# enrichment_preset: VN_Drywell_Pro\n";
+        ts << "create block;type=Pond,name=Infiltration_Pond,_width=200,_height=200,"
+              "x=-5971,y=-249,bottom_elevation=0[m],Storage=0[m~^3],alpha=86.061,"
+              "beta=2.766,inflow=" << inflowFile << "\n";
+        ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
+              "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
+              "depth=0[m],porosity=1,x=780.8,y=975.36\n";
         ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
               "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
               "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
@@ -194,17 +244,22 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const bool vnModelType = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
-    const QString vnReferenceScript = TemplateFile(options.templateDirectory, QStringLiteral("VN_ref.ohq"));
-    if (vnModelType && QFileInfo(vnReferenceScript).exists()) {
-        QString vnText;
-        if (!LoadEntireFile(vnReferenceScript, &vnText, errorMessage)) {
+    if (vnModelType && !options.vnBaseOhqFile.trimmed().isEmpty()) {
+        QString vnBaseText;
+        if (!LoadEntireFile(options.vnBaseOhqFile, &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &vnBaseText, errorMessage)) {
             return false;
         }
         const QString extra = options.additionalCommands.trimmed();
         if (!extra.isEmpty()) {
-            vnText += "\n\n# additional_commands\n" + extra + "\n";
+            vnBaseText += "\n\n# additional_commands\n" + extra + "\n";
         }
-        *scriptText = vnText;
+        *scriptText = vnBaseText;
         return true;
     }
 
@@ -236,7 +291,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
     if (enrichmentPreset.isEmpty()
         && options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        enrichmentPreset = QStringLiteral("VN_Drywell");
+        enrichmentPreset = QStringLiteral("VN_Drywell_Pro");
     }
     if (!enrichmentPreset.isEmpty() && !IsKnownPreset(enrichmentPreset)) {
         if (errorMessage) {
