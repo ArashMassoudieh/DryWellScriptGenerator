@@ -23,6 +23,7 @@ public slots:
     void on_ActionDryWell();
     void on_ActionVNDryWell();
     void on_ActionImport();
+    void on_ActionImport_VN();
     void on_ActionBioSwale();
     void on_ActionImport_Rosemead();
 };

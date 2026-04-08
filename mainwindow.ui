@@ -36,6 +36,7 @@
      <string>Import</string>
     </property>
     <addaction name="actionImport_Moisture_Data"/>
+    <addaction name="actionImport_Moisture_Data_VN"/>
     <addaction name="actionImport_Moisture_Data_Rosemead"/>
    </widget>
    <addaction name="menuCreate_Model"/>
@@ -60,6 +61,11 @@
   <action name="actionImport_Moisture_Data">
    <property name="text">
     <string>Import Moisture Data</string>
+   </property>
+  </action>
+  <action name="actionImport_Moisture_Data_VN">
+   <property name="text">
+    <string>Import Moisture Data (VN)</string>
    </property>
   </action>
   <action name="actionImport_Moisture_Data_Rosemead">

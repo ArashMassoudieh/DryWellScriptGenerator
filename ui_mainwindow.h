@@ -28,6 +28,7 @@ public:
     QAction *actionVN_Drywell;
     QAction *actionBioswale;
     QAction *actionImport_Moisture_Data;
+    QAction *actionImport_Moisture_Data_VN;
     QAction *actionImport_Moisture_Data_Rosemead;
     QWidget *centralwidget;
     QMenuBar *menubar;
@@ -48,6 +49,8 @@ public:
         actionBioswale->setObjectName(QString::fromUtf8("actionBioswale"));
         actionImport_Moisture_Data = new QAction(MainWindow);
         actionImport_Moisture_Data->setObjectName(QString::fromUtf8("actionImport_Moisture_Data"));
+        actionImport_Moisture_Data_VN = new QAction(MainWindow);
+        actionImport_Moisture_Data_VN->setObjectName(QString::fromUtf8("actionImport_Moisture_Data_VN"));
         actionImport_Moisture_Data_Rosemead = new QAction(MainWindow);
         actionImport_Moisture_Data_Rosemead->setObjectName(QString::fromUtf8("actionImport_Moisture_Data_Rosemead"));
         centralwidget = new QWidget(MainWindow);
@@ -71,6 +74,7 @@ public:
         menuCreate_Model->addAction(actionVN_Drywell);
         menuCreate_Model->addAction(actionBioswale);
         menuImport->addAction(actionImport_Moisture_Data);
+        menuImport->addAction(actionImport_Moisture_Data_VN);
         menuImport->addAction(actionImport_Moisture_Data_Rosemead);
 
         retranslateUi(MainWindow);
@@ -85,6 +89,7 @@ public:
         actionVN_Drywell->setText(QApplication::translate("MainWindow", "VN_Drywell", nullptr));
         actionBioswale->setText(QApplication::translate("MainWindow", "Bioswale", nullptr));
         actionImport_Moisture_Data->setText(QApplication::translate("MainWindow", "Import Moisture Data", nullptr));
+        actionImport_Moisture_Data_VN->setText(QApplication::translate("MainWindow", "Import Moisture Data (VN)", nullptr));
         actionImport_Moisture_Data_Rosemead->setText(QApplication::translate("MainWindow", "Import Moisture Data (Rosemead)", nullptr));
         menuCreate_Model->setTitle(QApplication::translate("MainWindow", "Create Model", nullptr));
         menuImport->setTitle(QApplication::translate("MainWindow", "Import", nullptr));
