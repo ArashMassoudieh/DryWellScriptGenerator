@@ -12,11 +12,25 @@
 #include "paths.h"
 #include "solver_runner.h"
 
-DryWellDialog::DryWellDialog(QWidget *parent)
+DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
     : QDialog(parent)
     , ui(new Ui::DryWellDialog)
+    , structureVariant(variant)
 {
     ui->setupUi(this);
+    if (structureVariant == StructureVariant::VNDrywell) {
+        setWindowTitle(tr("VN_Drywell"));
+        // VN-DrywellOHQ-master baseline geometry (modelcreator.h defaults):
+        // DepthtoGroundWater=142ft, DepthofWell_total=40ft, rw_c_t=6ft, ROI=20m.
+        GP.depth_to_gw = 142.0 * 0.3048;
+        GP.well_depth = (16.0 + 24.0) * 0.3048;
+        GP.well_radious = 4.0 * 0.3048;
+        GP.pond_radius = 20.0;
+        GP.n_layers = 5;
+        GP.n_layer_deep = 45;
+        GP.nr = 20;
+        ui->filename_text->setText("vn_drywell.ohq");
+    }
     connect(ui->file_push_bottom, SIGNAL(clicked()),this, SLOT(On_File_Select()));
     connect(ui->Generate_Model, SIGNAL(clicked()),this, SLOT(On_Generate_Model()));
     connect(ui->pushReadLayers, SIGNAL(clicked()),this,SLOT(On_ReadLayer_Info()));
@@ -97,7 +111,19 @@ void DryWellDialog::On_Generate_Model()
     file.write("setvalue; object=system, quantity=initial_time_step, value=0.01\n");
     file.write("setvalue; object=system, quantity=c_n_weight, value=1\n");
     file.write("setvalue; object=system, quantity=maximum_time_allowed, value=4800\n");
-    file.write(QString("create block;type=Pond,inflow=%1Data/Inflow_Corrected_New_Khiem.csv,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n").arg(base).toUtf8());
+    const QString inflowSeries = (structureVariant == StructureVariant::VNDrywell)
+        ? QString("%1LA_Precipitaion (1 yr).csv").arg(base)
+        : QString("%1Data/Inflow_Corrected_New_Khiem.csv").arg(base);
+    file.write(QString("create block;type=Pond,inflow=%1,_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n")
+                   .arg(inflowSeries).toUtf8());
+    if (structureVariant == StructureVariant::VNDrywell) {
+        file.write("create block;type=Well_aggregate,name=Well_c,_height=9753.6,_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],depth=0[m],porosity=1,x=780.8,y=975.36\n");
+        file.write("create block;type=Well_aggregate,name=Well_g,_height=23400,_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],depth=0.01[m],porosity=0.5,x=780.8,y=12192\n");
+        file.write("create block;type=junction_elastic,name=Junction_elastic,_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n");
+        file.write("create link;from=Well_c,to=Well_g,type=Sewer_pipe,name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n");
+        file.write("create link;from=Well_c,to=Junction_elastic,type=darcy_connector,name=Well_to_junction\n");
+        file.write("create link;from=Junction_elastic,to=Well_g,type=darcy_connector,name=Junction_to_well\n");
+    }
 
 #ifndef Brett
     //file.write("create parameter;type=Parameter,prior_distribution=normal,value=0,name=dep_storage,high=0.05,low=0.001\n");
@@ -1068,7 +1094,3 @@ void DryWellDialog::On_CreateVTK()
     vtkDialog->show();
 #endif
 }
-
-
-
-

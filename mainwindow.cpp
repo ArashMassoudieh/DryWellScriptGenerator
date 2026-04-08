@@ -13,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     connect(ui->actionDrwWell, SIGNAL(triggered()), this, SLOT(on_ActionDryWell()));
+    connect(ui->actionVN_Drywell, SIGNAL(triggered()), this, SLOT(on_ActionVNDryWell()));
     connect(ui->actionBioswale,SIGNAL(triggered()), this, SLOT(on_ActionBioSwale()));
     connect(ui->actionImport_Moisture_Data, SIGNAL(triggered()), this, SLOT(on_ActionImport()));
     connect(ui->actionImport_Moisture_Data_Rosemead, SIGNAL(triggered()), this, SLOT(on_ActionImport_Rosemead()));
@@ -29,6 +30,12 @@ void MainWindow::on_ActionDryWell()
 {
     DryWellDialog drywelldlg(this);
     drywelldlg.exec(); 
+}
+
+void MainWindow::on_ActionVNDryWell()
+{
+    DryWellDialog drywelldlg(this, DryWellDialog::StructureVariant::VNDrywell);
+    drywelldlg.exec();
 }
 
 void MainWindow::on_ActionBioSwale()
