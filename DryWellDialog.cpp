@@ -18,6 +18,8 @@ DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
     , structureVariant(variant)
 {
     ui->setupUi(this);
+    ui->checkUseVNSoilLayers->setVisible(structureVariant == StructureVariant::VNDrywell);
+    ui->checkUseVNSoilLayers->setChecked(true);
     if (structureVariant == StructureVariant::VNDrywell) {
         setWindowTitle(tr("VN_Drywell"));
         // VN-DrywellOHQ-master baseline geometry (modelcreator.h defaults):
@@ -82,6 +84,11 @@ void DryWellDialog::On_Generate_Model()
     GP.surface_elevation = ui->lineEdit_surface_elevation->text().toDouble();
 
     if (ui->filename_text->text() == "") return;
+    const bool originalUniform = uniform;
+    if (structureVariant == StructureVariant::VNDrywell && !ui->checkUseVNSoilLayers->isChecked()) {
+        // Allow VN generation without loaded layer-profile links.
+        uniform = true;
+    }
     QFile file(ui->filename_text->text());
     file.open(QIODevice::WriteOnly | QIODevice::Text);
     file.write(QString("loadtemplate; filename=%1main_components.json\n").arg(ohq_r).toUtf8());
@@ -763,6 +770,7 @@ void DryWellDialog::On_Generate_Model()
         }
     }
     file.close();
+    uniform = originalUniform;
     QMessageBox msgBox;
     msgBox.setText("The model file was created!");
     msgBox.exec();
