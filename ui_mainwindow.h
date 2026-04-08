@@ -25,8 +25,10 @@ class Ui_MainWindow
 {
 public:
     QAction *actionDrwWell;
+    QAction *actionVN_Drywell;
     QAction *actionBioswale;
     QAction *actionImport_Moisture_Data;
+    QAction *actionImport_Moisture_Data_VN;
     QAction *actionImport_Moisture_Data_Rosemead;
     QWidget *centralwidget;
     QMenuBar *menubar;
@@ -41,10 +43,14 @@ public:
         MainWindow->resize(800, 600);
         actionDrwWell = new QAction(MainWindow);
         actionDrwWell->setObjectName(QString::fromUtf8("actionDrwWell"));
+        actionVN_Drywell = new QAction(MainWindow);
+        actionVN_Drywell->setObjectName(QString::fromUtf8("actionVN_Drywell"));
         actionBioswale = new QAction(MainWindow);
         actionBioswale->setObjectName(QString::fromUtf8("actionBioswale"));
         actionImport_Moisture_Data = new QAction(MainWindow);
         actionImport_Moisture_Data->setObjectName(QString::fromUtf8("actionImport_Moisture_Data"));
+        actionImport_Moisture_Data_VN = new QAction(MainWindow);
+        actionImport_Moisture_Data_VN->setObjectName(QString::fromUtf8("actionImport_Moisture_Data_VN"));
         actionImport_Moisture_Data_Rosemead = new QAction(MainWindow);
         actionImport_Moisture_Data_Rosemead->setObjectName(QString::fromUtf8("actionImport_Moisture_Data_Rosemead"));
         centralwidget = new QWidget(MainWindow);
@@ -65,8 +71,10 @@ public:
         menubar->addAction(menuCreate_Model->menuAction());
         menubar->addAction(menuImport->menuAction());
         menuCreate_Model->addAction(actionDrwWell);
+        menuCreate_Model->addAction(actionVN_Drywell);
         menuCreate_Model->addAction(actionBioswale);
         menuImport->addAction(actionImport_Moisture_Data);
+        menuImport->addAction(actionImport_Moisture_Data_VN);
         menuImport->addAction(actionImport_Moisture_Data_Rosemead);
 
         retranslateUi(MainWindow);
@@ -78,8 +86,10 @@ public:
     {
         MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", nullptr));
         actionDrwWell->setText(QApplication::translate("MainWindow", "DryWell", nullptr));
+        actionVN_Drywell->setText(QApplication::translate("MainWindow", "VN_Drywell", nullptr));
         actionBioswale->setText(QApplication::translate("MainWindow", "Bioswale", nullptr));
         actionImport_Moisture_Data->setText(QApplication::translate("MainWindow", "Import Moisture Data", nullptr));
+        actionImport_Moisture_Data_VN->setText(QApplication::translate("MainWindow", "Import Moisture Data (VN)", nullptr));
         actionImport_Moisture_Data_Rosemead->setText(QApplication::translate("MainWindow", "Import Moisture Data (Rosemead)", nullptr));
         menuCreate_Model->setTitle(QApplication::translate("MainWindow", "Create Model", nullptr));
         menuImport->setTitle(QApplication::translate("MainWindow", "Import", nullptr));
