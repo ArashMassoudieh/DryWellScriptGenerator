@@ -49,6 +49,34 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
     return true;
 }
 
+bool AppendSnippetFile(const QString &path, const QString &label, QString *scriptText, QString *errorMessage)
+{
+    if (path.trimmed().isEmpty()) {
+        return true;
+    }
+    QString snippet;
+    if (!LoadEntireFile(path, &snippet, errorMessage)) {
+        return false;
+    }
+    if (snippet.trimmed().isEmpty()) {
+        return true;
+    }
+    if (scriptText == nullptr) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Internal error: script output buffer is null.");
+        }
+        return false;
+    }
+    if (!scriptText->isEmpty() && !scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+    *scriptText += QStringLiteral("\n# %1 snippet loaded from %2\n")
+                       .arg(label, path);
+    *scriptText += snippet.trimmed();
+    *scriptText += '\n';
+    return true;
+}
+
 bool IsKnownPreset(const QString &preset)
 {
     static const QStringList knownPresets = {
@@ -216,10 +244,35 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const bool vnModelType = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    if (vnModelType && !options.vnBaseOhqFile.trimmed().isEmpty()) {
+        QString vnBaseText;
+        if (!LoadEntireFile(options.vnBaseOhqFile, &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &vnBaseText, errorMessage)) {
+            return false;
+        }
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            vnBaseText += "\n\n# additional_commands\n" + extra + "\n";
+        }
+        *scriptText = vnBaseText;
+        return true;
+    }
+
     const QString vnReferenceScript = TemplateFile(options.templateDirectory, QStringLiteral("VN_ref.ohq"));
     if (vnModelType && QFileInfo(vnReferenceScript).exists()) {
         QString vnText;
         if (!LoadEntireFile(vnReferenceScript, &vnText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &vnText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &vnText, errorMessage)) {
             return false;
         }
         const QString extra = options.additionalCommands.trimmed();

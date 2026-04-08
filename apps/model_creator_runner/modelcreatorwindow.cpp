@@ -441,6 +441,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       outputSeriesFileEdit(new QLineEdit(this)),
       observationFileEdit(new QLineEdit(this)),
       depthProfileFileEdit(new QLineEdit(this)),
+      vnBaseOhqFileEdit(new QLineEdit(this)),
+      vnSoilLayersFileEdit(new QLineEdit(this)),
+      vnMoistureLayersFileEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -537,6 +540,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
+    addFileRow(layout, tr("VN base .ohq (optional)"), vnBaseOhqFileEdit, tr("Browse"), [this]() { chooseVnBaseOhqFile(); });
+    vnBaseOhqFileEdit->setPlaceholderText(tr("Optional: load whole VN OHQ script as generation baseline"));
+    addFileRow(layout, tr("VN soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
+    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
+    addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
+    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
     observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
@@ -671,6 +680,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(outputSeriesFileEdit);
     saveOnEdit(observationFileEdit);
     saveOnEdit(depthProfileFileEdit);
+    saveOnEdit(vnBaseOhqFileEdit);
+    saveOnEdit(vnSoilLayersFileEdit);
+    saveOnEdit(vnMoistureLayersFileEdit);
     saveOnEdit(observationObjectEdit);
     saveOnEdit(observationExpressionEdit);
     saveOnEdit(observationNameEdit);
@@ -1048,6 +1060,42 @@ void ModelCreatorWindow::chooseDepthProfileFile()
     }
 }
 
+void ModelCreatorWindow::chooseVnBaseOhqFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN base OHQ script"),
+                                                          vnBaseOhqFileEdit->text(),
+                                                          tr("OHQ/Text files (*.ohq *.txt);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnBaseOhqFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
+void ModelCreatorWindow::chooseVnSoilLayersFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN soil layers snippet"),
+                                                          vnSoilLayersFileEdit->text(),
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnSoilLayersFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
+void ModelCreatorWindow::chooseVnMoistureLayersFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN moisture layers snippet"),
+                                                          vnMoistureLayersFileEdit->text(),
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnMoistureLayersFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
 void ModelCreatorWindow::loadAdditionalCommandsFromFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
@@ -1205,6 +1253,9 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.observationExpression = observationExpressionEdit->text().trimmed();
     options.observationName = observationNameEdit->text().trimmed();
     options.additionalCommands = additionalCommandsEdit->toPlainText();
+    options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+    options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
+    options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
 
     if (options.templateDirectory.isEmpty()) {
         QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template resources directory first."));
@@ -2332,6 +2383,9 @@ void ModelCreatorWindow::loadSettings()
     outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
+    vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
+    vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
+    vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     observationObjectEdit->setText(settings.value("observationObject", "Soil (1$1)").toString());
     observationExpressionEdit->setText(settings.value("observationExpression", "theta").toString());
     observationNameEdit->setText(settings.value("observationName", "Obs_1").toString());
@@ -2359,6 +2413,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("outputSeriesFile", outputSeriesFileEdit->text());
     settings.setValue("observationFile", observationFileEdit->text());
     settings.setValue("depthProfileFile", depthProfileFileEdit->text());
+    settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
+    settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
+    settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     settings.setValue("observationObject", observationObjectEdit->text());
     settings.setValue("observationExpression", observationExpressionEdit->text());
     settings.setValue("observationName", observationNameEdit->text());
