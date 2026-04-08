@@ -263,26 +263,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
-    const QString vnReferenceScript = TemplateFile(options.templateDirectory, QStringLiteral("VN_ref.ohq"));
-    if (vnModelType && QFileInfo(vnReferenceScript).exists()) {
-        QString vnText;
-        if (!LoadEntireFile(vnReferenceScript, &vnText, errorMessage)) {
-            return false;
-        }
-        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &vnText, errorMessage)) {
-            return false;
-        }
-        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &vnText, errorMessage)) {
-            return false;
-        }
-        const QString extra = options.additionalCommands.trimmed();
-        if (!extra.isEmpty()) {
-            vnText += "\n\n# additional_commands\n" + extra + "\n";
-        }
-        *scriptText = vnText;
-        return true;
-    }
-
     for (const QString &templateFile : RequiredTemplates()) {
         const QFileInfo fileInfo(TemplateFile(options.templateDirectory, templateFile));
         if (!fileInfo.exists() || !fileInfo.isFile()) {

@@ -1269,12 +1269,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (!vnModel && options.inflowFile.isEmpty()) {
+    if (!usingExplicitVnBase && options.inflowFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
         return false;
     }
 
-    if (!vnModel && options.outputSeriesFile.isEmpty()) {
+    if (!usingExplicitVnBase && options.outputSeriesFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing output filename"), tr("Please provide the OHQ output series filename."));
         return false;
     }
