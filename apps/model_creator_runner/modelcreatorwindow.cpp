@@ -781,11 +781,13 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         enrichmentPresetCombo->addItem(tr("Drywell (DryWellSuite style)"), "Drywell_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
         enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell)"), "VN_Drywell");
+        enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell Pro)"), "VN_Drywell_Pro");
         enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
         enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
         enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
     } else if (vnDrywellModel) {
-        enrichmentPresetCombo->addItem(tr("VN Drywell (default OHQ structure)"), "VN_Drywell");
+        enrichmentPresetCombo->addItem(tr("VN Drywell (DryWellSuite Pro default)"), "VN_Drywell_Pro");
+        enrichmentPresetCombo->addItem(tr("VN Drywell (legacy structure)"), "VN_Drywell");
     } else {
         enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
