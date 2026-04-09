@@ -522,7 +522,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
     exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
-    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run."));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; custom executables get no implicit args."));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -765,7 +765,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                     "Try one of the following:\n"
                                     "1) Select an OHQ CLI solver binary if available.\n"
                                     "2) Provide explicit executable args required by your OpenHydroQual build.\n"
-                                    "3) Use your server/worker runner flow (e.g., DrywellDT) for this build."));
+                                    "3) Use your server/worker runner flow (e.g., DrywellDT) for this build.\n"
+                                    "4) Or select a custom internal solver executable (System/Solve main) and leave args empty."));
             appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
             return;
         } else {
@@ -1507,7 +1508,7 @@ void ModelCreatorWindow::runScript()
     const bool executableLooksLikeGui = LooksLikeGuiOpenHydroQualExecutable(executableToRunInfo);
     const bool templateReferencesScript = configuredArgsTemplate.contains(QStringLiteral("{script}"));
     const bool noTemplateArgsProvided = configuredArgsTemplate.isEmpty();
-    const bool passScriptAsPositionalDefault = noTemplateArgsProvided && (executableLooksLikeCli || !executableLooksLikeGui);
+    const bool passScriptAsPositionalDefault = noTemplateArgsProvided && executableLooksLikeCli;
     const bool passScriptWithRunFlagDefault = noTemplateArgsProvided && executableLooksLikeGui;
     const bool scriptRequired = templateReferencesScript || passScriptAsPositionalDefault || passScriptWithRunFlagDefault;
 
@@ -1563,6 +1564,8 @@ void ModelCreatorWindow::runScript()
                            << (QStringList{QStringLiteral("--script"), scriptInfo.absoluteFilePath(), QStringLiteral("--run")});
     } else if (passScriptAsPositionalDefault) {
         executableArgs = QStringList{scriptInfo.absoluteFilePath()};
+    } else if (noTemplateArgsProvided) {
+        executableArgs.clear();
     } else {
         executableArgs = BuildExecutableArguments(configuredArgsTemplate,
                                                   scriptInfo.absoluteFilePath());
