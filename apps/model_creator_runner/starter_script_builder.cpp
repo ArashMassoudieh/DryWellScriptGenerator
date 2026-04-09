@@ -49,6 +49,34 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
     return true;
 }
 
+bool AppendSnippetFile(const QString &path, const QString &label, QString *scriptText, QString *errorMessage)
+{
+    if (path.trimmed().isEmpty()) {
+        return true;
+    }
+    QString snippet;
+    if (!LoadEntireFile(path, &snippet, errorMessage)) {
+        return false;
+    }
+    if (snippet.trimmed().isEmpty()) {
+        return true;
+    }
+    if (scriptText == nullptr) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Internal error: script output buffer is null.");
+        }
+        return false;
+    }
+    if (!scriptText->isEmpty() && !scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+    *scriptText += QStringLiteral("\n# %1 snippet loaded from %2\n")
+                       .arg(label, path);
+    *scriptText += snippet.trimmed();
+    *scriptText += '\n';
+    return true;
+}
+
 bool IsKnownPreset(const QString &preset)
 {
     static const QStringList knownPresets = {
@@ -58,6 +86,7 @@ bool IsKnownPreset(const QString &preset)
         QStringLiteral("Drywell_SuiteStyle"),
         QStringLiteral("Drywell_LegacyStyle"),
         QStringLiteral("VN_Drywell"),
+        QStringLiteral("VN_Drywell_Pro"),
         QStringLiteral("Bioswale_Underdrain"),
         QStringLiteral("Bioswale_Underdrain_GW"),
         QStringLiteral("Bioswale_SuiteStyle"),
@@ -93,10 +122,69 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
         return false;
     }
-    if (trimmedPreset == QStringLiteral("VN_Drywell") && !drywellModel) {
+    if ((trimmedPreset == QStringLiteral("VN_Drywell")
+         || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !drywellModel) {
         return false;
     }
     return true;
+}
+
+void AppendVnSuiteProDeterministicSoils(QTextStream &ts)
+{
+    // Match VN-DrywellOHQ baseline geometry used by DryWellSuite Pro defaults.
+    const double wellRadius = 1.2192;   // 4 ft
+    const double pondRadius = 20.0;     // m
+    const int nr = 20;
+    const int nLayers = 5;
+    const int nLayerDeep = 45;
+    const double wellDepth = 12.192;    // 40 ft
+    const double depthToGw = 43.2816;   // 142 ft
+    const double surfaceElevation = 0.0;
+    const double dr = (pondRadius - wellRadius) / static_cast<double>(nr);
+    const double dy = wellDepth / static_cast<double>(nLayers);
+    const double dyDeep = (depthToGw - wellDepth) / static_cast<double>(nLayerDeep);
+    const double pi = 3.1415;
+
+    ts << "\n# VN_Drywell_Pro deterministic soil layers\n";
+    for (int r = 0; r < nr; ++r) {
+        const double rIn = r * dr + wellRadius;
+        const double rOut = (r + 1) * dr + wellRadius;
+        const double area = pi * (rOut * rOut - rIn * rIn);
+        for (int layer = 0; layer < nLayers; ++layer) {
+            const double x = 200 + r * 300;
+            const double y = 300 + layer * 300;
+            const double bottom = -dy * (layer + 1);
+            const double actualY = surfaceElevation - dy * (layer + 0.5);
+            ts << "create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" << x
+               << ",Evapotranspiration=,n=1.41,y=" << y
+               << ",area=" << area
+               << ",theta=0.1343,K_sat_original=1,_width=200,alpha=1,name=Soil (" << (layer + 1)
+               << "$" << (r + 1) << "),_height=100,bottom_elevation=" << bottom
+               << ",depth=" << dy
+               << ",actual_x=" << (0.5 * (rIn + rOut))
+               << ",actual_y=" << actualY << "\n";
+        }
+    }
+
+    for (int r = 0; r < nr; ++r) {
+        const double rIn = r * dr + wellRadius;
+        const double rOut = (r + 1) * dr + wellRadius;
+        const double area = pi * (rOut * rOut - rIn * rIn);
+        for (int layer = 0; layer < nLayerDeep; ++layer) {
+            const double x = 200 + r * 300;
+            const double y = 300 + layer * 300 + nLayers * 300;
+            const double bottom = -dyDeep * (layer + 1) - wellDepth;
+            const double actualY = surfaceElevation - dyDeep * (layer + 0.5) - wellDepth;
+            ts << "create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" << x
+               << ",Evapotranspiration=,n=1.41,y=" << y
+               << ",area=" << area
+               << ",theta=0.1343,K_sat_original=1,_width=200,alpha=1,name=SoilDeep (" << (layer + 1)
+               << "$" << (r + 1) << "),_height=100,bottom_elevation=" << bottom
+               << ",depth=" << dyDeep
+               << ",actual_x=" << (0.5 * (rIn + rOut))
+               << ",actual_y=" << actualY << "\n";
+        }
+    }
 }
 
 void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QString &inflowFile = QString())
@@ -146,6 +234,60 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
               "name=Well_to_junction\n";
         ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
               "name=Junction_to_well\n";
+    } else if (preset == QStringLiteral("VN_Drywell_Pro")) {
+        ts << "\n# enrichment_preset: VN_Drywell_Pro\n";
+        ts << "setvalue; object=system, quantity=shakescalered, value=0.75\n";
+        ts << "setvalue; object=system, quantity=shakescale, value=0.05\n";
+        ts << "setvalue; object=system, quantity=pmute, value=0.02\n";
+        ts << "setvalue; object=system, quantity=ngen, value=40\n";
+        ts << "setvalue; object=system, quantity=pcross, value=1\n";
+        ts << "setvalue; object=system, quantity=maxpop, value=40\n";
+        ts << "setvalue; object=system, quantity=write_solution_details, value=No\n";
+        ts << "setvalue; object=system, quantity=nr_tolerance, value=0.001\n";
+        ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor_fail, value=0.2\n";
+        ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor, value=0.75\n";
+        ts << "setvalue; object=system, quantity=n_threads, value=4\n";
+        ts << "setvalue; object=system, quantity=minimum_timestep, value=1e-06\n";
+        ts << "setvalue; object=system, quantity=initial_time_step, value=0.01\n";
+        ts << "setvalue; object=system, quantity=c_n_weight, value=1\n";
+        ts << "setvalue; object=system, quantity=maximum_time_allowed, value=4800\n";
+        ts << "create block;type=Pond,name=Infiltration_Pond,_width=200,_height=200,"
+              "x=-5971,y=-249,bottom_elevation=0[m],Storage=0[m~^3],alpha=86.061,"
+              "beta=2.766,inflow=" << inflowFile << "\n";
+        ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
+              "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
+              "depth=0[m],porosity=1,x=780.8,y=975.36\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
+              "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
+              "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+        ts << "create block;type=junction_elastic,name=Junction_elastic,"
+              "_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+        ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,"
+              "name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],"
+              "length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+        ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,"
+              "name=Well_to_junction\n";
+        ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
+              "name=Junction_to_well\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_1,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_2,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_3,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_4,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_5,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_6,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_7,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_8,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_9,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_10,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_11,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_12,low=5,high=10\n";
+        ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n";
+        ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=new_Van_alpha,low=0.00001,high=10\n";
+        ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=beta,low=0.5,high=5\n";
+        ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=theta_t,low=0.01,high=0.13\n";
+        ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n";
+        ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n";
+        AppendVnSuiteProDeterministicSoils(ts);
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
@@ -194,17 +336,22 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const bool vnModelType = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
-    const QString vnReferenceScript = TemplateFile(options.templateDirectory, QStringLiteral("VN_ref.ohq"));
-    if (vnModelType && QFileInfo(vnReferenceScript).exists()) {
-        QString vnText;
-        if (!LoadEntireFile(vnReferenceScript, &vnText, errorMessage)) {
+    if (vnModelType && !options.vnBaseOhqFile.trimmed().isEmpty()) {
+        QString vnBaseText;
+        if (!LoadEntireFile(options.vnBaseOhqFile, &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &vnBaseText, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &vnBaseText, errorMessage)) {
             return false;
         }
         const QString extra = options.additionalCommands.trimmed();
         if (!extra.isEmpty()) {
-            vnText += "\n\n# additional_commands\n" + extra + "\n";
+            vnBaseText += "\n\n# additional_commands\n" + extra + "\n";
         }
-        *scriptText = vnText;
+        *scriptText = vnBaseText;
         return true;
     }
 
@@ -236,7 +383,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
     if (enrichmentPreset.isEmpty()
         && options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        enrichmentPreset = QStringLiteral("VN_Drywell");
+        enrichmentPreset = QStringLiteral("VN_Drywell_Pro");
     }
     if (!enrichmentPreset.isEmpty() && !IsKnownPreset(enrichmentPreset)) {
         if (errorMessage) {
