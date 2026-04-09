@@ -48,6 +48,21 @@ bool IsNumber(const QString &value)
     return ok;
 }
 
+QString ResolveKsatScaleString(const QString &primary,
+                               const QString &fallback,
+                               const QString &defaultValue)
+{
+    const QString p = primary.trimmed();
+    if (!p.isEmpty()) {
+        return p;
+    }
+    const QString f = fallback.trimmed();
+    if (!f.isEmpty()) {
+        return f;
+    }
+    return defaultValue;
+}
+
 bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
 {
     QFile file(path);
@@ -1587,13 +1602,21 @@ void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, 
     }
 }
 
-void AppendEmbeddedVnFullReferenceScript(QString *scriptText)
+void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QString *scriptText)
 {
     if (scriptText == nullptr) {
         return;
     }
 
-    const QStringList filteredLines = QString::fromUtf8(kEmbeddedVnFullReferenceOhq)
+    QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    embedded.replace(QStringLiteral("K_sat_scale_factor=2.5"),
+                     QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
+    embedded.replace(QStringLiteral("K_sat_scale_factor=35"),
+                     QStringLiteral("K_sat_scale_factor=%1").arg(uwScale));
+
+    const QStringList filteredLines = embedded
                                           .split('\n', Qt::KeepEmptyParts);
     for (const QString &line : filteredLines) {
         const QString trimmed = line.trimmed();
@@ -1771,6 +1794,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double dx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
     const double topElevation = options.vnSoftTopElevation;
     const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("10"));
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=180,_height=180,"
           "x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
@@ -1783,7 +1807,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                << ",x=" << (x * dx) << ",y=" << (y * dx)
                << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
-               << "K_sat_original=2.5,K_sat_scale_factor=10,alpha=10,n=1.35,L=-0.5\n";
+               << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
         }
     }
 
@@ -1863,6 +1887,21 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
+    const auto validateOptionalNumeric = [&](const QString &value, const QString &label) -> bool {
+        if (!value.trimmed().isEmpty() && !IsNumber(value)) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("%1 must be numeric when provided.").arg(label);
+            }
+            return false;
+        }
+        return true;
+    };
+    if (!validateOptionalNumeric(options.ksatScaleAll, QStringLiteral("Ksat scale (all soils)"))
+        || !validateOptionalNumeric(options.ksatScaleG, QStringLiteral("Ksat scale-g"))
+        || !validateOptionalNumeric(options.ksatScaleUw, QStringLiteral("Ksat scale-uw"))) {
+        return false;
+    }
+
     if (options.inflowFile.trimmed().isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Inflow file is required.");
@@ -1932,7 +1971,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
         AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
-        AppendEmbeddedVnFullReferenceScript(&out);
+        AppendEmbeddedVnFullReferenceScript(options, &out);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
                    .arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n")

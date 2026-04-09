@@ -36,6 +36,11 @@ struct StarterScriptOptions
     // Optional raw OHQ lines appended at the end of generated starter script.
     QString additionalCommands;
 
+    // Optional Ksat scale controls (used by VN generation when applicable).
+    QString ksatScaleAll;
+    QString ksatScaleG;
+    QString ksatScaleUw;
+
     // ---------------------------------------------------------------------
     // VN-specific configuration
     // ---------------------------------------------------------------------

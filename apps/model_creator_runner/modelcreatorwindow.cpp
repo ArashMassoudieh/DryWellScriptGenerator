@@ -1366,6 +1366,9 @@ void ModelCreatorWindow::previewScript()
         options.observationExpression = observationExpressionEdit->text().trimmed();
         options.observationName = observationNameEdit->text().trimmed();
         options.additionalCommands = additionalCommandsEdit->toPlainText();
+        options.ksatScaleAll = ksatScaleEdit->text().trimmed();
+        options.ksatScaleG = ksatScaleGEdit->text().trimmed();
+        options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
         options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
         options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
         options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
@@ -1486,6 +1489,9 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.observationExpression = observationExpressionEdit->text().trimmed();
     options.observationName = observationNameEdit->text().trimmed();
     options.additionalCommands = additionalCommandsEdit->toPlainText();
+    options.ksatScaleAll = ksatScaleEdit->text().trimmed();
+    options.ksatScaleG = ksatScaleGEdit->text().trimmed();
+    options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();

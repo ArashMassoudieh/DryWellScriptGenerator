@@ -37,6 +37,8 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - **VN soft grid X count**
     - **VN soft grid Y count**
     - **VN soft layer thickness [m]**
+  - VN script generation now respects **Ksat scale** UI inputs:
+    - `Ksat scale-g` / `Ksat scale-uw` (or fallback `Ksat scale`) are applied in generated VN blocks.
 - Setup rows are now context-sensitive:
   - **Workflow mode** supports `Generate from scratch` and `Load/Edit existing .ohq` in one app.
   - VN-specific rows appear only for VN model/preset context.
