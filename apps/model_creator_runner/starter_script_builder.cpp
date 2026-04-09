@@ -1902,6 +1902,15 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
+    if ((options.vnSoftCellSize > 0.0 && !std::isfinite(options.vnSoftCellSize))
+        || (options.vnSoftLayerThickness > 0.0 && !std::isfinite(options.vnSoftLayerThickness))
+        || !std::isfinite(options.vnSoftTopElevation)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("VN soft-grid controls contain invalid numeric values.");
+        }
+        return false;
+    }
+
     if (options.inflowFile.trimmed().isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Inflow file is required.");

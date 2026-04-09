@@ -36,6 +36,8 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - In **SoftReference**, optional VN window controls can now shape generated base grid/link topology:
     - **VN soft grid X count**
     - **VN soft grid Y count**
+    - **VN soft cell size [m]**
+    - **VN soft top elevation [m]**
     - **VN soft layer thickness [m]**
   - VN script generation now respects **Ksat scale** UI inputs:
     - `Ksat scale-g` / `Ksat scale-uw` (or fallback `Ksat scale`) are applied in generated VN blocks.
