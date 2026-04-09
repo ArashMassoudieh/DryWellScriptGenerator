@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QSaveFile>
 #include <QTextStream>
+#include <QtGlobal>
 
 namespace {
 
@@ -28,11 +29,38 @@ QStringList RequiredTemplates()
     };
 }
 
+QStringList RequiredVnFullReferenceTemplates()
+{
+    return {
+        QStringLiteral("main_components.json"),
+        QStringLiteral("unsaturated_soil_revised_model.json"),
+        QStringLiteral("Well.json"),
+        QStringLiteral("Sewer_system.json"),
+        QStringLiteral("pipe_pump_tank.json"),
+        QStringLiteral("Pond_Plugin.json")
+    };
+}
+
 bool IsNumber(const QString &value)
 {
     bool ok = false;
     value.toDouble(&ok);
     return ok;
+}
+
+QString ResolveKsatScaleString(const QString &primary,
+                               const QString &fallback,
+                               const QString &defaultValue)
+{
+    const QString p = primary.trimmed();
+    if (!p.isEmpty()) {
+        return p;
+    }
+    const QString f = fallback.trimmed();
+    if (!f.isEmpty()) {
+        return f;
+    }
+    return defaultValue;
 }
 
 bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
@@ -152,6 +180,9 @@ QString NormalizeVnBuildMode(const QString &mode)
     const QString m = mode.trimmed();
     if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("FullReference");
+    }
+    if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("SoftReference");
     }
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
@@ -1554,12 +1585,53 @@ create link;from=Soil-uw (16$11),to=Ground Water,type=soil_to_fixedhead_link,nam
 
 )OHQREF";
 
-void AppendEmbeddedVnFullReferenceScript(QString *scriptText)
+void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, const QStringList &templateFiles)
 {
     if (scriptText == nullptr) {
         return;
     }
-    *scriptText += QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+
+    if (!scriptText->isEmpty() && !scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+
+    for (int i = 0; i < templateFiles.size(); ++i) {
+        const QString command = i == 0 ? QStringLiteral("loadtemplate") : QStringLiteral("addtemplate");
+        *scriptText += QStringLiteral("%1; filename=%2\n")
+                           .arg(command, TemplateFile(templateDirectory, templateFiles.at(i)));
+    }
+}
+
+void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QString *scriptText)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+
+    QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    embedded.replace(QStringLiteral("K_sat_scale_factor=2.5"),
+                     QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
+    embedded.replace(QStringLiteral("K_sat_scale_factor=35"),
+                     QStringLiteral("K_sat_scale_factor=%1").arg(uwScale));
+
+    const QStringList filteredLines = embedded
+                                          .split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : filteredLines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+            || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)) {
+            continue;
+        }
+        *scriptText += line + '\n';
+    }
+
     if (!scriptText->endsWith('\n')) {
         *scriptText += '\n';
     }
@@ -1715,6 +1787,54 @@ void AppendAdditionalCommandsIfAny(QTextStream &ts, const StarterScriptOptions &
     }
 }
 
+void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &options)
+{
+    const int nx = qMax(1, options.vnSoftGridXCount);
+    const int ny = qMax(1, options.vnSoftGridYCount);
+    const double dx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
+    const double topElevation = options.vnSoftTopElevation;
+    const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("10"));
+
+    ts << "create block;type=fixed_head,name=Ground Water,_width=180,_height=180,"
+          "x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
+
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+            const double bottom = topElevation - ((y + 1) * layerThickness);
+            ts << "create block;type=Soil,name=Soil-uw (" << x << "$" << y << "),"
+               << "_width=" << dx << ",_height=" << dx
+               << ",x=" << (x * dx) << ",y=" << (y * dx)
+               << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
+               << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
+               << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
+        }
+    }
+
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx - 1; ++x) {
+            ts << "create link;from=Soil-uw (" << x << "$" << y << "),to=Soil-uw (" << (x + 1) << "$" << y
+               << "),type=soil_to_soil_link,name=HL-Soil-uw (" << x << "$" << y << ") - Soil-uw (" << (x + 1) << "$" << y << ")\n";
+        }
+    }
+    for (int x = 0; x < nx; ++x) {
+        for (int y = 0; y < ny - 1; ++y) {
+            ts << "create link;from=Soil-uw (" << x << "$" << y << "),to=Soil-uw (" << x << "$" << (y + 1)
+               << "),type=soil_to_soil_link,name=VL-Soil-uw (" << x << "$" << y << ") - Soil-uw (" << x << "$" << (y + 1) << ")\n";
+        }
+    }
+
+    for (int y = 0; y < ny; ++y) {
+        ts << "create link;from=Well_g,to=Soil-uw (0$" << y
+           << "),type=Well2soil horizontal link,length=0.5869,name=HL_Well_g - Soil-uw (0$" << y << ")\n";
+    }
+
+    for (int x = 0; x < nx; ++x) {
+        ts << "create link;from=Soil-uw (" << x << "$" << (ny - 1)
+           << "),to=Ground Water,type=soil_to_fixedhead_link,name=Soil to Groundwater (" << x << ")\n";
+    }
+}
+
 } // namespace
 
 bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
@@ -1743,7 +1863,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    for (const QString &templateFile : RequiredTemplates()) {
+    const bool vnModelType = IsVnModel(options.modelType);
+    const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
+                                       : QStringLiteral("Preset");
+    const QStringList requiredTemplates = (vnModelType && vnMode == QStringLiteral("FullReference"))
+                                              ? RequiredVnFullReferenceTemplates()
+                                              : RequiredTemplates();
+
+    for (const QString &templateFile : requiredTemplates) {
         const QFileInfo fileInfo(TemplateFile(options.templateDirectory, templateFile));
         if (!fileInfo.exists() || !fileInfo.isFile()) {
             if (errorMessage) {
@@ -1756,6 +1883,30 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (!IsNumber(options.simulationStart) || !IsNumber(options.simulationEnd)) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Simulation start/end must be numeric values.");
+        }
+        return false;
+    }
+
+    const auto validateOptionalNumeric = [&](const QString &value, const QString &label) -> bool {
+        if (!value.trimmed().isEmpty() && !IsNumber(value)) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("%1 must be numeric when provided.").arg(label);
+            }
+            return false;
+        }
+        return true;
+    };
+    if (!validateOptionalNumeric(options.ksatScaleAll, QStringLiteral("Ksat scale (all soils)"))
+        || !validateOptionalNumeric(options.ksatScaleG, QStringLiteral("Ksat scale-g"))
+        || !validateOptionalNumeric(options.ksatScaleUw, QStringLiteral("Ksat scale-uw"))) {
+        return false;
+    }
+
+    if ((options.vnSoftCellSize > 0.0 && !std::isfinite(options.vnSoftCellSize))
+        || (options.vnSoftLayerThickness > 0.0 && !std::isfinite(options.vnSoftLayerThickness))
+        || !std::isfinite(options.vnSoftTopElevation)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("VN soft-grid controls contain invalid numeric values.");
         }
         return false;
     }
@@ -1778,9 +1929,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const bool vnModelType = IsVnModel(options.modelType);
-    const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
-                                       : QStringLiteral("Preset");
     const QString inflow = options.inflowFile.trimmed();
 
     if (vnModelType && vnMode == QStringLiteral("LoadFromOhq")) {
@@ -1831,7 +1979,16 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
 
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
-        AppendEmbeddedVnFullReferenceScript(&out);
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
+        AppendEmbeddedVnFullReferenceScript(options, &out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
+                   .arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n")
+                   .arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
+                   .arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
+                   .arg(inflow);
 
         if (!options.observationFile.trimmed().isEmpty()) {
             out += QStringLiteral(
@@ -1869,6 +2026,57 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
+    if (vnModelType && vnMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
+        ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
+        ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
+        ts << "# VN_Drywell soft reference base generated via preset + optional snippets\n";
+
+        QString vnPreset = ResolveVnPreset(options);
+        if (!IsKnownPreset(vnPreset)) {
+            vnPreset = QStringLiteral("VN_Drywell");
+        }
+        AppendEnrichmentPreset(ts, vnPreset, inflow);
+        AppendVnSoftReferenceGrid(ts, options);
+
+        if (!AppendSnippetFile(options.vnSoilLayersFile,
+                               QStringLiteral("VN soil layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile,
+                               QStringLiteral("VN moisture layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+
+        if (!options.observationFile.trimmed().isEmpty()) {
+            out += QStringLiteral(
+                "\ncreate observation;type=Observation,object=%1,name=%2,expression=%3,"
+                "observed_data=%4,error_structure=normal,error_standard_deviation=1\n")
+                    .arg(options.observationObject,
+                         options.observationName,
+                         options.observationExpression,
+                         options.observationFile);
+        }
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
+        *scriptText = out;
+        return true;
+    }
+
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
 
     if (vnModelType) {
@@ -1891,16 +2099,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     QString out;
+    AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
     QTextStream ts(&out);
-
-    ts << "loadtemplate; filename=" << TemplateFile(options.templateDirectory, "main_components.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Pond_Plugin.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "unsaturated_soil.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Well.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Sewer_system.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "soil_evapotranspiration_models.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "evapotranspiration_models.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "pipe_pump_tank.json") << "\n";
+    ts.seek(out.size());
     ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
     ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
