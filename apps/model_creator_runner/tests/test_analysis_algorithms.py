@@ -58,6 +58,7 @@ def is_known_preset(preset):
         "Drywell_SuiteStyle",
         "Drywell_LegacyStyle",
         "VN_Drywell",
+        "VN_Drywell_Pro",
         "Bioswale_Underdrain",
         "Bioswale_Underdrain_GW",
         "Bioswale_SuiteStyle",
@@ -74,7 +75,7 @@ def is_preset_compatible_with_model(preset, model_type):
     bioswale_preset = preset.startswith("Bioswale_")
     if (drywell_model and bioswale_preset) or (bioswale_model and drywell_preset):
         return False
-    if preset == "VN_Drywell" and not drywell_model:
+    if preset in {"VN_Drywell", "VN_Drywell_Pro"} and not drywell_model:
         return False
     return True
 
@@ -109,6 +110,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_known_preset("Drywell_SuiteStyle"))
         self.assertTrue(is_known_preset("Drywell_LegacyStyle"))
         self.assertTrue(is_known_preset("VN_Drywell"))
+        self.assertTrue(is_known_preset("VN_Drywell_Pro"))
         self.assertTrue(is_known_preset("Bioswale_Underdrain"))
         self.assertTrue(is_known_preset("Bioswale_Underdrain_GW"))
         self.assertTrue(is_known_preset("Bioswale_SuiteStyle"))
@@ -120,10 +122,12 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_preset_compatible_with_model("Drywell_MonitoringWell", "Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "VN_Drywell"))
+        self.assertTrue(is_preset_compatible_with_model("VN_Drywell_Pro", "VN_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("Bioswale_Underdrain", "Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("Bioswale_Underdrain", "Drywell"))
         self.assertFalse(is_preset_compatible_with_model("Drywell_MonitoringWell", "Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "Bioswale"))
+        self.assertFalse(is_preset_compatible_with_model("VN_Drywell_Pro", "Bioswale"))
 
 
 if __name__ == "__main__":
