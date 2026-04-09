@@ -1809,7 +1809,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double dx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
     const double topElevation = options.vnSoftTopElevation;
     const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
-    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("10"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=180,_height=180,"
           "x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
@@ -2105,6 +2105,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                 out += "\n";
             }
         }
+        ApplyVnKsatScaleOverrides(&out, options);
         *scriptText = out;
         return true;
     }
