@@ -43,7 +43,7 @@ struct StarterScriptOptions
     // vnBuildMode controls how VN_Drywell scripts are generated:
     //
     //   "Preset"        -> use vnPreset / enrichmentPreset (default, legacy-friendly)
-    //   "FullReference" -> generate a full hardcoded VN reference model
+    //   "FullReference" -> use embedded full VN reference OHQ content
     //   "LoadFromOhq"   -> load vnBaseOhqFile as authoritative base script
     //
     // For non-VN model types, these fields are ignored.
@@ -84,23 +84,10 @@ struct StarterScriptOptions
 class StarterScriptBuilder
 {
 public:
-    /**
-     * @brief Build starter script text from validated options.
-     * @param options Inputs controlling template imports and starter model content.
-     * @param scriptText Output string receiving generated script text when successful.
-     * @param errorMessage Optional output message for validation or generation failure.
-     * @return true when script text was generated, false otherwise.
-     */
     static bool BuildText(const StarterScriptOptions &options,
                           QString *scriptText,
                           QString *errorMessage = nullptr);
 
-    /**
-     * @brief Build and write a starter script to @c options.outputFile.
-     * @param options Inputs controlling validation and script generation.
-     * @param errorMessage Optional output message for write/build errors.
-     * @return true when file write succeeds, false otherwise.
-     */
     static bool Write(const StarterScriptOptions &options,
                       QString *errorMessage = nullptr);
 };
