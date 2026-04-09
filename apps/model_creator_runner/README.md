@@ -48,6 +48,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 - GUI fallback now has an explicit toggle (**Allow OpenHydroQual GUI execution fallback**) and is OFF by default; recommended path is CLI/internal-solver execution.
 - Optional **GUI config template** (`.json`) is supported for OpenHydroQual GUI builds that require JSON config input; template tokens `{script}` and `{working_dir}` are replaced at run-time.
 - If GUI launch returns `Failed to parse configuration`, runner now auto-retries with alternate GUI arg patterns before giving up.
+- GUI parse-error retries now also include an auto-generated JSON config candidate (`runner_gui_config.auto.json`) before CLI-style fallback arg patterns.
 - If all GUI retry patterns still return `Failed to parse configuration`, runner now surfaces a clear warning that this executable likely requires a JSON-config/server interface (instead of direct `.ohq` execution).
 - Includes stop/cancel support for a running process.
 - Includes an **Export run artifacts** action to copy discovered `.vtk/.vtp/.vtu/.csv/.txt` files from the working directory tree (preserving relative folders) and write `export_manifest.csv`.

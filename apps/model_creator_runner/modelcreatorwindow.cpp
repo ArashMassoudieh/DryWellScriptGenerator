@@ -427,6 +427,39 @@ bool BuildGuiConfigFromTemplate(const QString &templatePath,
     return true;
 }
 
+bool BuildDefaultGuiConfig(const QString &scriptPath,
+                           const QString &workingDirectory,
+                           QString *generatedConfigPath,
+                           QString *errorMessage)
+{
+    QJsonObject root;
+    root.insert(QStringLiteral("script"), scriptPath);
+    root.insert(QStringLiteral("working_dir"), workingDirectory);
+    root.insert(QStringLiteral("run"), true);
+    root.insert(QStringLiteral("solve"), true);
+
+    const QString outPath = QDir(workingDirectory).filePath(QStringLiteral("runner_gui_config.auto.json"));
+    QSaveFile outFile(outPath);
+    if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Cannot create auto GUI config: %1").arg(outPath);
+        }
+        return false;
+    }
+    outFile.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    if (!outFile.commit()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Failed to write auto GUI config: %1").arg(outPath);
+        }
+        return false;
+    }
+
+    if (generatedConfigPath) {
+        *generatedConfigPath = outPath;
+    }
+    return true;
+}
+
 bool IsKnownRuntimeNoiseLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
@@ -1654,6 +1687,17 @@ void ModelCreatorWindow::runScript()
             pendingGuiRetryExecutable = executablePathToRun;
             pendingGuiRetryScript = scriptInfo.absoluteFilePath();
             pendingGuiRetryWorkingDirectory = wdInfo.absoluteFilePath();
+            QString autoConfigPath;
+            QString autoConfigError;
+            if (BuildDefaultGuiConfig(scriptInfo.absoluteFilePath(),
+                                      wdInfo.absoluteFilePath(),
+                                      &autoConfigPath,
+                                      &autoConfigError)) {
+                pendingGuiRetryArgs << (QStringList{autoConfigPath});
+                appendLog(stamp(tr("Prepared auto GUI JSON config candidate: %1").arg(autoConfigPath)));
+            } else {
+                appendLog(stamp(tr("Auto GUI JSON config was not created: %1").arg(autoConfigError)));
+            }
             pendingGuiRetryArgs << (QStringList{QStringLiteral("--run"), scriptInfo.absoluteFilePath()})
                                << (QStringList{scriptInfo.absoluteFilePath()})
                                << (QStringList{QStringLiteral("--script"), scriptInfo.absoluteFilePath(), QStringLiteral("--run")});
