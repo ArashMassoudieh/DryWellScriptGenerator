@@ -3,6 +3,7 @@
 #define MODELCREATORWINDOW_H
 
 #include <QDateTime>
+#include <QList>
 #include <QMainWindow>
 #include <QPointF>
 #include <QStringList>
@@ -14,6 +15,7 @@ class QPushButton;
 class QTabWidget;
 class QTextEdit;
 class QLabel;
+class QCheckBox;
 class OHQProcessRunner;
 class SimpleLinePlotWidget;
 
@@ -36,6 +38,9 @@ private slots:
     void chooseInflowFile();
     void chooseObservationFile();
     void chooseDepthProfileFile();
+    void chooseVnBaseOhqFile();
+    void chooseVnSoilLayersFile();
+    void chooseVnMoistureLayersFile();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
     void quickGenerateRunAndSave();
@@ -84,8 +89,11 @@ private:
     void copyArtifacts(const QStringList &artifacts);
     /// Write manifest CSV for copied/discovered artifacts.
     void writeArtifactManifest(const QStringList &artifacts);
+    /// Show/hide context-sensitive and optional setup rows based on model/preset.
+    void updateFieldVisibilityForContext();
 
     QComboBox *modelTypeCombo;
+    QComboBox *workflowModeCombo;
     QLineEdit *exePathEdit;
     /// Optional executable argument template (supports {script} token).
     QLineEdit *exeArgsEdit;
@@ -104,10 +112,31 @@ private:
     QLineEdit *outputSeriesFileEdit;
     QLineEdit *observationFileEdit;
     QLineEdit *depthProfileFileEdit;
+    QLineEdit *vnBaseOhqFileEdit;
+    QLineEdit *vnSoilLayersFileEdit;
+    QLineEdit *vnMoistureLayersFileEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
     QTextEdit *additionalCommandsEdit;
+    QCheckBox *showOptionalFieldsCheck;
+    QWidget *inflowRowWidget = nullptr;
+    QWidget *modelTypeRowWidget = nullptr;
+    QWidget *presetRowWidget = nullptr;
+    QWidget *templateDirRowWidget = nullptr;
+    QWidget *generatedScriptRowWidget = nullptr;
+    QWidget *simulationStartRowWidget = nullptr;
+    QWidget *simulationEndRowWidget = nullptr;
+    QWidget *outputSeriesRowWidget = nullptr;
+    QWidget *observationFileRowWidget = nullptr;
+    QWidget *depthProfileRowWidget = nullptr;
+    QWidget *observationObjectRowWidget = nullptr;
+    QWidget *observationExpressionRowWidget = nullptr;
+    QWidget *observationNameRowWidget = nullptr;
+    QWidget *additionalCommandsRowWidget = nullptr;
+    QWidget *vnBaseRowWidget = nullptr;
+    QWidget *vnSoilRowWidget = nullptr;
+    QWidget *vnMoistureRowWidget = nullptr;
     QTabWidget *tabs;
     QTextEdit *logView;
     SimpleLinePlotWidget *inflowPlot;
@@ -149,6 +178,11 @@ private:
     QString currentRunOutput;
     /// Count of known non-actionable runtime warning lines suppressed in UI log.
     int suppressedRuntimeNoiseLines = 0;
+    /// Auto-retry argument candidates for GUI executable launches.
+    QList<QStringList> pendingGuiRetryArgs;
+    QString pendingGuiRetryScript;
+    QString pendingGuiRetryWorkingDirectory;
+    QString pendingGuiRetryExecutable;
 };
 
 #endif // MODELCREATORWINDOW_H
