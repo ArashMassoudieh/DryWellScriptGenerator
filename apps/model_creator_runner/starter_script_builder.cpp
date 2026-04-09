@@ -28,6 +28,18 @@ QStringList RequiredTemplates()
     };
 }
 
+QStringList RequiredVnFullReferenceTemplates()
+{
+    return {
+        QStringLiteral("main_components.json"),
+        QStringLiteral("unsaturated_soil_revised_model.json"),
+        QStringLiteral("Well.json"),
+        QStringLiteral("Sewer_system.json"),
+        QStringLiteral("pipe_pump_tank.json"),
+        QStringLiteral("Pond_Plugin.json")
+    };
+}
+
 bool IsNumber(const QString &value)
 {
     bool ok = false;
@@ -152,6 +164,9 @@ QString NormalizeVnBuildMode(const QString &mode)
     const QString m = mode.trimmed();
     if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("FullReference");
+    }
+    if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("SoftReference");
     }
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
@@ -1554,12 +1569,45 @@ create link;from=Soil-uw (16$11),to=Ground Water,type=soil_to_fixedhead_link,nam
 
 )OHQREF";
 
+void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, const QStringList &templateFiles)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+
+    if (!scriptText->isEmpty() && !scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+
+    for (int i = 0; i < templateFiles.size(); ++i) {
+        const QString command = i == 0 ? QStringLiteral("loadtemplate") : QStringLiteral("addtemplate");
+        *scriptText += QStringLiteral("%1; filename=%2\n")
+                           .arg(command, TemplateFile(templateDirectory, templateFiles.at(i)));
+    }
+}
+
 void AppendEmbeddedVnFullReferenceScript(QString *scriptText)
 {
     if (scriptText == nullptr) {
         return;
     }
-    *scriptText += QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+
+    const QStringList filteredLines = QString::fromUtf8(kEmbeddedVnFullReferenceOhq)
+                                          .split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : filteredLines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+            || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)) {
+            continue;
+        }
+        *scriptText += line + '\n';
+    }
+
     if (!scriptText->endsWith('\n')) {
         *scriptText += '\n';
     }
@@ -1743,7 +1791,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    for (const QString &templateFile : RequiredTemplates()) {
+    const bool vnModelType = IsVnModel(options.modelType);
+    const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
+                                       : QStringLiteral("Preset");
+    const QStringList requiredTemplates = (vnModelType && vnMode == QStringLiteral("FullReference"))
+                                              ? RequiredVnFullReferenceTemplates()
+                                              : RequiredTemplates();
+
+    for (const QString &templateFile : requiredTemplates) {
         const QFileInfo fileInfo(TemplateFile(options.templateDirectory, templateFile));
         if (!fileInfo.exists() || !fileInfo.isFile()) {
             if (errorMessage) {
@@ -1778,9 +1833,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const bool vnModelType = IsVnModel(options.modelType);
-    const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
-                                       : QStringLiteral("Preset");
     const QString inflow = options.inflowFile.trimmed();
 
     if (vnModelType && vnMode == QStringLiteral("LoadFromOhq")) {
@@ -1831,7 +1883,16 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
 
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
         AppendEmbeddedVnFullReferenceScript(&out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
+                   .arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n")
+                   .arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
+                   .arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
+                   .arg(inflow);
 
         if (!options.observationFile.trimmed().isEmpty()) {
             out += QStringLiteral(
@@ -1869,6 +1930,56 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
+    if (vnModelType && vnMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
+        ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
+        ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
+        ts << "# VN_Drywell soft reference base generated via preset + optional snippets\n";
+
+        QString vnPreset = ResolveVnPreset(options);
+        if (!IsKnownPreset(vnPreset)) {
+            vnPreset = QStringLiteral("VN_Drywell");
+        }
+        AppendEnrichmentPreset(ts, vnPreset, inflow);
+
+        if (!AppendSnippetFile(options.vnSoilLayersFile,
+                               QStringLiteral("VN soil layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile,
+                               QStringLiteral("VN moisture layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+
+        if (!options.observationFile.trimmed().isEmpty()) {
+            out += QStringLiteral(
+                "\ncreate observation;type=Observation,object=%1,name=%2,expression=%3,"
+                "observed_data=%4,error_structure=normal,error_standard_deviation=1\n")
+                    .arg(options.observationObject,
+                         options.observationName,
+                         options.observationExpression,
+                         options.observationFile);
+        }
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
+        *scriptText = out;
+        return true;
+    }
+
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
 
     if (vnModelType) {
@@ -1891,16 +2002,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     QString out;
+    AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
     QTextStream ts(&out);
-
-    ts << "loadtemplate; filename=" << TemplateFile(options.templateDirectory, "main_components.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Pond_Plugin.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "unsaturated_soil.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Well.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Sewer_system.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "soil_evapotranspiration_models.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "evapotranspiration_models.json") << "\n";
-    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "pipe_pump_tank.json") << "\n";
+    ts.seek(out.size());
     ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
     ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";

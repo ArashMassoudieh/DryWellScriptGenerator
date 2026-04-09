@@ -1351,6 +1351,18 @@ void ModelCreatorWindow::previewScript()
         options.observationExpression = observationExpressionEdit->text().trimmed();
         options.observationName = observationNameEdit->text().trimmed();
         options.additionalCommands = additionalCommandsEdit->toPlainText();
+        options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+        options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
+        options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+        if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+            if (!options.vnBaseOhqFile.isEmpty()) {
+                options.vnBuildMode = QStringLiteral("LoadFromOhq");
+            } else if (!options.vnSoilLayersFile.isEmpty() || !options.vnMoistureLayersFile.isEmpty()) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+            } else {
+                options.vnBuildMode = QStringLiteral("FullReference");
+            }
+        }
 
         QString error;
         const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
@@ -1459,6 +1471,15 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        if (!options.vnBaseOhqFile.isEmpty()) {
+            options.vnBuildMode = QStringLiteral("LoadFromOhq");
+        } else if (!options.vnSoilLayersFile.isEmpty() || !options.vnMoistureLayersFile.isEmpty()) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
+        } else {
+            options.vnBuildMode = QStringLiteral("FullReference");
+        }
+    }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
