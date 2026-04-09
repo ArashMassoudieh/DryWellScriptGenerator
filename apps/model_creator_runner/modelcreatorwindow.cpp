@@ -1585,8 +1585,13 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     }
 
     if (!usingExplicitVnBase && options.inflowFile.isEmpty()) {
-        QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
-        return false;
+        if (vnModel) {
+            options.inflowFile = QStringLiteral("Synthetic_rain_flow.csv");
+            appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
+        } else {
+            QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
+            return false;
+        }
     }
 
     if (!usingExplicitVnBase && options.outputSeriesFile.isEmpty()) {

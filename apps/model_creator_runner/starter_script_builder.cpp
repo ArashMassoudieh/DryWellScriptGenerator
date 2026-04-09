@@ -177,6 +177,11 @@ bool IsVnModel(const QString &modelType)
     return modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
 }
 
+QString DefaultVnInflowFile()
+{
+    return QStringLiteral("Synthetic_rain_flow.csv");
+}
+
 QString NormalizeVnBuildMode(const QString &mode)
 {
     const QString m = mode.trimmed();
@@ -1913,13 +1918,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    if (options.inflowFile.trimmed().isEmpty()) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("Inflow file is required.");
-        }
-        return false;
-    }
-
     if (options.outputSeriesFile.trimmed().isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Output series filename is required.");
@@ -1931,7 +1929,16 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const QString inflow = options.inflowFile.trimmed();
+    QString inflow = options.inflowFile.trimmed();
+    if (inflow.isEmpty() && vnModelType) {
+        inflow = DefaultVnInflowFile();
+    }
+    if (inflow.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Inflow file is required.");
+        }
+        return false;
+    }
 
     if (vnModelType && vnMode == QStringLiteral("LoadFromOhq")) {
         if (options.vnBaseOhqFile.trimmed().isEmpty()) {
