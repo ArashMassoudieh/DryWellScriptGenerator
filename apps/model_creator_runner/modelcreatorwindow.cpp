@@ -747,6 +747,18 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             appendLog(stamp(tr("Suppressed %1 known Qt runtime warning line(s).").arg(suppressedRuntimeNoiseLines)));
         }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
+        const bool parseConfigError = currentRunOutput.contains(QStringLiteral("Failed to parse configuration"), Qt::CaseInsensitive);
+        if (parseConfigError && !pendingGuiRetryArgs.isEmpty()) {
+            const QStringList retryArgs = pendingGuiRetryArgs.takeFirst();
+            appendLog(stamp(tr("Detected configuration-parse error. Retrying GUI launch with args: %1")
+                            .arg(retryArgs.join(' '))));
+            runner->setExecutablePath(pendingGuiRetryExecutable);
+            runner->runScript(pendingGuiRetryScript, pendingGuiRetryWorkingDirectory, retryArgs);
+            return;
+        }
+        if (!parseConfigError) {
+            pendingGuiRetryArgs.clear();
+        }
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
                 QMessageBox::warning(this,
@@ -780,6 +792,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     });
 
     connect(runner, &OHQProcessRunner::runFailed, this, [this](const QString &reason) {
+        pendingGuiRetryArgs.clear();
         previewScriptButton->setEnabled(true);
         quickRunButton->setEnabled(true);
         generateScriptButton->setEnabled(true);
@@ -1521,11 +1534,21 @@ void ModelCreatorWindow::runScript()
 
     runner->setExecutablePath(executablePathToRun);
     QStringList executableArgs;
+    pendingGuiRetryArgs.clear();
+    pendingGuiRetryScript.clear();
+    pendingGuiRetryWorkingDirectory.clear();
+    pendingGuiRetryExecutable.clear();
     if (passScriptWithRunFlagDefault) {
         executableArgs = QStringList{
             scriptInfo.absoluteFilePath(),
             QStringLiteral("--run")
         };
+        pendingGuiRetryExecutable = executablePathToRun;
+        pendingGuiRetryScript = scriptInfo.absoluteFilePath();
+        pendingGuiRetryWorkingDirectory = wdInfo.absoluteFilePath();
+        pendingGuiRetryArgs << (QStringList{QStringLiteral("--run"), scriptInfo.absoluteFilePath()})
+                           << (QStringList{scriptInfo.absoluteFilePath()})
+                           << (QStringList{QStringLiteral("--script"), scriptInfo.absoluteFilePath(), QStringLiteral("--run")});
     } else if (passScriptAsPositionalDefault) {
         executableArgs = QStringList{scriptInfo.absoluteFilePath()};
     } else {

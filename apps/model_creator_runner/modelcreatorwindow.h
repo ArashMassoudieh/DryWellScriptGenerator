@@ -3,6 +3,7 @@
 #define MODELCREATORWINDOW_H
 
 #include <QDateTime>
+#include <QList>
 #include <QMainWindow>
 #include <QPointF>
 #include <QStringList>
@@ -177,6 +178,11 @@ private:
     QString currentRunOutput;
     /// Count of known non-actionable runtime warning lines suppressed in UI log.
     int suppressedRuntimeNoiseLines = 0;
+    /// Auto-retry argument candidates for GUI executable launches.
+    QList<QStringList> pendingGuiRetryArgs;
+    QString pendingGuiRetryScript;
+    QString pendingGuiRetryWorkingDirectory;
+    QString pendingGuiRetryExecutable;
 };
 
 #endif // MODELCREATORWINDOW_H
