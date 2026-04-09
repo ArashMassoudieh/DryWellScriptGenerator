@@ -1351,6 +1351,14 @@ void ModelCreatorWindow::previewScript()
         options.observationExpression = observationExpressionEdit->text().trimmed();
         options.observationName = observationNameEdit->text().trimmed();
         options.additionalCommands = additionalCommandsEdit->toPlainText();
+        options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+        options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
+        options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+        if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+            options.vnBuildMode = options.vnBaseOhqFile.isEmpty()
+                ? QStringLiteral("FullReference")
+                : QStringLiteral("LoadFromOhq");
+        }
 
         QString error;
         const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
@@ -1459,6 +1467,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        options.vnBuildMode = options.vnBaseOhqFile.isEmpty()
+            ? QStringLiteral("FullReference")
+            : QStringLiteral("LoadFromOhq");
+    }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
