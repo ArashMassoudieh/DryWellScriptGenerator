@@ -627,12 +627,27 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     simulationStartEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
     simulationEndRowWidget = addTextRow(layout, tr("Simulation end"), simulationEndEdit);
     simulationEndEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
-    addTextRow(layout, tr("Ksat scale (all soils, optional)"), ksatScaleEdit);
-    ksatScaleEdit->setPlaceholderText(tr("e.g. 1.0 (adds --ksat-scale)"));
-    addTextRow(layout, tr("Ksat scale-g (optional)"), ksatScaleGEdit);
-    ksatScaleGEdit->setPlaceholderText(tr("e.g. 3.0 (adds --ksat-scale-g)"));
-    addTextRow(layout, tr("Ksat scale-uw (optional)"), ksatScaleUwEdit);
-    ksatScaleUwEdit->setPlaceholderText(tr("e.g. 30.0 (adds --ksat-scale-uw)"));
+    auto setupCompactNumericEdit = [](QLineEdit *edit, const QString &placeholder) {
+        edit->setPlaceholderText(placeholder);
+        edit->setMaximumWidth(100);
+    };
+    setupCompactNumericEdit(ksatScaleEdit, tr("all"));
+    setupCompactNumericEdit(ksatScaleGEdit, tr("g"));
+    setupCompactNumericEdit(ksatScaleUwEdit, tr("uw"));
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("Ksat scales")));
+        row->addWidget(new QLabel(tr("all")));
+        row->addWidget(ksatScaleEdit);
+        row->addWidget(new QLabel(tr("g")));
+        row->addWidget(ksatScaleGEdit);
+        row->addWidget(new QLabel(tr("uw")));
+        row->addWidget(ksatScaleUwEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+    }
     outputSeriesRowWidget = addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
     outputSeriesFileEdit->setPlaceholderText(tr("Suggested: OHQ_output.txt"));
     observationFileRowWidget = addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
@@ -645,16 +660,42 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
     vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
     vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
-    vnSoftGridXRowWidget = addTextRow(layout, tr("VN soft grid X count"), vnSoftGridXEdit);
-    vnSoftGridXEdit->setPlaceholderText(tr("Default: 17"));
-    vnSoftGridYRowWidget = addTextRow(layout, tr("VN soft grid Y count"), vnSoftGridYEdit);
-    vnSoftGridYEdit->setPlaceholderText(tr("Default: 12"));
-    vnSoftCellSizeRowWidget = addTextRow(layout, tr("VN soft cell size [m]"), vnSoftCellSizeEdit);
-    vnSoftCellSizeEdit->setPlaceholderText(tr("Default: 586.9"));
-    vnSoftTopElevationRowWidget = addTextRow(layout, tr("VN soft top elevation [m]"), vnSoftTopElevationEdit);
-    vnSoftTopElevationEdit->setPlaceholderText(tr("Default: -5.0"));
-    vnSoftLayerThicknessRowWidget = addTextRow(layout, tr("VN soft layer thickness [m]"), vnSoftLayerThicknessEdit);
-    vnSoftLayerThicknessEdit->setPlaceholderText(tr("Default: 1.0"));
+    setupCompactNumericEdit(vnSoftGridXEdit, tr("17"));
+    setupCompactNumericEdit(vnSoftGridYEdit, tr("12"));
+    setupCompactNumericEdit(vnSoftCellSizeEdit, tr("586.9"));
+    setupCompactNumericEdit(vnSoftTopElevationEdit, tr("-5.0"));
+    setupCompactNumericEdit(vnSoftLayerThicknessEdit, tr("1.0"));
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft grid")));
+        row->addWidget(new QLabel(tr("X")));
+        row->addWidget(vnSoftGridXEdit);
+        row->addWidget(new QLabel(tr("Y")));
+        row->addWidget(vnSoftGridYEdit);
+        row->addWidget(new QLabel(tr("cell[m]")));
+        row->addWidget(vnSoftCellSizeEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftGridXRowWidget = container;
+        vnSoftGridYRowWidget = container;
+        vnSoftCellSizeRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft z")));
+        row->addWidget(new QLabel(tr("top[m]")));
+        row->addWidget(vnSoftTopElevationEdit);
+        row->addWidget(new QLabel(tr("dz[m]")));
+        row->addWidget(vnSoftLayerThicknessEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftTopElevationRowWidget = container;
+        vnSoftLayerThicknessRowWidget = container;
+    }
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
     observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
