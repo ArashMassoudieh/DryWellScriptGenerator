@@ -129,6 +129,64 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     return true;
 }
 
+void AppendVnSuiteProDeterministicSoils(QTextStream &ts)
+{
+    // Match VN-DrywellOHQ baseline geometry used by DryWellSuite Pro defaults.
+    const double wellRadius = 1.2192;   // 4 ft
+    const double pondRadius = 20.0;     // m
+    const int nr = 20;
+    const int nLayers = 5;
+    const int nLayerDeep = 45;
+    const double wellDepth = 12.192;    // 40 ft
+    const double depthToGw = 43.2816;   // 142 ft
+    const double surfaceElevation = 0.0;
+    const double dr = (pondRadius - wellRadius) / static_cast<double>(nr);
+    const double dy = wellDepth / static_cast<double>(nLayers);
+    const double dyDeep = (depthToGw - wellDepth) / static_cast<double>(nLayerDeep);
+    const double pi = 3.1415;
+
+    ts << "\n# VN_Drywell_Pro deterministic soil layers\n";
+    for (int r = 0; r < nr; ++r) {
+        const double rIn = r * dr + wellRadius;
+        const double rOut = (r + 1) * dr + wellRadius;
+        const double area = pi * (rOut * rOut - rIn * rIn);
+        for (int layer = 0; layer < nLayers; ++layer) {
+            const double x = 200 + r * 300;
+            const double y = 300 + layer * 300;
+            const double bottom = -dy * (layer + 1);
+            const double actualY = surfaceElevation - dy * (layer + 0.5);
+            ts << "create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" << x
+               << ",Evapotranspiration=,n=1.41,y=" << y
+               << ",area=" << area
+               << ",theta=0.1343,K_sat_original=1,_width=200,alpha=1,name=Soil (" << (layer + 1)
+               << "$" << (r + 1) << "),_height=100,bottom_elevation=" << bottom
+               << ",depth=" << dy
+               << ",actual_x=" << (0.5 * (rIn + rOut))
+               << ",actual_y=" << actualY << "\n";
+        }
+    }
+
+    for (int r = 0; r < nr; ++r) {
+        const double rIn = r * dr + wellRadius;
+        const double rOut = (r + 1) * dr + wellRadius;
+        const double area = pi * (rOut * rOut - rIn * rIn);
+        for (int layer = 0; layer < nLayerDeep; ++layer) {
+            const double x = 200 + r * 300;
+            const double y = 300 + layer * 300 + nLayers * 300;
+            const double bottom = -dyDeep * (layer + 1) - wellDepth;
+            const double actualY = surfaceElevation - dyDeep * (layer + 0.5) - wellDepth;
+            ts << "create block;type=Soil,theta_sat=0.4,theta_res=0.05,specific_storage=0.01,x=" << x
+               << ",Evapotranspiration=,n=1.41,y=" << y
+               << ",area=" << area
+               << ",theta=0.1343,K_sat_original=1,_width=200,alpha=1,name=SoilDeep (" << (layer + 1)
+               << "$" << (r + 1) << "),_height=100,bottom_elevation=" << bottom
+               << ",depth=" << dyDeep
+               << ",actual_x=" << (0.5 * (rIn + rOut))
+               << ",actual_y=" << actualY << "\n";
+        }
+    }
+}
+
 void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QString &inflowFile = QString())
 {
     if (preset == QStringLiteral("Drywell_MonitoringWell")) {
@@ -229,6 +287,7 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
         ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=theta_t,low=0.01,high=0.13\n";
         ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n";
         ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n";
+        AppendVnSuiteProDeterministicSoils(ts);
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
