@@ -36,6 +36,9 @@ private slots:
     void chooseInflowFile();
     void chooseObservationFile();
     void chooseDepthProfileFile();
+    void chooseVnBaseOhqFile();
+    void chooseVnSoilLayersFile();
+    void chooseVnMoistureLayersFile();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
     void quickGenerateRunAndSave();
@@ -104,6 +107,9 @@ private:
     QLineEdit *outputSeriesFileEdit;
     QLineEdit *observationFileEdit;
     QLineEdit *depthProfileFileEdit;
+    QLineEdit *vnBaseOhqFileEdit;
+    QLineEdit *vnSoilLayersFileEdit;
+    QLineEdit *vnMoistureLayersFileEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
