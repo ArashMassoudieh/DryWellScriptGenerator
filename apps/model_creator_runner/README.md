@@ -33,6 +33,10 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - no VN files -> **FullReference** (hardcoded embedded VN baseline),
     - VN soil/moisture snippets only -> **SoftReference** (template + VN preset scaffold + user layer/link snippets),
     - VN base .ohq provided -> **LoadFromOhq**.
+  - In **SoftReference**, optional VN window controls can now shape generated base grid/link topology:
+    - **VN soft grid X count**
+    - **VN soft grid Y count**
+    - **VN soft layer thickness [m]**
 - Setup rows are now context-sensitive:
   - **Workflow mode** supports `Generate from scratch` and `Load/Edit existing .ohq` in one app.
   - VN-specific rows appear only for VN model/preset context.
