@@ -120,6 +120,7 @@ private:
     QLineEdit *observationNameEdit;
     QTextEdit *additionalCommandsEdit;
     QCheckBox *showOptionalFieldsCheck;
+    QCheckBox *allowGuiExecutionCheck;
     QWidget *inflowRowWidget = nullptr;
     QWidget *modelTypeRowWidget = nullptr;
     QWidget *presetRowWidget = nullptr;

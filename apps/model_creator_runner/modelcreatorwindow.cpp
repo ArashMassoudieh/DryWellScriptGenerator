@@ -451,6 +451,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       observationNameEdit(new QLineEdit(this)),
       additionalCommandsEdit(new QTextEdit(this)),
       showOptionalFieldsCheck(nullptr),
+      allowGuiExecutionCheck(nullptr),
       tabs(new QTabWidget(this)),
       logView(new QTextEdit(this)),
       inflowPlot(new SimpleLinePlotWidget(tr("Inflow"), this)),
@@ -523,6 +524,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
     exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
     exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; custom executables get no implicit args."));
+    allowGuiExecutionCheck = new QCheckBox(tr("Allow OpenHydroQual GUI execution fallback"), this);
+    allowGuiExecutionCheck->setChecked(false);
+    allowGuiExecutionCheck->setToolTip(tr("Recommended OFF. Keep disabled to enforce CLI/internal-solver execution only."));
+    layout->addWidget(allowGuiExecutionCheck);
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -682,6 +687,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
+    connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
     const auto saveOnEdit = [this](QLineEdit *edit) {
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
@@ -1497,7 +1503,19 @@ void ModelCreatorWindow::runScript()
             appendLog(stamp(tr("Selected GUI executable '%1'; auto-switched to CLI binary '%2'.")
                             .arg(exeInfo.fileName(), discoveredCliInfo.fileName())));
         } else {
-            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; proceeding with selected executable.")
+            const bool allowGuiFallback = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
+            if (!allowGuiFallback) {
+                QMessageBox::warning(this,
+                                     tr("GUI execution disabled"),
+                                     tr("No nearby OHQ CLI solver was found for:\n%1\n\n"
+                                        "GUI fallback is disabled.\n"
+                                        "Please select an OHQ CLI/internal solver executable (recommended) "
+                                        "or enable 'Allow OpenHydroQual GUI execution fallback'.")
+                                        .arg(exeInfo.absoluteFilePath()));
+                appendLog(stamp(tr("Run cancelled: GUI executable selected and no CLI discovered. GUI fallback is disabled.")));
+                return;
+            }
+            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; proceeding with GUI fallback because it is enabled.")
                             .arg(exeInfo.absoluteFilePath())));
         }
     }
@@ -2520,6 +2538,9 @@ void ModelCreatorWindow::loadSettings()
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }
+    if (allowGuiExecutionCheck) {
+        allowGuiExecutionCheck->setChecked(settings.value("allowGuiExecutionFallback", false).toBool());
+    }
     observationObjectEdit->setText(settings.value("observationObject", "Soil (1$1)").toString());
     observationExpressionEdit->setText(settings.value("observationExpression", "theta").toString());
     observationNameEdit->setText(settings.value("observationName", "Obs_1").toString());
@@ -2553,6 +2574,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
+    }
+    if (allowGuiExecutionCheck) {
+        settings.setValue("allowGuiExecutionFallback", allowGuiExecutionCheck->isChecked());
     }
     settings.setValue("observationObject", observationObjectEdit->text());
     settings.setValue("observationExpression", observationExpressionEdit->text());
