@@ -165,6 +165,9 @@ QString NormalizeVnBuildMode(const QString &mode)
     if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("FullReference");
     }
+    if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("SoftReference");
+    }
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
     }
@@ -1923,6 +1926,56 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             }
         }
 
+        *scriptText = out;
+        return true;
+    }
+
+    if (vnModelType && vnMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
+        ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
+        ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
+        ts << "# VN_Drywell soft reference base generated via preset + optional snippets\n";
+
+        QString vnPreset = ResolveVnPreset(options);
+        if (!IsKnownPreset(vnPreset)) {
+            vnPreset = QStringLiteral("VN_Drywell");
+        }
+        AppendEnrichmentPreset(ts, vnPreset, inflow);
+
+        if (!AppendSnippetFile(options.vnSoilLayersFile,
+                               QStringLiteral("VN soil layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile,
+                               QStringLiteral("VN moisture layers"),
+                               &out,
+                               errorMessage)) {
+            return false;
+        }
+
+        if (!options.observationFile.trimmed().isEmpty()) {
+            out += QStringLiteral(
+                "\ncreate observation;type=Observation,object=%1,name=%2,expression=%3,"
+                "observed_data=%4,error_structure=normal,error_standard_deviation=1\n")
+                    .arg(options.observationObject,
+                         options.observationName,
+                         options.observationExpression,
+                         options.observationFile);
+        }
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
         *scriptText = out;
         return true;
     }

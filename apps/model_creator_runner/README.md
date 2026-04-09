@@ -29,6 +29,10 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 - VN generation also includes explicit optional file inputs:
   - **VN base .ohq** to load a full VN script baseline directly.
   - **VN soil layers snippet** and **VN moisture layers snippet** to append layer command files before additional commands.
+  - Build-mode behavior is automatic for VN model:
+    - no VN files -> **FullReference** (hardcoded embedded VN baseline),
+    - VN soil/moisture snippets only -> **SoftReference** (template + VN preset scaffold + user layer/link snippets),
+    - VN base .ohq provided -> **LoadFromOhq**.
 - Setup rows are now context-sensitive:
   - **Workflow mode** supports `Generate from scratch` and `Load/Edit existing .ohq` in one app.
   - VN-specific rows appear only for VN model/preset context.
