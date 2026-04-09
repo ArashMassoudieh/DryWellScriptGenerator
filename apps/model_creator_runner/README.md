@@ -31,12 +31,12 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - **VN soil layers snippet** and **VN moisture layers snippet** to append layer command files before additional commands.
   - Build-mode behavior is automatic for VN model:
     - no VN files -> **FullReference** (hardcoded embedded VN baseline),
-    - VN soil/moisture snippets only -> **SoftReference** (template + VN preset scaffold + user layer/link snippets),
+    - VN soil/moisture snippets only -> **SoftReference** (template + embedded VN reference scaffold + controllable Soil-uw grid + user snippets),
     - VN base .ohq provided -> **LoadFromOhq**.
     - If VN soft-grid controls differ from defaults, mode is treated as **SoftReference** so grid settings are applied.
   - VN controls are now always shown in VN context (not hidden behind optional fields), including soft-grid controls and VN base/snippet paths.
   - If VN inflow is left empty, generation now defaults to `Synthetic_rain_flow.csv` (matching VN reference behavior).
-  - In **SoftReference**, optional VN window controls can now shape generated base grid/link topology:
+  - In **SoftReference**, optional VN window controls now shape a deterministic Soil-uw grid/link topology grafted onto the embedded VN reference scaffold:
     - **VN soft grid X count**
     - **VN soft grid Y count**
     - **VN soft cell size [m]**

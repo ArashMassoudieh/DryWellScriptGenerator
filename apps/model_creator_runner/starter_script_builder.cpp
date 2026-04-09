@@ -1652,6 +1652,48 @@ void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QS
     }
 }
 
+bool IsSoftReferenceGridLine(const QString &line)
+{
+    return line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("HL_Well_g - Soil-uw"), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("Soil to Groundwater ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
+}
+
+void AppendEmbeddedVnSoftReferenceScaffold(const StarterScriptOptions &options, QString *scriptText)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+
+    QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    ApplyVnKsatScaleOverrides(&embedded, options);
+
+    const QStringList filteredLines = embedded
+                                          .split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : filteredLines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+            || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("setvalue; object=Well_c, quantity=inflow"), Qt::CaseInsensitive)
+            || IsSoftReferenceGridLine(trimmed)) {
+            continue;
+        }
+        *scriptText += line + '\n';
+    }
+
+    if (!scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+}
+
 void AppendEnrichmentPreset(QTextStream &ts,
                             const QString &preset,
                             const QString &inflowFile = QString())
@@ -2060,19 +2102,15 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
 
     if (vnModelType && vnMode == QStringLiteral("SoftReference")) {
         QString out;
-        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
+        AppendEmbeddedVnSoftReferenceScaffold(options, &out);
         QTextStream ts(&out);
         ts.seek(out.size());
         ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
         ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
         ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
-        ts << "# VN_Drywell soft reference base generated via preset + optional snippets\n";
-
-        QString vnPreset = ResolveVnPreset(options);
-        if (!IsKnownPreset(vnPreset)) {
-            vnPreset = QStringLiteral("VN_Drywell");
-        }
-        AppendEnrichmentPreset(ts, vnPreset, inflow);
+        ts << "setvalue; object=Well_c, quantity=inflow, value=" << inflow << "\n";
+        ts << "# VN_Drywell soft reference scaffold generated from embedded VN reference + controllable Soil-uw grid\n";
         AppendVnSoftReferenceGrid(ts, options);
 
         if (!AppendSnippetFile(options.vnSoilLayersFile,
