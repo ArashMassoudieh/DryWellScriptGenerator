@@ -756,7 +756,19 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             runner->runScript(pendingGuiRetryScript, pendingGuiRetryWorkingDirectory, retryArgs);
             return;
         }
-        if (!parseConfigError) {
+        if (parseConfigError) {
+            pendingGuiRetryArgs.clear();
+            QMessageBox::warning(this,
+                                 tr("Simulation did not start"),
+                                 tr("OpenHydroQual reported a configuration parse error for all attempted argument patterns.\n\n"
+                                    "This usually means the selected executable expects a JSON configuration file interface rather than direct .ohq execution.\n\n"
+                                    "Try one of the following:\n"
+                                    "1) Select an OHQ CLI solver binary if available.\n"
+                                    "2) Provide explicit executable args required by your OpenHydroQual build.\n"
+                                    "3) Use your server/worker runner flow (e.g., DrywellDT) for this build."));
+            appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
+            return;
+        } else {
             pendingGuiRetryArgs.clear();
         }
         if (exitCode != 0) {

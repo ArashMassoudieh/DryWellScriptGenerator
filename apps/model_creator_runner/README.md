@@ -45,6 +45,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - OHQ CLI binaries receive positional script argument.
   - OpenHydroQual GUI binaries receive `<script> --run` so simulation starts directly.
 - If GUI launch returns `Failed to parse configuration`, runner now auto-retries with alternate GUI arg patterns before giving up.
+- If all GUI retry patterns still return `Failed to parse configuration`, runner now surfaces a clear warning that this executable likely requires a JSON-config/server interface (instead of direct `.ohq` execution).
 - Includes stop/cancel support for a running process.
 - Includes an **Export run artifacts** action to copy discovered `.vtk/.vtp/.vtu/.csv/.txt` files from the working directory tree (preserving relative folders) and write `export_manifest.csv`.
 - Persists last used paths/settings using `QSettings`.
