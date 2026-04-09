@@ -176,14 +176,13 @@ QString ResolveVnPreset(const StarterScriptOptions &options)
 
 void AppendVnSuiteProDeterministicSoils(QTextStream &ts)
 {
-    // Match VN-DrywellOHQ baseline geometry used by DryWellSuite Pro defaults.
-    const double wellRadius = 1.2192;   // 4 ft
-    const double pondRadius = 20.0;     // m
+    const double wellRadius = 1.2192;
+    const double pondRadius = 20.0;
     const int nr = 20;
     const int nLayers = 5;
     const int nLayerDeep = 45;
-    const double wellDepth = 12.192;    // 40 ft
-    const double depthToGw = 43.2816;   // 142 ft
+    const double wellDepth = 12.192;
+    const double depthToGw = 43.2816;
     const double surfaceElevation = 0.0;
     const double dr = (pondRadius - wellRadius) / static_cast<double>(nr);
     const double dy = wellDepth / static_cast<double>(nLayers);
@@ -304,7 +303,6 @@ void AppendVnFullReferenceScript(QTextStream &ts,
 
     AppendVnSuiteProDeterministicSoils(ts);
 
-    // Keep this path fully hardcoded and self-contained.
     ts << "create block;type=fixed_head,name=Ground Water,_width=500,_height=500,x=0,y=15000,head=-43.2816[m],Storage=100000[m~^3]\n";
 }
 
@@ -359,7 +357,25 @@ void AppendEnrichmentPreset(QTextStream &ts,
               "name=Junction_to_well\n";
     } else if (preset == QStringLiteral("VN_Drywell_Pro")) {
         ts << "\n# enrichment_preset: VN_Drywell_Pro\n";
-        AppendVnFullReferenceScript(ts, StarterScriptOptions{}, inflowFile);
+        ts << "create block;type=Pond,name=Infiltration_Pond,_width=200,_height=200,"
+              "x=-5971,y=-249,bottom_elevation=0[m],Storage=0[m~^3],alpha=86.061,"
+              "beta=2.766,inflow=" << inflowFile << "\n";
+        ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
+              "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
+              "depth=0[m],porosity=1,x=780.8,y=975.36\n";
+        ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
+              "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
+              "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+        ts << "create block;type=junction_elastic,name=Junction_elastic,"
+              "_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+        ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,"
+              "name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],"
+              "length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+        ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,"
+              "name=Well_to_junction\n";
+        ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
+              "name=Junction_to_well\n";
+        AppendVnSuiteProDeterministicSoils(ts);
     } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
         ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
@@ -509,9 +525,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                                        : QStringLiteral("Preset");
     const QString inflow = options.inflowFile.trimmed();
 
-    // -----------------------------------------------------------------
-    // VN mode 1: LoadFromOhq
-    // -----------------------------------------------------------------
     if (vnModelType && vnMode == QStringLiteral("LoadFromOhq")) {
         if (options.vnBaseOhqFile.trimmed().isEmpty()) {
             if (errorMessage) {
@@ -558,9 +571,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
-    // -----------------------------------------------------------------
-    // VN mode 2: FullReference
-    // -----------------------------------------------------------------
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
         QTextStream ts(&out);
@@ -587,9 +597,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
-    // -----------------------------------------------------------------
-    // General / Preset path
-    // -----------------------------------------------------------------
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
 
     if (vnModelType) {
