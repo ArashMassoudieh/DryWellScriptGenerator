@@ -7,6 +7,7 @@
 #include "scripteditordialog.h"
 
 #include <QComboBox>
+#include <QCheckBox>
 #include <QDateTime>
 #include <QDialog>
 #include <QDir>
@@ -441,10 +442,14 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       outputSeriesFileEdit(new QLineEdit(this)),
       observationFileEdit(new QLineEdit(this)),
       depthProfileFileEdit(new QLineEdit(this)),
+      vnBaseOhqFileEdit(new QLineEdit(this)),
+      vnSoilLayersFileEdit(new QLineEdit(this)),
+      vnMoistureLayersFileEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
       additionalCommandsEdit(new QTextEdit(this)),
+      showOptionalFieldsCheck(nullptr),
       tabs(new QTabWidget(this)),
       logView(new QTextEdit(this)),
       inflowPlot(new SimpleLinePlotWidget(tr("Inflow"), this)),
@@ -483,21 +488,27 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     modelTypeCombo->addItems({"Drywell", "VN_Drywell", "Bioswale"});
     syncEnrichmentPresetForModel();
 
-    auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) {
-        auto *row = new QHBoxLayout();
+    auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) -> QWidget* {
+        auto *container = new QWidget();
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(labelText));
         row->addWidget(edit, 1);
         auto *btn = new QPushButton(buttonText);
         QObject::connect(btn, &QPushButton::clicked, slot);
         row->addWidget(btn);
-        targetLayout->addLayout(row);
+        targetLayout->addWidget(container);
+        return container;
     };
 
-    auto addTextRow = [](QVBoxLayout *targetLayout, const QString &labelText, QWidget *editor) {
-        auto *row = new QHBoxLayout();
+    auto addTextRow = [](QVBoxLayout *targetLayout, const QString &labelText, QWidget *editor) -> QWidget* {
+        auto *container = new QWidget();
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(labelText));
         row->addWidget(editor, 1);
-        targetLayout->addLayout(row);
+        targetLayout->addWidget(container);
+        return container;
     };
 
     addTextRow(layout, tr("Model type"), modelTypeCombo);
@@ -519,11 +530,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     templateDirEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/resources"));
     addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
-    addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
+    inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
     inflowFileEdit->setPlaceholderText(tr("Suggested: <repo>/inflow.csv"));
-    addTextRow(layout, tr("Simulation start"), simulationStartEdit);
+    simulationStartRowWidget = addTextRow(layout, tr("Simulation start"), simulationStartEdit);
     simulationStartEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
-    addTextRow(layout, tr("Simulation end"), simulationEndEdit);
+    simulationEndRowWidget = addTextRow(layout, tr("Simulation end"), simulationEndEdit);
     simulationEndEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
     addTextRow(layout, tr("Ksat scale (all soils, optional)"), ksatScaleEdit);
     ksatScaleEdit->setPlaceholderText(tr("e.g. 1.0 (adds --ksat-scale)"));
@@ -531,28 +542,42 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     ksatScaleGEdit->setPlaceholderText(tr("e.g. 3.0 (adds --ksat-scale-g)"));
     addTextRow(layout, tr("Ksat scale-uw (optional)"), ksatScaleUwEdit);
     ksatScaleUwEdit->setPlaceholderText(tr("e.g. 30.0 (adds --ksat-scale-uw)"));
-    addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
+    outputSeriesRowWidget = addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
     outputSeriesFileEdit->setPlaceholderText(tr("Suggested: OHQ_output.txt"));
-    addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
+    observationFileRowWidget = addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
-    addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
+    depthProfileRowWidget = addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
+    vnBaseRowWidget = addFileRow(layout, tr("VN base .ohq (optional)"), vnBaseOhqFileEdit, tr("Browse"), [this]() { chooseVnBaseOhqFile(); });
+    vnBaseOhqFileEdit->setPlaceholderText(tr("Optional: load whole VN OHQ script as generation baseline"));
+    vnSoilRowWidget = addFileRow(layout, tr("VN soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
+    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
+    vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
+    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
     observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
     observationExpressionEdit->setToolTip(tr("Observed quantity/expression, e.g. moisture variable theta."));
     observationNameEdit->setPlaceholderText(tr("e.g. Obs_1"));
-    addTextRow(layout, tr("Soil layer/object (observation target)"), observationObjectEdit);
-    addTextRow(layout, tr("Moisture/expression (observation quantity)"), observationExpressionEdit);
-    addTextRow(layout, tr("Observation series name"), observationNameEdit);
+    observationObjectRowWidget = addTextRow(layout, tr("Soil layer/object (observation target)"), observationObjectEdit);
+    observationExpressionRowWidget = addTextRow(layout, tr("Moisture/expression (observation quantity)"), observationExpressionEdit);
+    observationNameRowWidget = addTextRow(layout, tr("Observation series name"), observationNameEdit);
+    showOptionalFieldsCheck = new QCheckBox(tr("Show optional fields"), this);
+    showOptionalFieldsCheck->setChecked(false);
+    layout->addWidget(showOptionalFieldsCheck);
     additionalCommandsEdit->setPlaceholderText(tr("Optional additional OHQ commands, one per line..."));
     auto *additionalRow = new QHBoxLayout();
     additionalRow->addWidget(new QLabel(tr("Additional OHQ commands")));
     additionalRow->addWidget(additionalCommandsEdit, 1);
     auto *loadCommandsButton = new QPushButton(tr("Load file"), this);
+    loadCommandsButton->setToolTip(
+        tr("Load VN layer/moisture snippets (.csv/.txt) or a full .ohq script into Additional OHQ commands."));
     connect(loadCommandsButton, &QPushButton::clicked, this, &ModelCreatorWindow::loadAdditionalCommandsFromFile);
     additionalRow->addWidget(loadCommandsButton);
-    layout->addLayout(additionalRow);
+    auto *additionalContainer = new QWidget(this);
+    additionalContainer->setLayout(additionalRow);
+    layout->addWidget(additionalContainer);
+    additionalCommandsRowWidget = additionalContainer;
     auto *suggestedDefaultsButton = new QPushButton(tr("Apply suggested defaults"), this);
     suggestedDefaultsButton->setToolTip(tr("Fill empty setup fields using repository/OpenHydroQual path suggestions."));
     connect(suggestedDefaultsButton, &QPushButton::clicked, this, &ModelCreatorWindow::applySuggestedDefaults);
@@ -648,7 +673,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(depthProfileFileEdit, &QLineEdit::editingFinished, this, &ModelCreatorWindow::refreshPlots);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, &ModelCreatorWindow::syncEnrichmentPresetForModel);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
+    connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
+    connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
 
     const auto saveOnEdit = [this](QLineEdit *edit) {
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
@@ -669,10 +697,14 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(outputSeriesFileEdit);
     saveOnEdit(observationFileEdit);
     saveOnEdit(depthProfileFileEdit);
+    saveOnEdit(vnBaseOhqFileEdit);
+    saveOnEdit(vnSoilLayersFileEdit);
+    saveOnEdit(vnMoistureLayersFileEdit);
     saveOnEdit(observationObjectEdit);
     saveOnEdit(observationExpressionEdit);
     saveOnEdit(observationNameEdit);
     connect(additionalCommandsEdit, &QTextEdit::textChanged, this, [this]() { saveSettings(); });
+    connect(vnBaseOhqFileEdit, &QLineEdit::editingFinished, this, [this]() { updateFieldVisibilityForContext(); });
 
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
@@ -765,6 +797,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     loadSettings();
     syncEnrichmentPresetForModel();
+    updateFieldVisibilityForContext();
     refreshPlots();
 }
 
@@ -781,11 +814,13 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         enrichmentPresetCombo->addItem(tr("Drywell (DryWellSuite style)"), "Drywell_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
         enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell)"), "VN_Drywell");
+        enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell Pro)"), "VN_Drywell_Pro");
         enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
         enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
         enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
     } else if (vnDrywellModel) {
-        enrichmentPresetCombo->addItem(tr("VN Drywell (default OHQ structure)"), "VN_Drywell");
+        enrichmentPresetCombo->addItem(tr("VN Drywell (DryWellSuite Pro default)"), "VN_Drywell_Pro");
+        enrichmentPresetCombo->addItem(tr("VN Drywell (legacy structure)"), "VN_Drywell");
     } else {
         enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
@@ -800,6 +835,33 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
                         .arg(previousPreset, modelType)));
     }
     saveSettings();
+}
+
+void ModelCreatorWindow::updateFieldVisibilityForContext()
+{
+    const QString modelType = modelTypeCombo->currentText().trimmed();
+    const QString preset = enrichmentPresetCombo->currentData().toString().trimmed();
+    const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
+        || preset.startsWith(QStringLiteral("VN_"));
+    const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
+    const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
+
+    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(vnContext && showOptional);
+    if (vnSoilRowWidget) vnSoilRowWidget->setVisible(vnContext && showOptional);
+    if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(vnContext && showOptional);
+
+    if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
+    if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
+    if (observationObjectRowWidget) observationObjectRowWidget->setVisible(showOptional);
+    if (observationExpressionRowWidget) observationExpressionRowWidget->setVisible(showOptional);
+    if (observationNameRowWidget) observationNameRowWidget->setVisible(showOptional);
+    if (additionalCommandsRowWidget) additionalCommandsRowWidget->setVisible(showOptional);
+
+    // When a VN base script is provided, these generated-field rows are not required.
+    if (inflowRowWidget) inflowRowWidget->setVisible(!usingVnBase);
+    if (simulationStartRowWidget) simulationStartRowWidget->setVisible(!usingVnBase);
+    if (simulationEndRowWidget) simulationEndRowWidget->setVisible(!usingVnBase);
+    if (outputSeriesRowWidget) outputSeriesRowWidget->setVisible(!usingVnBase);
 }
 
 void ModelCreatorWindow::chooseExecutable()
@@ -1044,12 +1106,48 @@ void ModelCreatorWindow::chooseDepthProfileFile()
     }
 }
 
+void ModelCreatorWindow::chooseVnBaseOhqFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN base OHQ script"),
+                                                          vnBaseOhqFileEdit->text(),
+                                                          tr("OHQ/Text files (*.ohq *.txt);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnBaseOhqFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
+void ModelCreatorWindow::chooseVnSoilLayersFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN soil layers snippet"),
+                                                          vnSoilLayersFileEdit->text(),
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnSoilLayersFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
+void ModelCreatorWindow::chooseVnMoistureLayersFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN moisture layers snippet"),
+                                                          vnMoistureLayersFileEdit->text(),
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnMoistureLayersFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
 void ModelCreatorWindow::loadAdditionalCommandsFromFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Load additional OHQ commands"),
+                                                          tr("Load soil/moisture layers or OHQ commands"),
                                                           {},
-                                                          tr("Text files (*.txt *.ohq);;All files (*.*)"));
+                                                          tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (fileName.isEmpty()) {
         return;
     }
@@ -1201,8 +1299,13 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.observationExpression = observationExpressionEdit->text().trimmed();
     options.observationName = observationNameEdit->text().trimmed();
     options.additionalCommands = additionalCommandsEdit->toPlainText();
+    options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+    options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
+    options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+    const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
-    if (options.templateDirectory.isEmpty()) {
+    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
         QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template resources directory first."));
         return false;
     }
@@ -1212,12 +1315,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (options.inflowFile.isEmpty()) {
+    if (!usingExplicitVnBase && options.inflowFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
         return false;
     }
 
-    if (options.outputSeriesFile.isEmpty()) {
+    if (!usingExplicitVnBase && options.outputSeriesFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing output filename"), tr("Please provide the OHQ output series filename."));
         return false;
     }
@@ -2328,6 +2431,12 @@ void ModelCreatorWindow::loadSettings()
     outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
+    vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
+    vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
+    vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
+    if (showOptionalFieldsCheck) {
+        showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
+    }
     observationObjectEdit->setText(settings.value("observationObject", "Soil (1$1)").toString());
     observationExpressionEdit->setText(settings.value("observationExpression", "theta").toString());
     observationNameEdit->setText(settings.value("observationName", "Obs_1").toString());
@@ -2355,6 +2464,12 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("outputSeriesFile", outputSeriesFileEdit->text());
     settings.setValue("observationFile", observationFileEdit->text());
     settings.setValue("depthProfileFile", depthProfileFileEdit->text());
+    settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
+    settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
+    settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
+    if (showOptionalFieldsCheck) {
+        settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
+    }
     settings.setValue("observationObject", observationObjectEdit->text());
     settings.setValue("observationExpression", observationExpressionEdit->text());
     settings.setValue("observationName", observationNameEdit->text());
