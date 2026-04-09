@@ -8,6 +8,8 @@
 #include <QTextStream>
 #include <QtGlobal>
 
+#include <cmath>
+
 namespace {
 
 QString TemplateFile(const QString &templateDir, const QString &filename)
