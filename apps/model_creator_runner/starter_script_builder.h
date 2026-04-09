@@ -36,17 +36,36 @@ struct StarterScriptOptions
     // Optional raw OHQ lines appended at the end of generated starter script.
     QString additionalCommands;
 
+    // ---------------------------------------------------------------------
+    // VN-specific configuration
+    // ---------------------------------------------------------------------
+    //
+    // vnBuildMode controls how VN_Drywell scripts are generated:
+    //
+    //   "Preset"        -> use vnPreset / enrichmentPreset (default, legacy-friendly)
+    //   "FullReference" -> generate a full hardcoded VN reference model
+    //   "LoadFromOhq"   -> load vnBaseOhqFile as authoritative base script
+    //
+    // For non-VN model types, these fields are ignored.
+    QString vnBuildMode = "Preset";   // Preset | FullReference | LoadFromOhq
+
+    // VN preset name used only when vnBuildMode == "Preset".
+    // If empty, falls back to enrichmentPreset, then to "VN_Drywell".
+    QString vnPreset = "VN_Drywell";  // VN_Drywell | VN_Drywell_Pro
+
     // Optional VN-specific source files.
     //
-    // If vnBaseOhqFile is provided for modelType=VN_Drywell, it is loaded as the
-    // authoritative base script and used as-is, then optional snippets are appended.
-    //
-    // This is the preferred flexible VN path because the number of soil layers,
-    // number of blocks, names, links, and values may vary from case to case.
+    // If vnBuildMode == "LoadFromOhq", vnBaseOhqFile is required and is loaded
+    // as the authoritative base script. vnSoilLayersFile and
+    // vnMoistureLayersFile are appended as additional snippets.
     QString vnBaseOhqFile;
     QString vnSoilLayersFile;
     QString vnMoistureLayersFile;
 
+    // ---------------------------------------------------------------------
+    // General preset mode configuration
+    // ---------------------------------------------------------------------
+    //
     // Optional preset that appends extra model blocks/links.
     //
     // Supported:
@@ -56,10 +75,9 @@ struct StarterScriptOptions
     //   "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
     //   "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
     //
-    // Important:
-    //   - For VN_Drywell, the default preset is intentionally legacy ("VN_Drywell"),
-    //     not "VN_Drywell_Pro".
-    //   - "VN_Drywell_Pro" remains available explicitly when requested.
+    // Notes:
+    //   - For VN_Drywell in Preset mode, vnPreset is preferred.
+    //   - enrichmentPreset remains supported for backward compatibility.
     QString enrichmentPreset;
 };
 
