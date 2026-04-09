@@ -521,6 +521,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnBaseOhqFileEdit(new QLineEdit(this)),
       vnSoilLayersFileEdit(new QLineEdit(this)),
       vnMoistureLayersFileEdit(new QLineEdit(this)),
+      vnSoftGridXEdit(new QLineEdit(this)),
+      vnSoftGridYEdit(new QLineEdit(this)),
+      vnSoftCellSizeEdit(new QLineEdit(this)),
+      vnSoftTopElevationEdit(new QLineEdit(this)),
+      vnSoftLayerThicknessEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -640,6 +645,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
     vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
     vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
+    vnSoftGridXRowWidget = addTextRow(layout, tr("VN soft grid X count"), vnSoftGridXEdit);
+    vnSoftGridXEdit->setPlaceholderText(tr("Default: 17"));
+    vnSoftGridYRowWidget = addTextRow(layout, tr("VN soft grid Y count"), vnSoftGridYEdit);
+    vnSoftGridYEdit->setPlaceholderText(tr("Default: 12"));
+    vnSoftCellSizeRowWidget = addTextRow(layout, tr("VN soft cell size [m]"), vnSoftCellSizeEdit);
+    vnSoftCellSizeEdit->setPlaceholderText(tr("Default: 586.9"));
+    vnSoftTopElevationRowWidget = addTextRow(layout, tr("VN soft top elevation [m]"), vnSoftTopElevationEdit);
+    vnSoftTopElevationEdit->setPlaceholderText(tr("Default: -5.0"));
+    vnSoftLayerThicknessRowWidget = addTextRow(layout, tr("VN soft layer thickness [m]"), vnSoftLayerThicknessEdit);
+    vnSoftLayerThicknessEdit->setPlaceholderText(tr("Default: 1.0"));
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
     observationExpressionEdit->setPlaceholderText(tr("e.g. theta"));
@@ -789,6 +804,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnBaseOhqFileEdit);
     saveOnEdit(vnSoilLayersFileEdit);
     saveOnEdit(vnMoistureLayersFileEdit);
+    saveOnEdit(vnSoftGridXEdit);
+    saveOnEdit(vnSoftGridYEdit);
+    saveOnEdit(vnSoftCellSizeEdit);
+    saveOnEdit(vnSoftTopElevationEdit);
+    saveOnEdit(vnSoftLayerThicknessEdit);
     saveOnEdit(observationObjectEdit);
     saveOnEdit(observationExpressionEdit);
     saveOnEdit(observationNameEdit);
@@ -972,6 +992,11 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
     if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
     if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
+    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
+    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
+    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
+    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
+    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -1351,6 +1376,26 @@ void ModelCreatorWindow::previewScript()
         options.observationExpression = observationExpressionEdit->text().trimmed();
         options.observationName = observationNameEdit->text().trimmed();
         options.additionalCommands = additionalCommandsEdit->toPlainText();
+        options.ksatScaleAll = ksatScaleEdit->text().trimmed();
+        options.ksatScaleG = ksatScaleGEdit->text().trimmed();
+        options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
+        options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+        options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
+        options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+        options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
+        options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
+        options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
+        options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
+        options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
+        if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+            if (!options.vnBaseOhqFile.isEmpty()) {
+                options.vnBuildMode = QStringLiteral("LoadFromOhq");
+            } else if (!options.vnSoilLayersFile.isEmpty() || !options.vnMoistureLayersFile.isEmpty()) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+            } else {
+                options.vnBuildMode = QStringLiteral("FullReference");
+            }
+        }
 
         QString error;
         const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
@@ -1456,9 +1501,26 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.observationExpression = observationExpressionEdit->text().trimmed();
     options.observationName = observationNameEdit->text().trimmed();
     options.additionalCommands = additionalCommandsEdit->toPlainText();
+    options.ksatScaleAll = ksatScaleEdit->text().trimmed();
+    options.ksatScaleG = ksatScaleGEdit->text().trimmed();
+    options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
+    options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
+    options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
+    options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
+    options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
+    options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
+    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        if (!options.vnBaseOhqFile.isEmpty()) {
+            options.vnBuildMode = QStringLiteral("LoadFromOhq");
+        } else if (!options.vnSoilLayersFile.isEmpty() || !options.vnMoistureLayersFile.isEmpty()) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
+        } else {
+            options.vnBuildMode = QStringLiteral("FullReference");
+        }
+    }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
@@ -2662,6 +2724,11 @@ void ModelCreatorWindow::loadSettings()
     vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
+    vnSoftGridXEdit->setText(settings.value("vnSoftGridXCount", "17").toString());
+    vnSoftGridYEdit->setText(settings.value("vnSoftGridYCount", "12").toString());
+    vnSoftCellSizeEdit->setText(settings.value("vnSoftCellSize", "586.9").toString());
+    vnSoftTopElevationEdit->setText(settings.value("vnSoftTopElevation", "-5.0").toString());
+    vnSoftLayerThicknessEdit->setText(settings.value("vnSoftLayerThickness", "1.0").toString());
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }
@@ -2700,6 +2767,11 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
     settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
+    settings.setValue("vnSoftGridXCount", vnSoftGridXEdit->text());
+    settings.setValue("vnSoftGridYCount", vnSoftGridYEdit->text());
+    settings.setValue("vnSoftCellSize", vnSoftCellSizeEdit->text());
+    settings.setValue("vnSoftTopElevation", vnSoftTopElevationEdit->text());
+    settings.setValue("vnSoftLayerThickness", vnSoftLayerThicknessEdit->text());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
     }
