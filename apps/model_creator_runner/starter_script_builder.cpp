@@ -122,8 +122,9 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
         return false;
     }
+    const bool vnModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     if ((trimmedPreset == QStringLiteral("VN_Drywell")
-         || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !drywellModel) {
+         || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !vnModel) {
         return false;
     }
     return true;
