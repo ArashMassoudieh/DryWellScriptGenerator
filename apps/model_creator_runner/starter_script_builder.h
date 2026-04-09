@@ -8,16 +8,22 @@ struct StarterScriptOptions
 {
     /// Directory containing OHQ JSON template resources required by starter generation.
     QString templateDirectory;
+
     /// Destination path for writing generated starter script text.
     QString outputFile;
+
     /// Base model flavor for starter creation ("Drywell", "VN_Drywell", or "Bioswale").
     QString modelType = "Drywell";    // Drywell | VN_Drywell | Bioswale
+
     /// Input inflow time series file path.
     QString inflowFile;
+
     /// Simulation start time (OHQ numeric timestamp).
     QString simulationStart = "44435";
+
     /// Simulation end time (OHQ numeric timestamp).
     QString simulationEnd = "44438";
+
     /// Output series filename used by OHQ during run.
     QString outputSeriesFile = "OHQ_output.txt";
 
@@ -31,18 +37,29 @@ struct StarterScriptOptions
     QString additionalCommands;
 
     // Optional VN-specific source files.
-    // If vnBaseOhqFile is provided for modelType=VN_Drywell, it is loaded as the base script.
-    // vnSoilLayersFile and vnMoistureLayersFile contents are appended as additional snippets.
+    //
+    // If vnBaseOhqFile is provided for modelType=VN_Drywell, it is loaded as the
+    // authoritative base script and used as-is, then optional snippets are appended.
+    //
+    // This is the preferred flexible VN path because the number of soil layers,
+    // number of blocks, names, links, and values may vary from case to case.
     QString vnBaseOhqFile;
     QString vnSoilLayersFile;
     QString vnMoistureLayersFile;
 
     // Optional preset that appends extra model blocks/links.
-    // Supported: "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
-    //            "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
-    //            "Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
-    //            "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
-    //            "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
+    //
+    // Supported:
+    //   "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
+    //   "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
+    //   "Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
+    //   "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
+    //   "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
+    //
+    // Important:
+    //   - For VN_Drywell, the default preset is intentionally legacy ("VN_Drywell"),
+    //     not "VN_Drywell_Pro".
+    //   - "VN_Drywell_Pro" remains available explicitly when requested.
     QString enrichmentPreset;
 };
 

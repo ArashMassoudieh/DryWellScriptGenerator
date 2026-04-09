@@ -122,6 +122,7 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
     if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
         return false;
     }
+
     const bool vnModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     if ((trimmedPreset == QStringLiteral("VN_Drywell")
          || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !vnModel) {
@@ -382,7 +383,7 @@ void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QStrin
         ts << "create link;from=Underdrain,to=GW,type=pipe_to_fixedhead_link,name=Legacy_Underdrain_to_GW\n";
     }
 }
-}
+} // namespace
 
 bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                                      QString *scriptText,
@@ -406,6 +407,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const bool vnModelType = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+
+    // Preferred flexible VN path:
+    // if a base OHQ file is provided, preserve its structure and only append snippets/commands.
     if (vnModelType && !options.vnBaseOhqFile.trimmed().isEmpty()) {
         QString vnBaseText;
         if (!LoadEntireFile(options.vnBaseOhqFile, &vnBaseText, errorMessage)) {
@@ -451,10 +455,15 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     QString enrichmentPreset = options.enrichmentPreset.trimmed();
+
+    // IMPORTANT:
+    // Default VN behavior should remain legacy-friendly.
+    // Do NOT silently promote VN_Drywell to VN_Drywell_Pro.
     if (enrichmentPreset.isEmpty()
         && options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        enrichmentPreset = QStringLiteral("VN_Drywell_Pro");
+        enrichmentPreset = QStringLiteral("VN_Drywell");
     }
+
     if (!enrichmentPreset.isEmpty() && !IsKnownPreset(enrichmentPreset)) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Unknown enrichment preset: %1").arg(enrichmentPreset);
@@ -486,6 +495,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const QString inflow = options.inflowFile.trimmed();
+
+    // Explicit Pro path remains fully supported and unchanged.
     if (vnModelType && enrichmentPreset == QStringLiteral("VN_Drywell_Pro")) {
         QString out;
         QTextStream ts(&out);
