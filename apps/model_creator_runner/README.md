@@ -33,6 +33,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - no VN files -> **FullReference** (hardcoded embedded VN baseline),
     - VN soil/moisture snippets only -> **SoftReference** (template + VN preset scaffold + user layer/link snippets),
     - VN base .ohq provided -> **LoadFromOhq**.
+  - VN controls are now always shown in VN context (not hidden behind optional fields), including soft-grid controls and VN base/snippet paths.
   - If VN inflow is left empty, generation now defaults to `Synthetic_rain_flow.csv` (matching VN reference behavior).
   - In **SoftReference**, optional VN window controls can now shape generated base grid/link topology:
     - **VN soft grid X count**
@@ -42,6 +43,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - **VN soft layer thickness [m]**
   - VN script generation now respects **Ksat scale** UI inputs:
     - `Ksat scale-g` / `Ksat scale-uw` (or fallback `Ksat scale`) are applied in generated VN blocks.
+  - In `LoadFromOhq`, simulation start/end/outputfile and inflow overrides are appended, and Ksat scale substitutions are applied where matching fields exist.
 - Setup rows are now context-sensitive:
   - **Workflow mode** supports `Generate from scratch` and `Load/Edit existing .ohq` in one app.
   - VN-specific rows appear only for VN model/preset context.

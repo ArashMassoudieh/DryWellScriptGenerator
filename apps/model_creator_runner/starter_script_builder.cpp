@@ -65,6 +65,19 @@ QString ResolveKsatScaleString(const QString &primary,
     return defaultValue;
 }
 
+void ApplyVnKsatScaleOverrides(QString *scriptText, const StarterScriptOptions &options)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    scriptText->replace(QStringLiteral("K_sat_scale_factor=2.5"),
+                        QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
+    scriptText->replace(QStringLiteral("K_sat_scale_factor=35"),
+                        QStringLiteral("K_sat_scale_factor=%1").arg(uwScale));
+}
+
 bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
 {
     QFile file(path);
@@ -1616,12 +1629,7 @@ void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QS
     }
 
     QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
-    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
-    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
-    embedded.replace(QStringLiteral("K_sat_scale_factor=2.5"),
-                     QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
-    embedded.replace(QStringLiteral("K_sat_scale_factor=35"),
-                     QStringLiteral("K_sat_scale_factor=%1").arg(uwScale));
+    ApplyVnKsatScaleOverrides(&embedded, options);
 
     const QStringList filteredLines = embedded
                                           .split('\n', Qt::KeepEmptyParts);
@@ -1951,6 +1959,21 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         QString vnBaseText;
         if (!LoadEntireFile(options.vnBaseOhqFile, &vnBaseText, errorMessage)) {
             return false;
+        }
+        ApplyVnKsatScaleOverrides(&vnBaseText, options);
+
+        if (!vnBaseText.endsWith('\n')) {
+            vnBaseText += '\n';
+        }
+        vnBaseText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
+                          .arg(options.simulationStart);
+        vnBaseText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n")
+                          .arg(options.simulationEnd);
+        vnBaseText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
+                          .arg(options.outputSeriesFile);
+        if (!inflow.isEmpty()) {
+            vnBaseText += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
+                              .arg(inflow);
         }
 
         if (!AppendSnippetFile(options.vnSoilLayersFile,

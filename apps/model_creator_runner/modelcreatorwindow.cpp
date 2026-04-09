@@ -1039,14 +1039,14 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (templateDirRowWidget) templateDirRowWidget->setVisible(!loadExistingMode && !usingVnBase);
     if (generatedScriptRowWidget) generatedScriptRowWidget->setVisible(!loadExistingMode);
 
-    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
-    if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
-    if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
-    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
-    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
-    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
-    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
-    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext && showOptional && !usingVnBase);
+    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
