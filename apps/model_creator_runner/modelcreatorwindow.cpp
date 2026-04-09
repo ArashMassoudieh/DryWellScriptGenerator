@@ -425,6 +425,7 @@ QString FilterRuntimeNoise(const QString &text, int *suppressedLineCount)
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     : QMainWindow(parent),
       modelTypeCombo(new QComboBox(this)),
+      workflowModeCombo(new QComboBox(this)),
       exePathEdit(new QLineEdit(this)),
       exeArgsEdit(new QLineEdit(this)),
       scriptPathEdit(new QLineEdit(this)),
@@ -485,6 +486,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     auto *layout = new QVBoxLayout(runTab);
     tabs->addTab(runTab, tr("Setup + Run"));
 
+    workflowModeCombo->addItem(tr("Generate from scratch"), "generate");
+    workflowModeCombo->addItem(tr("Load/Edit existing .ohq"), "load");
     modelTypeCombo->addItems({"Drywell", "VN_Drywell", "Bioswale"});
     syncEnrichmentPresetForModel();
 
@@ -511,8 +514,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         return container;
     };
 
-    addTextRow(layout, tr("Model type"), modelTypeCombo);
-    addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
+    addTextRow(layout, tr("Workflow mode"), workflowModeCombo);
+    modelTypeRowWidget = addTextRow(layout, tr("Model type"), modelTypeCombo);
+    presetRowWidget = addTextRow(layout, tr("Model enrichment preset"), enrichmentPresetCombo);
     addFileRow(layout, tr("OHQ executable (optional)"), exePathEdit, tr("Browse"), [this]() { chooseExecutable(); });
     exePathEdit->setPlaceholderText(tr("Optional: auto-detected from OpenHydroQual roots when empty"));
     exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
@@ -526,9 +530,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     workingDirEdit->setPlaceholderText(tr("Suggested: this repository root"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
-    addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
+    templateDirRowWidget = addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
     templateDirEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/resources"));
-    addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
+    generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
     inflowFileEdit->setPlaceholderText(tr("Suggested: <repo>/inflow.csv"));
@@ -674,6 +678,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, &ModelCreatorWindow::syncEnrichmentPresetForModel);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
@@ -813,8 +818,6 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
     if (drywellModel) {
         enrichmentPresetCombo->addItem(tr("Drywell (DryWellSuite style)"), "Drywell_SuiteStyle");
         enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
-        enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell)"), "VN_Drywell");
-        enrichmentPresetCombo->addItem(tr("Drywell (VN_Drywell Pro)"), "VN_Drywell_Pro");
         enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
         enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
         enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
@@ -839,6 +842,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 
 void ModelCreatorWindow::updateFieldVisibilityForContext()
 {
+    const QString workflowMode = workflowModeCombo->currentData().toString().trimmed();
+    const bool loadExistingMode = workflowMode == QStringLiteral("load");
     const QString modelType = modelTypeCombo->currentText().trimmed();
     const QString preset = enrichmentPresetCombo->currentData().toString().trimmed();
     const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
@@ -846,9 +851,14 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
 
-    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(vnContext && showOptional);
-    if (vnSoilRowWidget) vnSoilRowWidget->setVisible(vnContext && showOptional);
-    if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(vnContext && showOptional);
+    if (modelTypeRowWidget) modelTypeRowWidget->setVisible(!loadExistingMode);
+    if (presetRowWidget) presetRowWidget->setVisible(!loadExistingMode);
+    if (templateDirRowWidget) templateDirRowWidget->setVisible(!loadExistingMode && !usingVnBase);
+    if (generatedScriptRowWidget) generatedScriptRowWidget->setVisible(!loadExistingMode);
+
+    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
+    if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
+    if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext && showOptional);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -858,10 +868,10 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (additionalCommandsRowWidget) additionalCommandsRowWidget->setVisible(showOptional);
 
     // When a VN base script is provided, these generated-field rows are not required.
-    if (inflowRowWidget) inflowRowWidget->setVisible(!usingVnBase);
-    if (simulationStartRowWidget) simulationStartRowWidget->setVisible(!usingVnBase);
-    if (simulationEndRowWidget) simulationEndRowWidget->setVisible(!usingVnBase);
-    if (outputSeriesRowWidget) outputSeriesRowWidget->setVisible(!usingVnBase);
+    if (inflowRowWidget) inflowRowWidget->setVisible(!loadExistingMode && !usingVnBase);
+    if (simulationStartRowWidget) simulationStartRowWidget->setVisible(!loadExistingMode && !usingVnBase);
+    if (simulationEndRowWidget) simulationEndRowWidget->setVisible(!loadExistingMode && !usingVnBase);
+    if (outputSeriesRowWidget) outputSeriesRowWidget->setVisible(!loadExistingMode && !usingVnBase);
 }
 
 void ModelCreatorWindow::chooseExecutable()
@@ -1022,6 +1032,18 @@ void ModelCreatorWindow::applySuggestedDefaults()
 
 void ModelCreatorWindow::quickGenerateRunAndSave()
 {
+    const bool loadExistingMode = workflowModeCombo->currentData().toString() == QStringLiteral("load");
+    if (loadExistingMode) {
+        if (artifactsDirEdit->text().trimmed().isEmpty()) {
+            const QString fallbackArtifacts = QDir(workingDirEdit->text().trimmed()).filePath("artifacts");
+            artifactsDirEdit->setText(fallbackArtifacts);
+        }
+        QDir().mkpath(artifactsDirEdit->text().trimmed());
+        saveSettings();
+        runScript();
+        return;
+    }
+
     applySuggestedDefaults();
 
     if (artifactsDirEdit->text().trimmed().isEmpty()) {
@@ -1285,6 +1307,15 @@ void ModelCreatorWindow::generateAndRunStarterScript()
 
 bool ModelCreatorWindow::generateStarterScriptInternal()
 {
+    const bool loadExistingMode = workflowModeCombo->currentData().toString() == QStringLiteral("load");
+    if (loadExistingMode) {
+        QMessageBox::information(this,
+                                 tr("Generate from scratch disabled"),
+                                 tr("Workflow mode is set to 'Load/Edit existing .ohq'.\n\n"
+                                    "Switch to 'Generate from scratch' to build a new starter script."));
+        return false;
+    }
+
     StarterScriptOptions options;
     options.templateDirectory = templateDirEdit->text().trimmed();
     options.outputFile = generatedScriptEdit->text().trimmed();
@@ -2410,6 +2441,8 @@ void ModelCreatorWindow::loadSettings()
     });
 
     modelTypeCombo->setCurrentText(settings.value("modelType", "Drywell").toString());
+    const int workflowIndex = workflowModeCombo->findData(settings.value("workflowMode", "generate").toString());
+    workflowModeCombo->setCurrentIndex(workflowIndex >= 0 ? workflowIndex : 0);
     const QString enrichmentPreset = settings.value("enrichmentPreset").toString();
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
@@ -2447,6 +2480,7 @@ void ModelCreatorWindow::saveSettings() const
 {
     QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
     settings.setValue("modelType", modelTypeCombo->currentText());
+    settings.setValue("workflowMode", workflowModeCombo->currentData().toString());
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());
     settings.setValue("ohqExecutable", exePathEdit->text());
     settings.setValue("ohqExecutableArgs", exeArgsEdit->text());

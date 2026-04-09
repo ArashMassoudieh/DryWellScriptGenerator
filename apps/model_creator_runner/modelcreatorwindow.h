@@ -92,6 +92,7 @@ private:
     void updateFieldVisibilityForContext();
 
     QComboBox *modelTypeCombo;
+    QComboBox *workflowModeCombo;
     QLineEdit *exePathEdit;
     /// Optional executable argument template (supports {script} token).
     QLineEdit *exeArgsEdit;
@@ -119,6 +120,10 @@ private:
     QTextEdit *additionalCommandsEdit;
     QCheckBox *showOptionalFieldsCheck;
     QWidget *inflowRowWidget = nullptr;
+    QWidget *modelTypeRowWidget = nullptr;
+    QWidget *presetRowWidget = nullptr;
+    QWidget *templateDirRowWidget = nullptr;
+    QWidget *generatedScriptRowWidget = nullptr;
     QWidget *simulationStartRowWidget = nullptr;
     QWidget *simulationEndRowWidget = nullptr;
     QWidget *outputSeriesRowWidget = nullptr;
