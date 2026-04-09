@@ -41,6 +41,9 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 - Built-in enrichment presets include drywell-specific monitoring-well/groundwater-boundary/pretreatment, VN-specific `VN_Drywell` + `VN_Drywell_Pro`, and bioswale-specific underdrain / underdrain+groundwater additions.
 - `VN_ref.ohq` can still be used explicitly by selecting it as **VN base .ohq**.
 - Can execute an OHQ binary with a selected `.ohq` script and stream logs.
+- If executable args are left empty, runner now auto-applies defaults:
+  - OHQ CLI binaries receive positional script argument.
+  - OpenHydroQual GUI binaries receive `--script <file> --run` so simulation starts directly.
 - Includes stop/cancel support for a running process.
 - Includes an **Export run artifacts** action to copy discovered `.vtk/.vtp/.vtu/.csv/.txt` files from the working directory tree (preserving relative folders) and write `export_manifest.csv`.
 - Persists last used paths/settings using `QSettings`.

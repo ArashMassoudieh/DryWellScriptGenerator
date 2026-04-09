@@ -522,7 +522,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
     exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
-    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted, script path is passed as a positional argument."));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets --script {script} --run."));
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
@@ -1477,10 +1477,14 @@ void ModelCreatorWindow::runScript()
     }
 
     const QString configuredArgsTemplate = exeArgsEdit->text().trimmed();
-    const bool executableLooksLikeCli = LooksLikeCliOhqBinaryName(QFileInfo(executablePathToRun).fileName());
+    const QFileInfo executableToRunInfo(executablePathToRun);
+    const bool executableLooksLikeCli = LooksLikeCliOhqBinaryName(executableToRunInfo.fileName());
+    const bool executableLooksLikeGui = LooksLikeGuiOpenHydroQualExecutable(executableToRunInfo);
     const bool templateReferencesScript = configuredArgsTemplate.contains(QStringLiteral("{script}"));
-    const bool passScriptByDefault = configuredArgsTemplate.isEmpty() && executableLooksLikeCli;
-    const bool scriptRequired = templateReferencesScript || passScriptByDefault;
+    const bool noTemplateArgsProvided = configuredArgsTemplate.isEmpty();
+    const bool passScriptAsPositionalDefault = noTemplateArgsProvided && (executableLooksLikeCli || !executableLooksLikeGui);
+    const bool passScriptAsFlaggedDefault = noTemplateArgsProvided && executableLooksLikeGui;
+    const bool scriptRequired = templateReferencesScript || passScriptAsPositionalDefault || passScriptAsFlaggedDefault;
 
     if (scriptRequired && (!scriptInfo.exists() || !scriptInfo.isFile())) {
         QMessageBox::warning(this, tr("Missing script"), tr("Please select a valid .ohq script file."));
@@ -1517,7 +1521,13 @@ void ModelCreatorWindow::runScript()
 
     runner->setExecutablePath(executablePathToRun);
     QStringList executableArgs;
-    if (passScriptByDefault) {
+    if (passScriptAsFlaggedDefault) {
+        executableArgs = QStringList{
+            QStringLiteral("--script"),
+            scriptInfo.absoluteFilePath(),
+            QStringLiteral("--run")
+        };
+    } else if (passScriptAsPositionalDefault) {
         executableArgs = QStringList{scriptInfo.absoluteFilePath()};
     } else {
         executableArgs = BuildExecutableArguments(configuredArgsTemplate,
@@ -1540,6 +1550,9 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
+    if (passScriptAsFlaggedDefault) {
+        appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: --script <file> --run")));
+    }
 
     if (scriptRequired) {
         appendLog(stamp(tr("Running script: %1").arg(scriptInfo.absoluteFilePath())));
