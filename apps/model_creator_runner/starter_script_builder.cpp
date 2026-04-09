@@ -187,6 +187,75 @@ void AppendVnSuiteProDeterministicSoils(QTextStream &ts)
     }
 }
 
+void AppendVnDrywellProReferenceScript(QTextStream &ts,
+                                       const StarterScriptOptions &options,
+                                       const QString &inflowFile)
+{
+    ts << "loadtemplate; filename=" << TemplateFile(options.templateDirectory, "main_components.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Pond_Plugin.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "unsaturated_soil.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Well.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "Sewer_system.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "soil_evapotranspiration_models.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "evapotranspiration_models.json") << "\n";
+    ts << "addtemplate; filename=" << TemplateFile(options.templateDirectory, "pipe_pump_tank.json") << "\n";
+    ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
+    ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
+    ts << "setvalue; object=system, quantity=shakescalered, value=0.75\n";
+    ts << "setvalue; object=system, quantity=shakescale, value=0.05\n";
+    ts << "setvalue; object=system, quantity=pmute, value=0.02\n";
+    ts << "setvalue; object=system, quantity=ngen, value=40\n";
+    ts << "setvalue; object=system, quantity=pcross, value=1\n";
+    ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
+    ts << "setvalue; object=system, quantity=maxpop, value=40\n";
+    ts << "setvalue; object=system, quantity=write_solution_details, value=No\n";
+    ts << "setvalue; object=system, quantity=nr_tolerance, value=0.001\n";
+    ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor_fail, value=0.2\n";
+    ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor, value=0.75\n";
+    ts << "setvalue; object=system, quantity=n_threads, value=4\n";
+    ts << "setvalue; object=system, quantity=minimum_timestep, value=1e-06\n";
+    ts << "setvalue; object=system, quantity=initial_time_step, value=0.01\n";
+    ts << "setvalue; object=system, quantity=c_n_weight, value=1\n";
+    ts << "setvalue; object=system, quantity=maximum_time_allowed, value=4800\n";
+    ts << "create block;type=Pond,inflow=" << inflowFile
+       << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
+          "Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=-5971,y=-249,_height=200\n";
+    ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
+          "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
+          "depth=0[m],porosity=1,x=780.8,y=975.36\n";
+    ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
+          "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
+          "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
+    ts << "create block;type=junction_elastic,name=Junction_elastic,"
+          "_height=1000,_width=1000,x=3000,y=10753.6,elevation=-4.8768[m]\n";
+    ts << "create link;from=Well_c,to=Well_g,type=Sewer_pipe,"
+          "name=Well_to_well_overflow,ManningCoeff=0.01,diameter=0.2032[m],"
+          "length=10[m],start_elevation=-1.8288[m],end_elevation=-8.5344[m]\n";
+    ts << "create link;from=Well_c,to=Junction_elastic,type=darcy_connector,"
+          "name=Well_to_junction\n";
+    ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
+          "name=Junction_to_well\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_1,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_2,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_3,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_4,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_5,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_6,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_7,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_8,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_9,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_10,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_11,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=6.722232,prior_distribution=normal,name=Ks_12,low=5,high=10\n";
+    ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=alpha,low=0.00001,high=10\n";
+    ts << "create parameter;type=Parameter,value=0.26,prior_distribution=log-normal,name=new_Van_alpha,low=0.00001,high=10\n";
+    ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=beta,low=0.5,high=5\n";
+    ts << "create parameter;type=Parameter,value=2,prior_distribution=log-normal,name=theta_t,low=0.01,high=0.13\n";
+    ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Drywell,low=50,high=500\n";
+    ts << "create parameter;type=Parameter,value=100,prior_distribution=log-normal,name=Transmissivity_Coeff_Sed_Chamber,low=20,high=500\n";
+    AppendVnSuiteProDeterministicSoils(ts);
+}
+
 void AppendEnrichmentPreset(QTextStream &ts, const QString &preset, const QString &inflowFile = QString())
 {
     if (preset == QStringLiteral("Drywell_MonitoringWell")) {
@@ -415,6 +484,35 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         }
     }
 
+    const QString inflow = options.inflowFile.trimmed();
+    if (vnModelType && enrichmentPreset == QStringLiteral("VN_Drywell_Pro")) {
+        QString out;
+        QTextStream ts(&out);
+        AppendVnDrywellProReferenceScript(ts, options, inflow);
+        if (!options.observationFile.trimmed().isEmpty()) {
+            ts << "create observation;type=Observation,object=" << options.observationObject
+               << ",name=" << options.observationName
+               << ",expression=" << options.observationExpression
+               << ",observed_data=" << options.observationFile
+               << ",error_structure=normal,error_standard_deviation=1\n";
+        }
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            ts << "\n# user_additional_commands\n" << extra;
+            if (!extra.endsWith('\n')) {
+                ts << "\n";
+            }
+        }
+        if (!AppendSnippetFile(options.vnSoilLayersFile, QStringLiteral("VN soil layers"), &out, errorMessage)) {
+            return false;
+        }
+        if (!AppendSnippetFile(options.vnMoistureLayersFile, QStringLiteral("VN moisture layers"), &out, errorMessage)) {
+            return false;
+        }
+        *scriptText = out;
+        return true;
+    }
+
     QString out;
     QTextStream ts(&out);
     ts << "loadtemplate; filename=" << TemplateFile(options.templateDirectory, "main_components.json") << "\n";
@@ -429,7 +527,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
 
-    const QString inflow = options.inflowFile.trimmed();
     if (options.modelType.compare("Bioswale", Qt::CaseInsensitive) == 0) {
         ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),"
               "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
