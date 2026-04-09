@@ -30,10 +30,17 @@ struct StarterScriptOptions
     // Optional raw OHQ lines appended at the end of generated starter script.
     QString additionalCommands;
 
+    // Optional VN-specific source files.
+    // If vnBaseOhqFile is provided for modelType=VN_Drywell, it is loaded as the base script.
+    // vnSoilLayersFile and vnMoistureLayersFile contents are appended as additional snippets.
+    QString vnBaseOhqFile;
+    QString vnSoilLayersFile;
+    QString vnMoistureLayersFile;
+
     // Optional preset that appends extra model blocks/links.
     // Supported: "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
     //            "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
-    //            "Drywell_LegacyStyle", "VN_Drywell",
+    //            "Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
     //            "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
     //            "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
     QString enrichmentPreset;
