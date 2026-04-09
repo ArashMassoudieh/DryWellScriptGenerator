@@ -386,6 +386,47 @@ QStringList BuildExecutableArguments(const QString &argumentTemplate, const QStr
     return args;
 }
 
+bool BuildGuiConfigFromTemplate(const QString &templatePath,
+                                const QString &scriptPath,
+                                const QString &workingDirectory,
+                                QString *generatedConfigPath,
+                                QString *errorMessage)
+{
+    QFile inFile(templatePath);
+    if (!inFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Cannot open GUI config template: %1").arg(templatePath);
+        }
+        return false;
+    }
+
+    QString configText = QString::fromUtf8(inFile.readAll());
+    configText.replace(QStringLiteral("{script}"), scriptPath);
+    configText.replace(QStringLiteral("{working_dir}"), workingDirectory);
+
+    const QString outPath = QDir(workingDirectory).filePath(QStringLiteral("runner_gui_config.generated.json"));
+    QSaveFile outFile(outPath);
+    if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Cannot create generated GUI config: %1").arg(outPath);
+        }
+        return false;
+    }
+    QTextStream out(&outFile);
+    out << configText;
+    if (!outFile.commit()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Failed to write generated GUI config: %1").arg(outPath);
+        }
+        return false;
+    }
+
+    if (generatedConfigPath) {
+        *generatedConfigPath = outPath;
+    }
+    return true;
+}
+
 bool IsKnownRuntimeNoiseLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
@@ -428,6 +469,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       workflowModeCombo(new QComboBox(this)),
       exePathEdit(new QLineEdit(this)),
       exeArgsEdit(new QLineEdit(this)),
+      guiConfigTemplateEdit(new QLineEdit(this)),
       scriptPathEdit(new QLineEdit(this)),
       workingDirEdit(new QLineEdit(this)),
       artifactsDirEdit(new QLineEdit(this)),
@@ -524,6 +566,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
     exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
     exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; custom executables get no implicit args."));
+    guiConfigTemplateRowWidget = addFileRow(layout, tr("GUI config template (optional)"), guiConfigTemplateEdit, tr("Browse"), [this]() { chooseGuiConfigTemplate(); });
+    guiConfigTemplateEdit->setPlaceholderText(tr("Optional JSON template for OpenHydroQual GUI (supports {script}, {working_dir})"));
     allowGuiExecutionCheck = new QCheckBox(tr("Allow OpenHydroQual GUI execution fallback"), this);
     allowGuiExecutionCheck->setChecked(false);
     allowGuiExecutionCheck->setToolTip(tr("Recommended OFF. Keep disabled to enforce CLI/internal-solver execution only."));
@@ -694,6 +738,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     };
     saveOnEdit(exePathEdit);
     saveOnEdit(exeArgsEdit);
+    saveOnEdit(guiConfigTemplateEdit);
     saveOnEdit(scriptPathEdit);
     saveOnEdit(workingDirEdit);
     saveOnEdit(artifactsDirEdit);
@@ -716,6 +761,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(observationNameEdit);
     connect(additionalCommandsEdit, &QTextEdit::textChanged, this, [this]() { saveSettings(); });
     connect(vnBaseOhqFileEdit, &QLineEdit::editingFinished, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(exePathEdit, &QLineEdit::editingFinished, this, [this]() { updateFieldVisibilityForContext(); });
 
     connect(runner, &OHQProcessRunner::runStarted, this, [this]() {
         runStartedAt = QDateTime::currentDateTime();
@@ -882,6 +928,8 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
         || preset.startsWith(QStringLiteral("VN_"));
     const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
+    const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
+    const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
 
     if (modelTypeRowWidget) modelTypeRowWidget->setVisible(!loadExistingMode);
     if (presetRowWidget) presetRowWidget->setVisible(!loadExistingMode);
@@ -898,6 +946,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (observationExpressionRowWidget) observationExpressionRowWidget->setVisible(showOptional);
     if (observationNameRowWidget) observationNameRowWidget->setVisible(showOptional);
     if (additionalCommandsRowWidget) additionalCommandsRowWidget->setVisible(showOptional);
+    if (guiConfigTemplateRowWidget) guiConfigTemplateRowWidget->setVisible(guiFallbackEnabled || guiExecutableSelected || showOptional);
 
     // When a VN base script is provided, these generated-field rows are not required.
     if (inflowRowWidget) inflowRowWidget->setVisible(!loadExistingMode && !usingVnBase);
@@ -1089,6 +1138,18 @@ void ModelCreatorWindow::quickGenerateRunAndSave()
         return;
     }
     runScript();
+}
+
+void ModelCreatorWindow::chooseGuiConfigTemplate()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select OpenHydroQual GUI config template"),
+                                                          guiConfigTemplateEdit->text(),
+                                                          tr("JSON files (*.json);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        guiConfigTemplateEdit->setText(fileName);
+        saveSettings();
+    }
 }
 
 void ModelCreatorWindow::chooseInflowFile()
@@ -1570,16 +1631,33 @@ void ModelCreatorWindow::runScript()
     pendingGuiRetryWorkingDirectory.clear();
     pendingGuiRetryExecutable.clear();
     if (passScriptWithRunFlagDefault) {
-        executableArgs = QStringList{
-            scriptInfo.absoluteFilePath(),
-            QStringLiteral("--run")
-        };
-        pendingGuiRetryExecutable = executablePathToRun;
-        pendingGuiRetryScript = scriptInfo.absoluteFilePath();
-        pendingGuiRetryWorkingDirectory = wdInfo.absoluteFilePath();
-        pendingGuiRetryArgs << (QStringList{QStringLiteral("--run"), scriptInfo.absoluteFilePath()})
-                           << (QStringList{scriptInfo.absoluteFilePath()})
-                           << (QStringList{QStringLiteral("--script"), scriptInfo.absoluteFilePath(), QStringLiteral("--run")});
+        const QString guiConfigTemplatePath = guiConfigTemplateEdit->text().trimmed();
+        if (!guiConfigTemplatePath.isEmpty()) {
+            QString generatedConfigPath;
+            QString configError;
+            if (!BuildGuiConfigFromTemplate(guiConfigTemplatePath,
+                                            scriptInfo.absoluteFilePath(),
+                                            wdInfo.absoluteFilePath(),
+                                            &generatedConfigPath,
+                                            &configError)) {
+                QMessageBox::warning(this, tr("GUI config template error"), configError);
+                appendLog(stamp(tr("Run cancelled: %1").arg(configError)));
+                return;
+            }
+            executableArgs = QStringList{generatedConfigPath};
+            appendLog(stamp(tr("Generated GUI config from template: %1").arg(generatedConfigPath)));
+        } else {
+            executableArgs = QStringList{
+                scriptInfo.absoluteFilePath(),
+                QStringLiteral("--run")
+            };
+            pendingGuiRetryExecutable = executablePathToRun;
+            pendingGuiRetryScript = scriptInfo.absoluteFilePath();
+            pendingGuiRetryWorkingDirectory = wdInfo.absoluteFilePath();
+            pendingGuiRetryArgs << (QStringList{QStringLiteral("--run"), scriptInfo.absoluteFilePath()})
+                               << (QStringList{scriptInfo.absoluteFilePath()})
+                               << (QStringList{QStringLiteral("--script"), scriptInfo.absoluteFilePath(), QStringLiteral("--run")});
+        }
     } else if (passScriptAsPositionalDefault) {
         executableArgs = QStringList{scriptInfo.absoluteFilePath()};
     } else if (noTemplateArgsProvided) {
@@ -1606,7 +1684,11 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
     if (passScriptWithRunFlagDefault) {
-        appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: <script> --run")));
+        if (guiConfigTemplateEdit->text().trimmed().isEmpty()) {
+            appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: <script> --run")));
+        } else {
+            appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using generated JSON config argument.")));
+        }
     }
 
     if (scriptRequired) {
@@ -2516,6 +2598,7 @@ void ModelCreatorWindow::loadSettings()
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
     exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
+    guiConfigTemplateEdit->setText(settings.value("guiConfigTemplate").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
     artifactsDirEdit->setText(settings.value("artifactsDirectory", defaultArtifactsDirectory).toString());
@@ -2555,6 +2638,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());
     settings.setValue("ohqExecutable", exePathEdit->text());
     settings.setValue("ohqExecutableArgs", exeArgsEdit->text());
+    settings.setValue("guiConfigTemplate", guiConfigTemplateEdit->text());
     settings.setValue("ohqScript", scriptPathEdit->text());
     settings.setValue("workingDirectory", workingDirEdit->text());
     settings.setValue("artifactsDirectory", artifactsDirEdit->text());

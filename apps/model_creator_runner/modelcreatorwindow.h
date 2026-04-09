@@ -35,6 +35,7 @@ private slots:
     void chooseArtifactsDirectory();
     void chooseTemplateDirectory();
     void chooseGeneratedScriptPath();
+    void chooseGuiConfigTemplate();
     void chooseInflowFile();
     void chooseObservationFile();
     void chooseDepthProfileFile();
@@ -97,6 +98,7 @@ private:
     QLineEdit *exePathEdit;
     /// Optional executable argument template (supports {script} token).
     QLineEdit *exeArgsEdit;
+    QLineEdit *guiConfigTemplateEdit;
     QLineEdit *scriptPathEdit;
     QLineEdit *workingDirEdit;
     QLineEdit *artifactsDirEdit;
@@ -126,6 +128,7 @@ private:
     QWidget *presetRowWidget = nullptr;
     QWidget *templateDirRowWidget = nullptr;
     QWidget *generatedScriptRowWidget = nullptr;
+    QWidget *guiConfigTemplateRowWidget = nullptr;
     QWidget *simulationStartRowWidget = nullptr;
     QWidget *simulationEndRowWidget = nullptr;
     QWidget *outputSeriesRowWidget = nullptr;
