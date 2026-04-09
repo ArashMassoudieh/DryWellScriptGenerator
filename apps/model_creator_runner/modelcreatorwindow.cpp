@@ -16,6 +16,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFont>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -28,6 +29,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSettings>
 #include <QTabWidget>
@@ -564,7 +566,14 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     centralLayout->addWidget(tabs);
 
     auto *runTab = new QWidget(this);
-    auto *layout = new QVBoxLayout(runTab);
+    auto *runTabLayout = new QVBoxLayout(runTab);
+    auto *setupScroll = new QScrollArea(runTab);
+    setupScroll->setWidgetResizable(true);
+    setupScroll->setFrameShape(QFrame::NoFrame);
+    runTabLayout->addWidget(setupScroll);
+    auto *runContent = new QWidget(setupScroll);
+    setupScroll->setWidget(runContent);
+    auto *layout = new QVBoxLayout(runContent);
     tabs->addTab(runTab, tr("Setup + Run"));
 
     workflowModeCombo->addItem(tr("Generate from scratch"), "generate");
@@ -788,7 +797,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     setCentralWidget(central);
     setWindowTitle(tr("Model Creator Runner (New Workflow)"));
-    resize(1100, 700);
+    resize(1000, 640);
 
     stopButton->setEnabled(false);
 
