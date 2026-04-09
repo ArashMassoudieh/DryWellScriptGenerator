@@ -117,6 +117,9 @@ private:
     QLineEdit *vnBaseOhqFileEdit;
     QLineEdit *vnSoilLayersFileEdit;
     QLineEdit *vnMoistureLayersFileEdit;
+    QLineEdit *vnSoftGridXEdit;
+    QLineEdit *vnSoftGridYEdit;
+    QLineEdit *vnSoftLayerThicknessEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
@@ -141,6 +144,9 @@ private:
     QWidget *vnBaseRowWidget = nullptr;
     QWidget *vnSoilRowWidget = nullptr;
     QWidget *vnMoistureRowWidget = nullptr;
+    QWidget *vnSoftGridXRowWidget = nullptr;
+    QWidget *vnSoftGridYRowWidget = nullptr;
+    QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QTabWidget *tabs;
     QTextEdit *logView;
     SimpleLinePlotWidget *inflowPlot;
