@@ -1711,24 +1711,28 @@ QString ExtractCommandValue(const QString &line, const QString &key)
     return line.mid(valueStart, end - valueStart).trimmed();
 }
 
-bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *rows)
+bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
+                                QVector<VnSoftSoilProfileRow> *uwRows)
 {
-    if (rows == nullptr) {
+    if (gRows == nullptr || uwRows == nullptr) {
         return false;
     }
-    rows->clear();
+    gRows->clear();
+    uwRows->clear();
 
     const QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
     const QStringList lines = embedded.split('\n', Qt::SkipEmptyParts);
-    QHash<int, VnSoftSoilProfileRow> uniqueByDepthKey;
+    QHash<int, VnSoftSoilProfileRow> uniqueGByDepthKey;
+    QHash<int, VnSoftSoilProfileRow> uniqueUwByDepthKey;
 
     for (const QString &rawLine : lines) {
         const QString line = rawLine.trimmed();
         if (!line.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             continue;
         }
-        if (!line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive)
-            && !line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)) {
+        const bool isG = line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive);
+        const bool isUw = line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive);
+        if (!isG && !isUw) {
             continue;
         }
 
@@ -1751,7 +1755,8 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *rows)
 
         const double depth = std::fabs(actY);
         const int depthKey = qRound(depth * 1000.0);
-        if (uniqueByDepthKey.contains(depthKey)) {
+        QHash<int, VnSoftSoilProfileRow> &target = isG ? uniqueGByDepthKey : uniqueUwByDepthKey;
+        if (target.contains(depthKey)) {
             continue;
         }
         VnSoftSoilProfileRow row;
@@ -1761,17 +1766,24 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *rows)
         row.props.n = n;
         row.props.thetaSat = thetaSat;
         row.props.thetaRes = thetaRes;
-        uniqueByDepthKey.insert(depthKey, row);
+        target.insert(depthKey, row);
     }
 
-    rows->reserve(uniqueByDepthKey.size());
-    for (auto it = uniqueByDepthKey.cbegin(); it != uniqueByDepthKey.cend(); ++it) {
-        rows->push_back(it.value());
+    gRows->reserve(uniqueGByDepthKey.size());
+    for (auto it = uniqueGByDepthKey.cbegin(); it != uniqueGByDepthKey.cend(); ++it) {
+        gRows->push_back(it.value());
     }
-    std::sort(rows->begin(), rows->end(), [](const VnSoftSoilProfileRow &lhs, const VnSoftSoilProfileRow &rhs) {
+    uwRows->reserve(uniqueUwByDepthKey.size());
+    for (auto it = uniqueUwByDepthKey.cbegin(); it != uniqueUwByDepthKey.cend(); ++it) {
+        uwRows->push_back(it.value());
+    }
+    std::sort(gRows->begin(), gRows->end(), [](const VnSoftSoilProfileRow &lhs, const VnSoftSoilProfileRow &rhs) {
         return lhs.depth < rhs.depth;
     });
-    return rows->size() >= 2;
+    std::sort(uwRows->begin(), uwRows->end(), [](const VnSoftSoilProfileRow &lhs, const VnSoftSoilProfileRow &rhs) {
+        return lhs.depth < rhs.depth;
+    });
+    return gRows->size() >= 2 && uwRows->size() >= 2;
 }
 
 QString NormalizeVnSoftSoilParamMode(const QString &mode)
@@ -2205,11 +2217,12 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const bool useVnReferenceDefaults = soilMode == QStringLiteral("VnReferenceDefaults");
     const bool useModelCreatorDefaults = soilMode == QStringLiteral("ModelCreatorDefaults");
     QVector<VnSoftSoilProfileRow> soilProfileRows;
-    QVector<VnSoftSoilProfileRow> vnReferenceProfileRows;
+    QVector<VnSoftSoilProfileRow> vnReferenceGProfileRows;
+    QVector<VnSoftSoilProfileRow> vnReferenceUwProfileRows;
     const bool fileProfileLoaded = useFileProfile
         && TryLoadVnSoftSoilProfile(options.vnSoftSoilParameterFile, &soilProfileRows);
     const bool vnReferenceProfileLoaded = useVnReferenceDefaults
-        && LoadVnReferenceProfileRows(&vnReferenceProfileRows);
+        && LoadVnReferenceProfileRows(&vnReferenceGProfileRows, &vnReferenceUwProfileRows);
 
     // Keep ModelCreator defaults local to script-builder so this module does not
     // depend on UI-side headers or include-path availability.
@@ -2223,7 +2236,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         options.vnSoftSoilThetaSat,
         options.vnSoftSoilThetaRes
     };
-    const auto soilPropsAtDepth = [&](double depthFromTop) {
+    const auto soilPropsAtDepth = [&](double depthFromTop, bool underWellZone) {
         if (fileProfileLoaded) {
             VnSoftSoilProps p;
             p.ksat = InterpolateByDepth(soilProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.ksat; });
@@ -2235,12 +2248,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         }
         if (useVnReferenceDefaults) {
             if (vnReferenceProfileLoaded) {
+                const auto &sourceRows = underWellZone ? vnReferenceUwProfileRows : vnReferenceGProfileRows;
                 VnSoftSoilProps p;
-                p.ksat = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.ksat; });
-                p.alpha = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.alpha; });
-                p.n = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.n; });
-                p.thetaSat = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaSat; });
-                p.thetaRes = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaRes; });
+                p.ksat = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.ksat; });
+                p.alpha = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.alpha; });
+                p.n = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.n; });
+                p.thetaSat = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaSat; });
+                p.thetaRes = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaRes; });
                 return p;
             }
             return manualProps;
@@ -2260,7 +2274,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         for (int x = 0; x < gNx; ++x) {
             const double bottom = (topElevation - options.vnSoftDepthOfWellC) - ((y + 1) * gLayerThickness);
             const double actualDepth = (y + 0.5) * gLayerThickness + options.vnSoftDepthOfWellC;
-            const VnSoftSoilProps props = soilPropsAtDepth(actualDepth);
+            const VnSoftSoilProps props = soilPropsAtDepth(actualDepth, false);
             const double r1 = options.vnSoftRwG + x * gDr;
             const double r2 = options.vnSoftRwG + (x + 1) * gDr;
             const double area = kPi * (r2 * r2 - r1 * r1);
@@ -2285,7 +2299,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         for (int x = 0; x < uwNx; ++x) {
             const double bottom = (topElevation - depthWellT) - ((y + 1) * uwLayerThickness);
             const double actualDepth = (y + 0.5) * uwLayerThickness + depthWellT;
-            const VnSoftSoilProps props = soilPropsAtDepth(actualDepth);
+            const VnSoftSoilProps props = soilPropsAtDepth(actualDepth, true);
             const double r1 = options.vnSoftRwUw + x * uwDr;
             const double r2 = options.vnSoftRwUw + (x + 1) * uwDr;
             const double area = kPi * (r2 * r2 - r1 * r1);
@@ -2307,7 +2321,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         }
         const double bottomCenter = (topElevation - depthWellT) - ((y + 1) * uwLayerThickness);
         const double actualDepthCenter = (y + 0.5) * uwLayerThickness + depthWellT;
-        const VnSoftSoilProps centerProps = soilPropsAtDepth(actualDepthCenter);
+        const VnSoftSoilProps centerProps = soilPropsAtDepth(actualDepthCenter, true);
         const double centerArea = kPi * options.vnSoftRwUw * options.vnSoftRwUw;
         ts << "create block;type=Soil,name=Soil-uw (0$" << y << "),"
            << "_width=" << (uwDr * 500.0) << ",_height=" << (uwDr * 500.0)
@@ -2378,16 +2392,27 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
 
 QString StarterScriptBuilder::VnReferenceSoilProfileCsv()
 {
-    QVector<VnSoftSoilProfileRow> rows;
-    if (!LoadVnReferenceProfileRows(&rows)) {
+    QVector<VnSoftSoilProfileRow> gRows;
+    QVector<VnSoftSoilProfileRow> uwRows;
+    if (!LoadVnReferenceProfileRows(&gRows, &uwRows)) {
         return QString();
     }
 
     QString out;
     QTextStream ts(&out);
-    ts << "depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
-    for (const auto &row : rows) {
-        ts << row.depth << ","
+    ts << "zone,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
+    for (const auto &row : gRows) {
+        ts << "Soil-g,"
+           << row.depth << ","
+           << row.props.ksat << ","
+           << row.props.alpha << ","
+           << row.props.n << ","
+           << row.props.thetaSat << ","
+           << row.props.thetaRes << "\n";
+    }
+    for (const auto &row : uwRows) {
+        ts << "Soil-uw,"
+           << row.depth << ","
            << row.props.ksat << ","
            << row.props.alpha << ","
            << row.props.n << ","
