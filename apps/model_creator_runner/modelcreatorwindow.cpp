@@ -608,6 +608,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnBaseOhqFileEdit(new QLineEdit(this)),
       vnSoilLayersFileEdit(new QLineEdit(this)),
       vnMoistureLayersFileEdit(new QLineEdit(this)),
+      vnBuildModeCombo(new QComboBox(this)),
       vnSoftGridXEdit(new QLineEdit(this)),
       vnSoftGridYEdit(new QLineEdit(this)),
       vnSoftUwGridXEdit(new QLineEdit(this)),
@@ -764,6 +765,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
     vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
     vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
+    vnBuildModeCombo->addItem(tr("Auto"), QStringLiteral("Auto"));
+    vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
+    vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
+    vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
+    vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
+    vnBuildModeCombo->setToolTip(tr("Auto keeps the current behavior: LoadFromOhq when VN base is provided, SoftReference when VN snippets or soft-grid settings are customized, otherwise FullReference."));
+    vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("17"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("12"));
     setupCompactNumericEdit(vnSoftUwGridXEdit, tr("17"));
@@ -983,6 +991,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(vnBuildModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
@@ -1195,6 +1204,11 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
         || preset.startsWith(QStringLiteral("VN_"));
     const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
+    const QString vnBuildMode = vnBuildModeCombo != nullptr ? vnBuildModeCombo->currentData().toString().trimmed() : QStringLiteral("Auto");
+    const bool explicitSoftMode = vnBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
+    const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
+        || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
     const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
@@ -1204,20 +1218,22 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (templateDirRowWidget) templateDirRowWidget->setVisible(!loadExistingMode && !usingVnBase);
     if (generatedScriptRowWidget) generatedScriptRowWidget->setVisible(!loadExistingMode);
 
+    if (vnBuildModeRowWidget) vnBuildModeRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftUwGridXRowWidget) vnSoftUwGridXRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext);
-    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext);
+    const bool showSoftRows = !loadExistingMode && vnContext && !explicitNonSoftMode;
+    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(showSoftRows);
+    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(showSoftRows);
+    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwGridXRowWidget) vnSoftUwGridXRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(showSoftRows);
+    if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
+    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
+    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -1619,7 +1635,14 @@ void ModelCreatorWindow::previewScript()
         AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
         AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-            options.vnBuildMode = AutoDetectVnBuildMode(options);
+            const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
+                ? vnBuildModeCombo->currentData().toString().trimmed()
+                : QStringLiteral("Auto");
+            if (selectedVnBuildMode.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0) {
+                options.vnBuildMode = AutoDetectVnBuildMode(options);
+            } else {
+                options.vnBuildMode = selectedVnBuildMode;
+            }
         }
 
         QString error;
@@ -2962,6 +2985,11 @@ void ModelCreatorWindow::loadSettings()
     vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
+    if (vnBuildModeCombo) {
+        const QString savedVnBuildMode = settings.value("vnBuildMode", "Auto").toString().trimmed();
+        const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("Auto") : savedVnBuildMode);
+        vnBuildModeCombo->setCurrentIndex(vnBuildModeIndex >= 0 ? vnBuildModeIndex : 0);
+    }
     vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "17"));
     vnSoftGridYEdit->setText(settingTextOrDefault("vnSoftGridYCount", "12"));
     vnSoftUwGridXEdit->setText(settingTextOrDefault("vnSoftUwGridXCount", "17"));
@@ -3015,6 +3043,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
     settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
+    if (vnBuildModeCombo) {
+        settings.setValue("vnBuildMode", vnBuildModeCombo->currentData().toString());
+    }
     settings.setValue("vnSoftGridXCount", vnSoftGridXEdit->text());
     settings.setValue("vnSoftGridYCount", vnSoftGridYEdit->text());
     settings.setValue("vnSoftUwGridXCount", vnSoftUwGridXEdit->text());

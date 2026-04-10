@@ -117,6 +117,7 @@ private:
     QLineEdit *vnBaseOhqFileEdit;
     QLineEdit *vnSoilLayersFileEdit;
     QLineEdit *vnMoistureLayersFileEdit;
+    QComboBox *vnBuildModeCombo;
     QLineEdit *vnSoftGridXEdit;
     QLineEdit *vnSoftGridYEdit;
     QLineEdit *vnSoftUwGridXEdit;
@@ -156,6 +157,7 @@ private:
     QWidget *vnBaseRowWidget = nullptr;
     QWidget *vnSoilRowWidget = nullptr;
     QWidget *vnMoistureRowWidget = nullptr;
+    QWidget *vnBuildModeRowWidget = nullptr;
     QWidget *vnSoftGridXRowWidget = nullptr;
     QWidget *vnSoftGridYRowWidget = nullptr;
     QWidget *vnSoftUwGridXRowWidget = nullptr;
