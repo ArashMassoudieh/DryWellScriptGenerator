@@ -630,6 +630,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftSoilThetaSatEdit(new QLineEdit(this)),
       vnSoftSoilThetaResEdit(new QLineEdit(this)),
       vnSoftSoilParamModeCombo(new QComboBox(this)),
+      vnSoftSoilParameterFileEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -799,6 +800,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
+    vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -897,6 +900,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(vnSoftSoilThetaSatEdit);
         row->addWidget(new QLabel(tr("theta_res")));
         row->addWidget(vnSoftSoilThetaResEdit);
+        row->addWidget(new QLabel(tr("file")));
+        row->addWidget(vnSoftSoilParameterFileEdit);
+        auto *soilFileBrowseButton = new QPushButton(tr("Browse"), container);
+        connect(soilFileBrowseButton, &QPushButton::clicked, this, &ModelCreatorWindow::chooseVnSoftSoilParameterFile);
+        row->addWidget(soilFileBrowseButton);
         row->addStretch(1);
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
@@ -1071,7 +1079,20 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftSoilNEdit);
     saveOnEdit(vnSoftSoilThetaSatEdit);
     saveOnEdit(vnSoftSoilThetaResEdit);
+    saveOnEdit(vnSoftSoilParameterFileEdit);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
+    auto updateVnSoftSoilModeUi = [this]() {
+        const QString mode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+        const bool fileMode = mode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0;
+        vnSoftSoilParameterFileEdit->setEnabled(fileMode);
+        vnSoftSoilKsatOriginalEdit->setEnabled(!fileMode);
+        vnSoftSoilAlphaEdit->setEnabled(!fileMode);
+        vnSoftSoilNEdit->setEnabled(!fileMode);
+        vnSoftSoilThetaSatEdit->setEnabled(!fileMode);
+        vnSoftSoilThetaResEdit->setEnabled(!fileMode);
+    };
+    connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, updateVnSoftSoilModeUi);
+    updateVnSoftSoilModeUi();
     saveOnEdit(observationObjectEdit);
     saveOnEdit(observationExpressionEdit);
     saveOnEdit(observationNameEdit);
@@ -1591,6 +1612,18 @@ void ModelCreatorWindow::chooseVnMoistureLayersFile()
     }
 }
 
+void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select VN soft soil parameter profile CSV"),
+                                                          vnSoftSoilParameterFileEdit->text(),
+                                                          tr("CSV files (*.csv);;Text files (*.txt);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        vnSoftSoilParameterFileEdit->setText(fileName);
+        saveSettings();
+    }
+}
+
 void ModelCreatorWindow::loadAdditionalCommandsFromFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
@@ -1679,6 +1712,7 @@ void ModelCreatorWindow::previewScript()
         AssignDoubleIfProvided(vnSoftSoilThetaSatEdit, &options.vnSoftSoilThetaSat);
         AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options.vnSoftSoilThetaRes);
         options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
+        options.vnSoftSoilParameterFile = vnSoftSoilParameterFileEdit->text().trimmed();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
                 ? vnBuildModeCombo->currentData().toString().trimmed()
@@ -1819,6 +1853,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     AssignDoubleIfProvided(vnSoftSoilThetaSatEdit, &options.vnSoftSoilThetaSat);
     AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options.vnSoftSoilThetaRes);
     options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
+    options.vnSoftSoilParameterFile = vnSoftSoilParameterFileEdit->text().trimmed();
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
             ? vnBuildModeCombo->currentData().toString().trimmed()
@@ -3070,6 +3105,7 @@ void ModelCreatorWindow::loadSettings()
     const QString vnSoftSoilParamMode = settingTextOrDefault("vnSoftSoilParamMode", "Manual");
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
+    vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }
@@ -3132,6 +3168,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilThetaSat", vnSoftSoilThetaSatEdit->text());
     settings.setValue("vnSoftSoilThetaRes", vnSoftSoilThetaResEdit->text());
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
+    settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
     }

@@ -42,6 +42,7 @@ private slots:
     void chooseVnBaseOhqFile();
     void chooseVnSoilLayersFile();
     void chooseVnMoistureLayersFile();
+    void chooseVnSoftSoilParameterFile();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
     void quickGenerateRunAndSave();
@@ -139,6 +140,7 @@ private:
     QLineEdit *vnSoftSoilThetaSatEdit;
     QLineEdit *vnSoftSoilThetaResEdit;
     QComboBox *vnSoftSoilParamModeCombo;
+    QLineEdit *vnSoftSoilParameterFileEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
