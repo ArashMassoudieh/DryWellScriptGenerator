@@ -69,9 +69,9 @@ struct StarterScriptOptions
     QString vnMoistureLayersFile;
 
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
-    int vnSoftGridXCount = 16;
-    int vnSoftGridYCount = 15;
-    int vnSoftUwGridXCount = 16;
+    int vnSoftGridXCount = 17;
+    int vnSoftGridYCount = 12;
+    int vnSoftUwGridXCount = 17;
     int vnSoftUwGridYCount = 12;
     double vnSoftCellSize = 586.9;
     double vnSoftUwCellSize = 586.9;

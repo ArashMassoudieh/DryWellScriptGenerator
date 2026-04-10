@@ -271,9 +271,9 @@ bool LooksLikeStaticLibraryPath(const QFileInfo &pathInfo)
 
 bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
 {
-    constexpr int kDefaultGridX = 16;
-    constexpr int kDefaultGridY = 15;
-    constexpr int kDefaultUwGridX = 16;
+    constexpr int kDefaultGridX = 17;
+    constexpr int kDefaultGridY = 12;
+    constexpr int kDefaultUwGridX = 17;
     constexpr int kDefaultUwGridY = 12;
     constexpr double kDefaultCellSize = 586.9;
     constexpr double kDefaultUwCellSize = 586.9;
@@ -771,9 +771,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
     vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
     vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
-    setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
-    setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
-    setupCompactNumericEdit(vnSoftUwGridXEdit, tr("16"));
+    setupCompactNumericEdit(vnSoftGridXEdit, tr("17"));
+    setupCompactNumericEdit(vnSoftGridYEdit, tr("12"));
+    setupCompactNumericEdit(vnSoftUwGridXEdit, tr("17"));
     setupCompactNumericEdit(vnSoftUwGridYEdit, tr("12"));
     setupCompactNumericEdit(vnSoftCellSizeEdit, tr("586.9"));
     setupCompactNumericEdit(vnSoftUwCellSizeEdit, tr("586.9"));
@@ -2994,9 +2994,9 @@ void ModelCreatorWindow::loadSettings()
         const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : savedVnBuildMode);
         vnBuildModeCombo->setCurrentIndex(vnBuildModeIndex >= 0 ? vnBuildModeIndex : 0);
     }
-    vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "16"));
-    vnSoftGridYEdit->setText(settingTextOrDefault("vnSoftGridYCount", "15"));
-    vnSoftUwGridXEdit->setText(settingTextOrDefault("vnSoftUwGridXCount", "16"));
+    vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "17"));
+    vnSoftGridYEdit->setText(settingTextOrDefault("vnSoftGridYCount", "12"));
+    vnSoftUwGridXEdit->setText(settingTextOrDefault("vnSoftUwGridXCount", "17"));
     vnSoftUwGridYEdit->setText(settingTextOrDefault("vnSoftUwGridYCount", "12"));
     vnSoftCellSizeEdit->setText(settingTextOrDefault("vnSoftCellSize", "586.9"));
     vnSoftUwCellSizeEdit->setText(settingTextOrDefault("vnSoftUwCellSize", "586.9"));
