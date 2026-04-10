@@ -1969,10 +1969,7 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
 {
     const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
-    return mode == QStringLiteral("VnReferenceDefaults")
-        && options.vnSoilLayersFile.trimmed().isEmpty()
-        && options.vnMoistureLayersFile.trimmed().isEmpty()
-        && options.additionalCommands.trimmed().isEmpty();
+    return mode == QStringLiteral("VnReferenceDefaults");
 }
 
 void AppendEmbeddedVnSoftReferenceGridDefault(const StarterScriptOptions &options, QTextStream *ts)
