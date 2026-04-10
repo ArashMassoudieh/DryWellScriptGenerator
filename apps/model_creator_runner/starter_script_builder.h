@@ -84,6 +84,14 @@ struct StarterScriptOptions
     double vnSoftDepthToGroundWater = 43.2816;
     double vnSoftTopElevation = -5.0;
     double vnSoftLayerThickness = 1.0;
+    // Optional VN SoftReference soil-parameter controls (modelcreator-aligned defaults).
+    // Source naming correspondence:
+    //   theta_s -> theta_sat, theta_r -> theta_res, Ksat -> K_sat_original
+    double vnSoftSoilKsatOriginal = 1.05196;
+    double vnSoftSoilAlpha = 3.47536;
+    double vnSoftSoilN = 1.74582;
+    double vnSoftSoilThetaSat = 0.39;
+    double vnSoftSoilThetaRes = 0.049;
 
     // ---------------------------------------------------------------------
     // General preset mode configuration

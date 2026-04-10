@@ -1697,7 +1697,12 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
         && same(options.vnSoftDepthOfWellG, 7.3152)
         && same(options.vnSoftDepthToGroundWater, 43.2816)
         && same(options.vnSoftTopElevation, -5.0)
-        && same(options.vnSoftLayerThickness, 1.0);
+        && same(options.vnSoftLayerThickness, 1.0)
+        && same(options.vnSoftSoilKsatOriginal, 1.05196)
+        && same(options.vnSoftSoilAlpha, 3.47536)
+        && same(options.vnSoftSoilN, 1.74582)
+        && same(options.vnSoftSoilThetaSat, 0.39)
+        && same(options.vnSoftSoilThetaRes, 0.049);
 }
 
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
@@ -1959,11 +1964,11 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     // Keep naming aligned with ModelCreator interpolation sources:
     //   SoilData keys: Ksat, alpha, n, theta_s, theta_r
     //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
-    constexpr double kKsatSource = 1.05196;
-    constexpr double kAlphaSource = 3.47536;
-    constexpr double kNSource = 1.74582;
-    constexpr double kThetaSSource = 0.39;
-    constexpr double kThetaRSource = 0.049;
+    const double kKsatSource = options.vnSoftSoilKsatOriginal;
+    const double kAlphaSource = options.vnSoftSoilAlpha;
+    const double kNSource = options.vnSoftSoilN;
+    const double kThetaSSource = options.vnSoftSoilThetaSat;
+    const double kThetaRSource = options.vnSoftSoilThetaRes;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
        << ",_height=500,x=" << (-uwNx * 1000.0)
