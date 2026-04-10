@@ -1697,7 +1697,12 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
         && same(options.vnSoftDepthOfWellG, 7.3152)
         && same(options.vnSoftDepthToGroundWater, 43.2816)
         && same(options.vnSoftTopElevation, -5.0)
-        && same(options.vnSoftLayerThickness, 1.0);
+        && same(options.vnSoftLayerThickness, 1.0)
+        && same(options.vnSoftSoilKsatOriginal, 1.05196)
+        && same(options.vnSoftSoilAlpha, 3.47536)
+        && same(options.vnSoftSoilN, 1.74582)
+        && same(options.vnSoftSoilThetaSat, 0.39)
+        && same(options.vnSoftSoilThetaRes, 0.049);
 }
 
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
@@ -1956,6 +1961,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double gwHead = topElevation - options.vnSoftDepthToGroundWater;
     const double uwGapXOffset = gap * 2000.0;
     constexpr double kPi = 3.14159265358979323846;
+    // Keep naming aligned with ModelCreator interpolation sources:
+    //   SoilData keys: Ksat, alpha, n, theta_s, theta_r
+    //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
+    const double kKsatSource = options.vnSoftSoilKsatOriginal;
+    const double kAlphaSource = options.vnSoftSoilAlpha;
+    const double kNSource = options.vnSoftSoilN;
+    const double kThetaSSource = options.vnSoftSoilThetaSat;
+    const double kThetaRSource = options.vnSoftSoilThetaRes;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
        << ",_height=500,x=" << (-uwNx * 1000.0)
@@ -1976,8 +1989,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                << ",act_Y=" << (-(y + 0.5) * gLayerThickness - options.vnSoftDepthOfWellC)
                << ",area=" << area
                << ",bottom_elevation=" << bottom << "[m],depth=" << gLayerThickness << "[m],"
-               << "specific_storage=0.01,theta=0.2,theta_res=0.049,theta_sat=0.39,"
-               << "K_sat_original=1.05196,K_sat_scale_factor=" << gScale << ",alpha=3.47536,n=1.74582,L=-0.5\n";
+               << "specific_storage=0.01,theta=0.2,theta_res=" << kThetaRSource
+               << ",theta_sat=" << kThetaSSource
+               << ",K_sat_original=" << kKsatSource
+               << ",K_sat_scale_factor=" << gScale
+               << ",alpha=" << kAlphaSource
+               << ",n=" << kNSource
+               << ",L=-0.5\n";
         }
     }
     for (int y = 0; y < uwNy; ++y) {
@@ -1994,8 +2012,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                << ",act_Y=" << (-(y + 0.5) * uwLayerThickness - depthWellT)
                << ",area=" << area
                << ",bottom_elevation=" << bottom << "[m],depth=" << uwLayerThickness << "[m],"
-               << "specific_storage=0.01,theta=0.2,theta_res=0.049,theta_sat=0.39,"
-               << "K_sat_original=1.05196,K_sat_scale_factor=" << uwScale << ",alpha=3.47536,n=1.74582,L=-0.5\n";
+               << "specific_storage=0.01,theta=0.2,theta_res=" << kThetaRSource
+               << ",theta_sat=" << kThetaSSource
+               << ",K_sat_original=" << kKsatSource
+               << ",K_sat_scale_factor=" << uwScale
+               << ",alpha=" << kAlphaSource
+               << ",n=" << kNSource
+               << ",L=-0.5\n";
         }
         const double bottomCenter = (topElevation - depthWellT) - ((y + 1) * uwLayerThickness);
         const double centerArea = kPi * options.vnSoftRwUw * options.vnSoftRwUw;
@@ -2006,8 +2029,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
            << ",act_X=0,act_Y=" << (-(y + 0.5) * uwLayerThickness - depthWellT)
            << ",area=" << centerArea
            << ",bottom_elevation=" << bottomCenter << "[m],depth=" << uwLayerThickness << "[m],"
-           << "specific_storage=0.01,theta=0.2,theta_res=0.049,theta_sat=0.39,"
-           << "K_sat_original=1.05196,K_sat_scale_factor=" << uwScale << ",alpha=3.47536,n=1.74582,L=-0.5\n";
+           << "specific_storage=0.01,theta=0.2,theta_res=" << kThetaRSource
+           << ",theta_sat=" << kThetaSSource
+           << ",K_sat_original=" << kKsatSource
+           << ",K_sat_scale_factor=" << uwScale
+           << ",alpha=" << kAlphaSource
+           << ",n=" << kNSource
+           << ",L=-0.5\n";
     }
 
     for (int y = 0; y < gNy; ++y) {
