@@ -1796,7 +1796,7 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
     std::sort(uwRows->begin(), uwRows->end(), [](const VnSoftSoilProfileRow &lhs, const VnSoftSoilProfileRow &rhs) {
         return lhs.depth < rhs.depth;
     });
-    return gRows->size() >= 2 && uwRows->size() >= 2;
+    return !gRows->isEmpty() || !uwRows->isEmpty();
 }
 
 QString NormalizeVnSoftSoilParamMode(const QString &mode)
@@ -2261,7 +2261,12 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         }
         if (useVnReferenceDefaults) {
             if (vnReferenceProfileLoaded) {
-                const auto &sourceRows = underWellZone ? vnReferenceUwProfileRows : vnReferenceGProfileRows;
+                const auto &primaryRows = underWellZone ? vnReferenceUwProfileRows : vnReferenceGProfileRows;
+                const auto &fallbackRows = underWellZone ? vnReferenceGProfileRows : vnReferenceUwProfileRows;
+                const auto &sourceRows = primaryRows.isEmpty() ? fallbackRows : primaryRows;
+                if (sourceRows.isEmpty()) {
+                    return kModelCreatorDefaults;
+                }
                 VnSoftSoilProps p;
                 p.ksat = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.ksat; });
                 p.alpha = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.alpha; });
@@ -2270,7 +2275,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                 p.thetaRes = InterpolateByDepth(sourceRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaRes; });
                 return p;
             }
-            return manualProps;
+            return kModelCreatorDefaults;
         }
         if (useModelCreatorDefaults) {
             return kModelCreatorDefaults;
