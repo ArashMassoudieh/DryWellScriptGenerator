@@ -1929,10 +1929,6 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const bool radiiCustomized = differs(options.vnSoftRwG, 1.2192)
         || differs(options.vnSoftRwUw, 1.2192)
         || differs(options.vnSoftRadiusOfInfluence, 20.0);
-    const bool depthsCustomized = differs(options.vnSoftDepthOfWellC, 4.8768)
-        || differs(options.vnSoftDepthOfWellG, 7.3152)
-        || differs(options.vnSoftDepthToGroundWater, 43.2816);
-
     const bool geometryFromRadii = radiiCustomized
         && options.vnSoftRadiusOfInfluence > options.vnSoftRwG
         && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw;
@@ -1942,13 +1938,12 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double uwDr = geometryFromRadii
         ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwUw) / uwNx
         : ((options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : (gDr * 500.0)) / 500.0);
-    const bool geometryFromDepths = depthsCustomized
-        && options.vnSoftDepthOfWellG > 0.0
+    const bool validDepthGeometry = options.vnSoftDepthOfWellG > 0.0
         && options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG);
-    const double gLayerThickness = geometryFromDepths
+    const double gLayerThickness = validDepthGeometry
         ? options.vnSoftDepthOfWellG / gNy
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
-    const double uwLayerThickness = geometryFromDepths
+    const double uwLayerThickness = validDepthGeometry
         ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
     const double topElevation = options.vnSoftTopElevation;
@@ -1956,7 +1951,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("1.0"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("1.0"));
     const double depthWellT = options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG;
-    const int assumedNzC = qMax(1, static_cast<int>(std::round(options.vnSoftDepthOfWellC / qMax(1e-9, gLayerThickness))));
+    const int assumedNzC = 5;
     const double gwHead = topElevation - options.vnSoftDepthToGroundWater;
     const double uwGapXOffset = gap * 2000.0;
 
