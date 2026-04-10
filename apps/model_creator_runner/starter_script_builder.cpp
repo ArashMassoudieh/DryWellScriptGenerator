@@ -1968,7 +1968,8 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
 
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
 {
-    return IsDefaultVnSoftReferenceOptions(options)
+    const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+    return mode == QStringLiteral("VnReferenceDefaults")
         && options.vnSoilLayersFile.trimmed().isEmpty()
         && options.vnMoistureLayersFile.trimmed().isEmpty()
         && options.additionalCommands.trimmed().isEmpty();
@@ -2181,11 +2182,6 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     if (normalizedSoilMode == QStringLiteral("VnReferenceDefaults")) {
         // Exact VN Ref mode: emit embedded Full-reference soil/grid content directly
         // so parameters match canonical VN reference values exactly.
-        AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
-        return;
-    }
-
-    if (IsDefaultVnSoftReferenceOptions(options)) {
         AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
         return;
     }
