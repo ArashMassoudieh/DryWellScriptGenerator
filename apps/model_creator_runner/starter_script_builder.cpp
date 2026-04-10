@@ -1943,8 +1943,9 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double gLayerThickness = validDepthGeometry
         ? options.vnSoftDepthOfWellG / gNy
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
+    const int uwNyTotal = qMax(uwNy, 30);
     const double uwLayerThickness = validDepthGeometry
-        ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
+        ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNyTotal
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
     const double topElevation = options.vnSoftTopElevation;
     const double gap = qMax(0.0, options.vnSoftGapSize);
@@ -1967,6 +1968,8 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                << "_width=" << (gDr * 500.0) << ",_height=" << (gDr * 500.0)
                << ",x=" << (-(x * gDr + options.vnSoftRwG) * 2000.0)
                << ",y=" << (y * gLayerThickness * 3000.0 + options.vnSoftDepthOfWellC * 2800.0)
+               << ",act_X=" << ((x + 0.5) * gDr + options.vnSoftRwG)
+               << ",act_Y=" << (-(y + 0.5) * gLayerThickness - options.vnSoftDepthOfWellC)
                << ",bottom_elevation=" << bottom << "[m],depth=" << gLayerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << gScale << ",alpha=10,n=1.35,L=-0.5\n";
@@ -1979,6 +1982,8 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
                << "_width=" << (uwDr * 500.0) << ",_height=" << (uwDr * 500.0)
                << ",x=" << (-(x * uwDr + options.vnSoftRwUw) * 2000.0 - uwGapXOffset)
                << ",y=" << (37000.0 + (y * uwLayerThickness) * 2000.0)
+               << ",act_X=" << ((x + 0.5) * uwDr + options.vnSoftRwUw)
+               << ",act_Y=" << (-(y + 0.5) * uwLayerThickness - depthWellT)
                << ",bottom_elevation=" << bottom << "[m],depth=" << uwLayerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
@@ -1988,6 +1993,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
            << "_width=" << (uwDr * 500.0) << ",_height=" << (uwDr * 500.0)
            << ",x=" << (-options.vnSoftRwUw * 1000.0 + 2000.0 - uwGapXOffset)
            << ",y=" << (37000.0 + (y * uwLayerThickness) * 2000.0)
+           << ",act_X=0,act_Y=" << (-(y + 0.5) * uwLayerThickness - depthWellT)
            << ",bottom_elevation=" << bottomCenter << "[m],depth=" << uwLayerThickness << "[m],"
            << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
            << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
