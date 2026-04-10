@@ -69,9 +69,9 @@ struct StarterScriptOptions
     QString vnMoistureLayersFile;
 
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
-    int vnSoftGridXCount = 17;
-    int vnSoftGridYCount = 12;
-    int vnSoftUwGridXCount = 17;
+    int vnSoftGridXCount = 16;
+    int vnSoftGridYCount = 15;
+    int vnSoftUwGridXCount = 16;
     int vnSoftUwGridYCount = 12;
     double vnSoftCellSize = 586.9;
     double vnSoftUwCellSize = 586.9;
@@ -84,6 +84,23 @@ struct StarterScriptOptions
     double vnSoftDepthToGroundWater = 43.2816;
     double vnSoftTopElevation = -5.0;
     double vnSoftLayerThickness = 1.0;
+    // Optional VN SoftReference soil-parameter controls (modelcreator-aligned defaults).
+    // Source naming correspondence:
+    //   theta_s -> theta_sat, theta_r -> theta_res, Ksat -> K_sat_original
+    double vnSoftSoilKsatOriginal = 1.05196;
+    double vnSoftSoilAlpha = 3.47536;
+    double vnSoftSoilN = 1.74582;
+    double vnSoftSoilThetaSat = 0.39;
+    double vnSoftSoilThetaRes = 0.049;
+    // Soil parameter source mode:
+    //   Manual: use explicit VN soft soil fields above
+    //   ModelCreatorDefaults: use ModelCreator-equivalent constants in script builder
+    //   File: linearly interpolate params by depth from vnSoftSoilParameterFile CSV
+    QString vnSoftSoilParamMode = "Manual";
+    // Optional CSV source used when vnSoftSoilParamMode == "File".
+    // Expected headers (case-insensitive, flexible aliases):
+    //   depth/depth_m, Ksat, alpha, n, theta_s/theta_sat, theta_r/theta_res
+    QString vnSoftSoilParameterFile;
 
     // ---------------------------------------------------------------------
     // General preset mode configuration
