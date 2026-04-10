@@ -1854,24 +1854,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const int gNy = qMax(1, options.vnSoftGridYCount);
     const int uwNx = qMax(1, options.vnSoftUwGridXCount);
     const int uwNy = qMax(1, options.vnSoftUwGridYCount);
-    const bool geometryFromRadii = options.vnSoftRadiusOfInfluence > options.vnSoftRwG
-        && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw;
-    const double gDx = geometryFromRadii
-        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwG) / gNx
-        : (options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9);
-    const double uwDx = geometryFromRadii
-        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwUw) / uwNx
-        : (options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx);
+    // Keep block sizes aligned with VN cpp/ref defaults (non-parametric physical blocks),
+    // while allowing optional explicit overrides from options when provided.
+    const double gDx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
+    const double uwDx = options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx;
     const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
-    const bool geometryFromDepths = options.vnSoftDepthOfWellG > 0.0
-        && options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG);
-    const double gLayerThickness = geometryFromDepths
-        ? options.vnSoftDepthOfWellG / gNy
-        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
-    const double uwLayerThickness = geometryFromDepths
-        ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
-        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
+    const double gLayerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const double uwLayerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
     const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
     const double uwXOffset = (gNx * gDx) + gap;
