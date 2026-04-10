@@ -1,6 +1,5 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
-#include "modelcreator.h"
 
 #include <QDir>
 #include <QFile>
