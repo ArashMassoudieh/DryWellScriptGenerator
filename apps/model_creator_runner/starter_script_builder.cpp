@@ -1944,19 +1944,23 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double uwLayerThickness = geometryFromDepths
         ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
+    const double topElevation = options.vnSoftTopElevation;
+    const double gap = qMax(0.0, options.vnSoftGapSize);
     const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
     const double depthWellT = options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG;
-    const int assumedNzC = 5; // matches current modelcreator defaults
+    const int assumedNzC = qMax(1, static_cast<int>(std::round(options.vnSoftDepthOfWellC / qMax(1e-9, gLayerThickness))));
+    const double gwHead = topElevation - options.vnSoftDepthToGroundWater;
+    const double uwGapXOffset = gap * 2000.0;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
-       << ",_height=500,x=" << (-uwNx * 1000.0)
+       << ",_height=500,x=" << (-uwNx * 1000.0 - uwGapXOffset)
        << ",y=" << (37000.0 + (assumedNzC + gNy + uwNy) * 2000.0)
-       << ",head=" << (-options.vnSoftDepthToGroundWater) << ",Storage=100000\n";
+       << ",head=" << gwHead << ",Storage=100000\n";
 
     for (int y = 0; y < gNy; ++y) {
         for (int x = 0; x < gNx; ++x) {
-            const double bottom = -((y + 1) * gLayerThickness) - options.vnSoftDepthOfWellC;
+            const double bottom = (topElevation - options.vnSoftDepthOfWellC) - ((y + 1) * gLayerThickness);
             ts << "create block;type=Soil,name=Soil-g (" << (x + 1) << "$" << y << "),"
                << "_width=" << (gDr * 500.0) << ",_height=" << (gDr * 500.0)
                << ",x=" << (-(x * gDr + options.vnSoftRwG) * 2000.0)
@@ -1968,19 +1972,19 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     }
     for (int y = 0; y < uwNy; ++y) {
         for (int x = 0; x < uwNx; ++x) {
-            const double bottom = -((y + 1) * uwLayerThickness) - depthWellT;
+            const double bottom = (topElevation - depthWellT) - ((y + 1) * uwLayerThickness);
             ts << "create block;type=Soil,name=Soil-uw (" << (x + 1) << "$" << y << "),"
                << "_width=" << (uwDr * 500.0) << ",_height=" << (uwDr * 500.0)
-               << ",x=" << (-(x * uwDr + options.vnSoftRwUw) * 2000.0)
+               << ",x=" << (-(x * uwDr + options.vnSoftRwUw) * 2000.0 - uwGapXOffset)
                << ",y=" << (37000.0 + (y * uwLayerThickness) * 2000.0)
                << ",bottom_elevation=" << bottom << "[m],depth=" << uwLayerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
         }
-        const double bottomCenter = -((y + 1) * uwLayerThickness) - depthWellT;
+        const double bottomCenter = (topElevation - depthWellT) - ((y + 1) * uwLayerThickness);
         ts << "create block;type=Soil,name=Soil-uw (0$" << y << "),"
            << "_width=" << (uwDr * 500.0) << ",_height=" << (uwDr * 500.0)
-           << ",x=" << (-options.vnSoftRwUw * 1000.0 + 2000.0)
+           << ",x=" << (-options.vnSoftRwUw * 1000.0 + 2000.0 - uwGapXOffset)
            << ",y=" << (37000.0 + (y * uwLayerThickness) * 2000.0)
            << ",bottom_elevation=" << bottomCenter << "[m],depth=" << uwLayerThickness << "[m],"
            << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
