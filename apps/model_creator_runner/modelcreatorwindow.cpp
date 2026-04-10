@@ -783,10 +783,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft grid")));
-        row->addWidget(new QLabel(tr("X")));
+        row->addWidget(new QLabel(tr("VN soft Soil-g")));
+        row->addWidget(new QLabel(tr("nr_g")));
         row->addWidget(vnSoftGridXEdit);
-        row->addWidget(new QLabel(tr("Y")));
+        row->addWidget(new QLabel(tr("nz_g")));
         row->addWidget(vnSoftGridYEdit);
         row->addWidget(new QLabel(tr("cell[m]")));
         row->addWidget(vnSoftCellSizeEdit);
@@ -800,10 +800,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft uw grid")));
-        row->addWidget(new QLabel(tr("X")));
+        row->addWidget(new QLabel(tr("VN soft Soil-uw")));
+        row->addWidget(new QLabel(tr("nr_uw")));
         row->addWidget(vnSoftUwGridXEdit);
-        row->addWidget(new QLabel(tr("Y")));
+        row->addWidget(new QLabel(tr("nz_uw")));
         row->addWidget(vnSoftUwGridYEdit);
         row->addWidget(new QLabel(tr("cell[m]")));
         row->addWidget(vnSoftUwCellSizeEdit);
