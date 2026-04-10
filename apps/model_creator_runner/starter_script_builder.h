@@ -53,7 +53,7 @@ struct StarterScriptOptions
     //   "LoadFromOhq"   -> load vnBaseOhqFile as authoritative base script
     //
     // For non-VN model types, these fields are ignored.
-    QString vnBuildMode = "Preset";   // Preset | FullReference | SoftReference | LoadFromOhq
+    QString vnBuildMode = "SoftReference";   // SoftReference | FullReference | LoadFromOhq | Preset
 
     // VN preset name used only when vnBuildMode == "Preset".
     // If empty, falls back to enrichmentPreset, then to "VN_Drywell".

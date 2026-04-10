@@ -765,12 +765,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
     vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
     vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
-    vnBuildModeCombo->addItem(tr("Auto"), QStringLiteral("Auto"));
     vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
     vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
     vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
     vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
-    vnBuildModeCombo->setToolTip(tr("Auto keeps the current behavior: LoadFromOhq when VN base is provided, SoftReference when VN snippets or soft-grid settings are customized, otherwise FullReference."));
+    vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
     vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("17"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("12"));
@@ -1204,8 +1203,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
         || preset.startsWith(QStringLiteral("VN_"));
     const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
-    const QString vnBuildMode = vnBuildModeCombo != nullptr ? vnBuildModeCombo->currentData().toString().trimmed() : QStringLiteral("Auto");
-    const bool explicitSoftMode = vnBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
+    const QString vnBuildMode = vnBuildModeCombo != nullptr ? vnBuildModeCombo->currentData().toString().trimmed() : QStringLiteral("SoftReference");
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
@@ -1637,12 +1635,10 @@ void ModelCreatorWindow::previewScript()
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
                 ? vnBuildModeCombo->currentData().toString().trimmed()
-                : QStringLiteral("Auto");
-            if (selectedVnBuildMode.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0) {
-                options.vnBuildMode = AutoDetectVnBuildMode(options);
-            } else {
-                options.vnBuildMode = selectedVnBuildMode;
-            }
+                : QStringLiteral("SoftReference");
+            options.vnBuildMode = selectedVnBuildMode.isEmpty()
+                ? QStringLiteral("SoftReference")
+                : selectedVnBuildMode;
         }
 
         QString error;
@@ -1771,7 +1767,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
     AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        options.vnBuildMode = AutoDetectVnBuildMode(options);
+        const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
+            ? vnBuildModeCombo->currentData().toString().trimmed()
+            : QStringLiteral("SoftReference");
+        options.vnBuildMode = selectedVnBuildMode.isEmpty()
+            ? QStringLiteral("SoftReference")
+            : selectedVnBuildMode;
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
@@ -2986,8 +2987,11 @@ void ModelCreatorWindow::loadSettings()
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     if (vnBuildModeCombo) {
-        const QString savedVnBuildMode = settings.value("vnBuildMode", "Auto").toString().trimmed();
-        const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("Auto") : savedVnBuildMode);
+        QString savedVnBuildMode = settings.value("vnBuildMode", "SoftReference").toString().trimmed();
+        if (savedVnBuildMode.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0) {
+            savedVnBuildMode = QStringLiteral("SoftReference");
+        }
+        const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : savedVnBuildMode);
         vnBuildModeCombo->setCurrentIndex(vnBuildModeIndex >= 0 ? vnBuildModeIndex : 0);
     }
     vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "17"));
