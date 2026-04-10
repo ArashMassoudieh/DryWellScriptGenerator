@@ -322,6 +322,38 @@ QString AutoDetectVnBuildMode(const StarterScriptOptions &options)
     return QStringLiteral("FullReference");
 }
 
+void AssignIntIfProvided(QLineEdit *edit, int *target)
+{
+    if (edit == nullptr || target == nullptr) {
+        return;
+    }
+    const QString text = edit->text().trimmed();
+    if (text.isEmpty()) {
+        return;
+    }
+    bool ok = false;
+    const int value = text.toInt(&ok);
+    if (ok) {
+        *target = value;
+    }
+}
+
+void AssignDoubleIfProvided(QLineEdit *edit, double *target)
+{
+    if (edit == nullptr || target == nullptr) {
+        return;
+    }
+    const QString text = edit->text().trimmed();
+    if (text.isEmpty()) {
+        return;
+    }
+    bool ok = false;
+    const double value = text.toDouble(&ok);
+    if (ok) {
+        *target = value;
+    }
+}
+
 bool LooksLikeCliOhqBinaryName(const QString &fileName)
 {
     return fileName.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) == 0
@@ -1571,21 +1603,21 @@ void ModelCreatorWindow::previewScript()
         options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
         options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
         options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
-        options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
-        options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
-        options.vnSoftUwGridXCount = vnSoftUwGridXEdit->text().trimmed().toInt();
-        options.vnSoftUwGridYCount = vnSoftUwGridYEdit->text().trimmed().toInt();
-        options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
-        options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
-        options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
-        options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
-        options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
-        options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
-        options.vnSoftDepthOfWellC = vnSoftDepthWellCEdit->text().trimmed().toDouble();
-        options.vnSoftDepthOfWellG = vnSoftDepthWellGEdit->text().trimmed().toDouble();
-        options.vnSoftDepthToGroundWater = vnSoftDepthToGwEdit->text().trimmed().toDouble();
-        options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
-        options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
+        AssignIntIfProvided(vnSoftGridXEdit, &options.vnSoftGridXCount);
+        AssignIntIfProvided(vnSoftGridYEdit, &options.vnSoftGridYCount);
+        AssignIntIfProvided(vnSoftUwGridXEdit, &options.vnSoftUwGridXCount);
+        AssignIntIfProvided(vnSoftUwGridYEdit, &options.vnSoftUwGridYCount);
+        AssignDoubleIfProvided(vnSoftCellSizeEdit, &options.vnSoftCellSize);
+        AssignDoubleIfProvided(vnSoftUwCellSizeEdit, &options.vnSoftUwCellSize);
+        AssignDoubleIfProvided(vnSoftGapSizeEdit, &options.vnSoftGapSize);
+        AssignDoubleIfProvided(vnSoftRwGEdit, &options.vnSoftRwG);
+        AssignDoubleIfProvided(vnSoftRwUwEdit, &options.vnSoftRwUw);
+        AssignDoubleIfProvided(vnSoftRadiusInfluenceEdit, &options.vnSoftRadiusOfInfluence);
+        AssignDoubleIfProvided(vnSoftDepthWellCEdit, &options.vnSoftDepthOfWellC);
+        AssignDoubleIfProvided(vnSoftDepthWellGEdit, &options.vnSoftDepthOfWellG);
+        AssignDoubleIfProvided(vnSoftDepthToGwEdit, &options.vnSoftDepthToGroundWater);
+        AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
+        AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             options.vnBuildMode = AutoDetectVnBuildMode(options);
         }
@@ -1700,21 +1732,21 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
-    options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
-    options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
-    options.vnSoftUwGridXCount = vnSoftUwGridXEdit->text().trimmed().toInt();
-    options.vnSoftUwGridYCount = vnSoftUwGridYEdit->text().trimmed().toInt();
-    options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
-    options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
-    options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
-    options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
-    options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
-    options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
-    options.vnSoftDepthOfWellC = vnSoftDepthWellCEdit->text().trimmed().toDouble();
-    options.vnSoftDepthOfWellG = vnSoftDepthWellGEdit->text().trimmed().toDouble();
-    options.vnSoftDepthToGroundWater = vnSoftDepthToGwEdit->text().trimmed().toDouble();
-    options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
-    options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
+    AssignIntIfProvided(vnSoftGridXEdit, &options.vnSoftGridXCount);
+    AssignIntIfProvided(vnSoftGridYEdit, &options.vnSoftGridYCount);
+    AssignIntIfProvided(vnSoftUwGridXEdit, &options.vnSoftUwGridXCount);
+    AssignIntIfProvided(vnSoftUwGridYEdit, &options.vnSoftUwGridYCount);
+    AssignDoubleIfProvided(vnSoftCellSizeEdit, &options.vnSoftCellSize);
+    AssignDoubleIfProvided(vnSoftUwCellSizeEdit, &options.vnSoftUwCellSize);
+    AssignDoubleIfProvided(vnSoftGapSizeEdit, &options.vnSoftGapSize);
+    AssignDoubleIfProvided(vnSoftRwGEdit, &options.vnSoftRwG);
+    AssignDoubleIfProvided(vnSoftRwUwEdit, &options.vnSoftRwUw);
+    AssignDoubleIfProvided(vnSoftRadiusInfluenceEdit, &options.vnSoftRadiusOfInfluence);
+    AssignDoubleIfProvided(vnSoftDepthWellCEdit, &options.vnSoftDepthOfWellC);
+    AssignDoubleIfProvided(vnSoftDepthWellGEdit, &options.vnSoftDepthOfWellG);
+    AssignDoubleIfProvided(vnSoftDepthToGwEdit, &options.vnSoftDepthToGroundWater);
+    AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
+    AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         options.vnBuildMode = AutoDetectVnBuildMode(options);
     }
@@ -2882,6 +2914,10 @@ void ModelCreatorWindow::appendLog(const QString &text)
 void ModelCreatorWindow::loadSettings()
 {
     QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
+    const auto settingTextOrDefault = [&settings](const QString &key, const QString &fallback) {
+        const QString value = settings.value(key, fallback).toString().trimmed();
+        return value.isEmpty() ? fallback : value;
+    };
     const QString repoRoot = FindRepoRoot();
     const QString defaultWorkingDirectory = repoRoot;
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
@@ -2926,21 +2962,21 @@ void ModelCreatorWindow::loadSettings()
     vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
-    vnSoftGridXEdit->setText(settings.value("vnSoftGridXCount", "17").toString());
-    vnSoftGridYEdit->setText(settings.value("vnSoftGridYCount", "12").toString());
-    vnSoftUwGridXEdit->setText(settings.value("vnSoftUwGridXCount", "17").toString());
-    vnSoftUwGridYEdit->setText(settings.value("vnSoftUwGridYCount", "12").toString());
-    vnSoftCellSizeEdit->setText(settings.value("vnSoftCellSize", "586.9").toString());
-    vnSoftUwCellSizeEdit->setText(settings.value("vnSoftUwCellSize", "586.9").toString());
-    vnSoftGapSizeEdit->setText(settings.value("vnSoftGapSize", "0.0").toString());
-    vnSoftRwGEdit->setText(settings.value("vnSoftRwG", "1.2192").toString());
-    vnSoftRwUwEdit->setText(settings.value("vnSoftRwUw", "1.2192").toString());
-    vnSoftRadiusInfluenceEdit->setText(settings.value("vnSoftRadiusOfInfluence", "20.0").toString());
-    vnSoftDepthWellCEdit->setText(settings.value("vnSoftDepthOfWellC", "4.8768").toString());
-    vnSoftDepthWellGEdit->setText(settings.value("vnSoftDepthOfWellG", "7.3152").toString());
-    vnSoftDepthToGwEdit->setText(settings.value("vnSoftDepthToGroundWater", "43.2816").toString());
-    vnSoftTopElevationEdit->setText(settings.value("vnSoftTopElevation", "-5.0").toString());
-    vnSoftLayerThicknessEdit->setText(settings.value("vnSoftLayerThickness", "1.0").toString());
+    vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "17"));
+    vnSoftGridYEdit->setText(settingTextOrDefault("vnSoftGridYCount", "12"));
+    vnSoftUwGridXEdit->setText(settingTextOrDefault("vnSoftUwGridXCount", "17"));
+    vnSoftUwGridYEdit->setText(settingTextOrDefault("vnSoftUwGridYCount", "12"));
+    vnSoftCellSizeEdit->setText(settingTextOrDefault("vnSoftCellSize", "586.9"));
+    vnSoftUwCellSizeEdit->setText(settingTextOrDefault("vnSoftUwCellSize", "586.9"));
+    vnSoftGapSizeEdit->setText(settingTextOrDefault("vnSoftGapSize", "0.0"));
+    vnSoftRwGEdit->setText(settingTextOrDefault("vnSoftRwG", "1.2192"));
+    vnSoftRwUwEdit->setText(settingTextOrDefault("vnSoftRwUw", "1.2192"));
+    vnSoftRadiusInfluenceEdit->setText(settingTextOrDefault("vnSoftRadiusOfInfluence", "20.0"));
+    vnSoftDepthWellCEdit->setText(settingTextOrDefault("vnSoftDepthOfWellC", "4.8768"));
+    vnSoftDepthWellGEdit->setText(settingTextOrDefault("vnSoftDepthOfWellG", "7.3152"));
+    vnSoftDepthToGwEdit->setText(settingTextOrDefault("vnSoftDepthToGroundWater", "43.2816"));
+    vnSoftTopElevationEdit->setText(settingTextOrDefault("vnSoftTopElevation", "-5.0"));
+    vnSoftLayerThicknessEdit->setText(settingTextOrDefault("vnSoftLayerThickness", "1.0"));
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }

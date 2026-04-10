@@ -44,6 +44,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - **VN soft depths [m]** (`well_c`, `well_g`, `to_gw`) to derive vertical layer thickness from reference-style geometry
     - **VN soft top elevation [m]**
     - **VN soft layer thickness [m]**
+  - If soft numeric fields are left blank, generation falls back to built-in defaults from `StarterScriptOptions` (aligned with VN reference-style defaults).
   - VN script generation now respects **Ksat scale** UI inputs:
     - `Ksat scale-g` / `Ksat scale-uw` (or fallback `Ksat scale`) are applied in generated VN blocks.
   - In `LoadFromOhq`, simulation start/end/outputfile and inflow overrides are appended, and Ksat scale substitutions are applied where matching fields exist.
