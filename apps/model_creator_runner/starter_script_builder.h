@@ -76,6 +76,9 @@ struct StarterScriptOptions
     double vnSoftCellSize = 586.9;
     double vnSoftUwCellSize = 586.9;
     double vnSoftGapSize = 0.0;
+    double vnSoftRwG = 1.2192;
+    double vnSoftRwUw = 1.2192;
+    double vnSoftRadiusOfInfluence = 20.0;
     double vnSoftTopElevation = -5.0;
     double vnSoftLayerThickness = 1.0;
 

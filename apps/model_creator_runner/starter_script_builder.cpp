@@ -1854,8 +1854,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const int gNy = qMax(1, options.vnSoftGridYCount);
     const int uwNx = qMax(1, options.vnSoftUwGridXCount);
     const int uwNy = qMax(1, options.vnSoftUwGridYCount);
-    const double gDx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
-    const double uwDx = options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx;
+    const bool geometryFromRadii = options.vnSoftRadiusOfInfluence > options.vnSoftRwG
+        && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw;
+    const double gDx = geometryFromRadii
+        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwG) / gNx
+        : (options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9);
+    const double uwDx = geometryFromRadii
+        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwUw) / uwNx
+        : (options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx);
     const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
     const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
@@ -1923,11 +1929,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
 
     for (int y = 0; y < gNy; ++y) {
         ts << "create link;from=Well_g,to=Soil-g (1$" << y
-           << "),type=Well2soil horizontal link,length=0.5869,name=HL_Well_g - Soil-g (1$" << y << ")\n";
+           << "),type=Well2soil horizontal link,length=" << (gDx / 2.0)
+           << ",name=HL_Well_g - Soil-g (1$" << y << ")\n";
     }
     for (int y = 0; y < uwNy; ++y) {
         ts << "create link;from=Well_g,to=Soil-uw (0$" << y
-           << "),type=Well2soil horizontal link,length=0.5869,name=HL_Well_g - Soil-uw (0$" << y << ")\n";
+           << "),type=Well2soil horizontal link,length=" << (uwDx / 2.0)
+           << ",name=HL_Well_g - Soil-uw (0$" << y << ")\n";
     }
 
     for (int x = 0; x < uwNx; ++x) {
@@ -2006,6 +2014,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if ((options.vnSoftCellSize > 0.0 && !std::isfinite(options.vnSoftCellSize))
         || (options.vnSoftUwCellSize > 0.0 && !std::isfinite(options.vnSoftUwCellSize))
         || (options.vnSoftGapSize > 0.0 && !std::isfinite(options.vnSoftGapSize))
+        || !std::isfinite(options.vnSoftRwG)
+        || !std::isfinite(options.vnSoftRwUw)
+        || !std::isfinite(options.vnSoftRadiusOfInfluence)
         || (options.vnSoftLayerThickness > 0.0 && !std::isfinite(options.vnSoftLayerThickness))
         || !std::isfinite(options.vnSoftTopElevation)) {
         if (errorMessage) {

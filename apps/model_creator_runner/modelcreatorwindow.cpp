@@ -278,6 +278,9 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
     constexpr double kDefaultCellSize = 586.9;
     constexpr double kDefaultUwCellSize = 586.9;
     constexpr double kDefaultGapSize = 0.0;
+    constexpr double kDefaultRwG = 1.2192;
+    constexpr double kDefaultRwUw = 1.2192;
+    constexpr double kDefaultRoi = 20.0;
     constexpr double kDefaultTopElevation = -5.0;
     constexpr double kDefaultLayerThickness = 1.0;
     constexpr double kEpsilon = 1e-9;
@@ -293,6 +296,9 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftCellSize, kDefaultCellSize)
         || differs(options.vnSoftUwCellSize, kDefaultUwCellSize)
         || differs(options.vnSoftGapSize, kDefaultGapSize)
+        || differs(options.vnSoftRwG, kDefaultRwG)
+        || differs(options.vnSoftRwUw, kDefaultRwUw)
+        || differs(options.vnSoftRadiusOfInfluence, kDefaultRoi)
         || differs(options.vnSoftTopElevation, kDefaultTopElevation)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
 }
@@ -571,6 +577,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftCellSizeEdit(new QLineEdit(this)),
       vnSoftUwCellSizeEdit(new QLineEdit(this)),
       vnSoftGapSizeEdit(new QLineEdit(this)),
+      vnSoftRwGEdit(new QLineEdit(this)),
+      vnSoftRwUwEdit(new QLineEdit(this)),
+      vnSoftRadiusInfluenceEdit(new QLineEdit(this)),
       vnSoftTopElevationEdit(new QLineEdit(this)),
       vnSoftLayerThicknessEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
@@ -721,6 +730,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftCellSizeEdit, tr("586.9"));
     setupCompactNumericEdit(vnSoftUwCellSizeEdit, tr("586.9"));
     setupCompactNumericEdit(vnSoftGapSizeEdit, tr("0.0"));
+    setupCompactNumericEdit(vnSoftRwGEdit, tr("1.2192"));
+    setupCompactNumericEdit(vnSoftRwUwEdit, tr("1.2192"));
+    setupCompactNumericEdit(vnSoftRadiusInfluenceEdit, tr("20.0"));
     setupCompactNumericEdit(vnSoftTopElevationEdit, tr("-5.0"));
     setupCompactNumericEdit(vnSoftLayerThicknessEdit, tr("1.0"));
     {
@@ -759,6 +771,21 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         vnSoftUwGridYRowWidget = container;
         vnSoftUwCellSizeRowWidget = container;
         vnSoftGapSizeRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft radii [m]")));
+        row->addWidget(new QLabel(tr("rw_g")));
+        row->addWidget(vnSoftRwGEdit);
+        row->addWidget(new QLabel(tr("rw_uw")));
+        row->addWidget(vnSoftRwUwEdit);
+        row->addWidget(new QLabel(tr("ROI")));
+        row->addWidget(vnSoftRadiusInfluenceEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftRadiusRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -930,6 +957,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftCellSizeEdit);
     saveOnEdit(vnSoftUwCellSizeEdit);
     saveOnEdit(vnSoftGapSizeEdit);
+    saveOnEdit(vnSoftRwGEdit);
+    saveOnEdit(vnSoftRwUwEdit);
+    saveOnEdit(vnSoftRadiusInfluenceEdit);
     saveOnEdit(vnSoftTopElevationEdit);
     saveOnEdit(vnSoftLayerThicknessEdit);
     saveOnEdit(observationObjectEdit);
@@ -1122,6 +1152,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext);
 
@@ -1516,6 +1547,9 @@ void ModelCreatorWindow::previewScript()
         options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
         options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
         options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
+        options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
+        options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
+        options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
         options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
         options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -1639,6 +1673,9 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
     options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
     options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
+    options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
+    options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
+    options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
     options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
     options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -2859,6 +2896,9 @@ void ModelCreatorWindow::loadSettings()
     vnSoftCellSizeEdit->setText(settings.value("vnSoftCellSize", "586.9").toString());
     vnSoftUwCellSizeEdit->setText(settings.value("vnSoftUwCellSize", "586.9").toString());
     vnSoftGapSizeEdit->setText(settings.value("vnSoftGapSize", "0.0").toString());
+    vnSoftRwGEdit->setText(settings.value("vnSoftRwG", "1.2192").toString());
+    vnSoftRwUwEdit->setText(settings.value("vnSoftRwUw", "1.2192").toString());
+    vnSoftRadiusInfluenceEdit->setText(settings.value("vnSoftRadiusOfInfluence", "20.0").toString());
     vnSoftTopElevationEdit->setText(settings.value("vnSoftTopElevation", "-5.0").toString());
     vnSoftLayerThicknessEdit->setText(settings.value("vnSoftLayerThickness", "1.0").toString());
     if (showOptionalFieldsCheck) {
@@ -2906,6 +2946,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftCellSize", vnSoftCellSizeEdit->text());
     settings.setValue("vnSoftUwCellSize", vnSoftUwCellSizeEdit->text());
     settings.setValue("vnSoftGapSize", vnSoftGapSizeEdit->text());
+    settings.setValue("vnSoftRwG", vnSoftRwGEdit->text());
+    settings.setValue("vnSoftRwUw", vnSoftRwUwEdit->text());
+    settings.setValue("vnSoftRadiusOfInfluence", vnSoftRadiusInfluenceEdit->text());
     settings.setValue("vnSoftTopElevation", vnSoftTopElevationEdit->text());
     settings.setValue("vnSoftLayerThickness", vnSoftLayerThicknessEdit->text());
     if (showOptionalFieldsCheck) {
