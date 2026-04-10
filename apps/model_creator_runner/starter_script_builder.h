@@ -94,6 +94,7 @@ struct StarterScriptOptions
     double vnSoftSoilThetaRes = 0.049;
     // Soil parameter source mode:
     //   Manual: use explicit VN soft soil fields above
+    //   VnReferenceDefaults: use VN reference-aligned constants in script builder
     //   ModelCreatorDefaults: use ModelCreator-equivalent constants in script builder
     //   File: linearly interpolate params by depth from vnSoftSoilParameterFile CSV
     QString vnSoftSoilParamMode = "Manual";

@@ -1701,6 +1701,9 @@ QString NormalizeVnSoftSoilParamMode(const QString &mode)
     if (trimmed.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("File");
     }
+    if (trimmed.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("VnReferenceDefaults");
+    }
     if (trimmed.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("ModelCreatorDefaults");
     }
@@ -2120,6 +2123,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
     const QString soilMode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
     const bool useFileProfile = soilMode == QStringLiteral("File");
+    const bool useVnReferenceDefaults = soilMode == QStringLiteral("VnReferenceDefaults");
     const bool useModelCreatorDefaults = soilMode == QStringLiteral("ModelCreatorDefaults");
     QVector<VnSoftSoilProfileRow> soilProfileRows;
     const bool fileProfileLoaded = useFileProfile
@@ -2127,6 +2131,9 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
 
     // Keep ModelCreator defaults local to script-builder so this module does not
     // depend on UI-side headers or include-path availability.
+    constexpr VnSoftSoilProps kVnReferenceDefaults {
+        1.05196, 3.47536, 1.74582, 0.39, 0.049
+    };
     constexpr VnSoftSoilProps kModelCreatorDefaults {
         1.05196, 3.47536, 1.74582, 0.39, 0.049
     };
@@ -2147,7 +2154,13 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
             p.thetaRes = InterpolateByDepth(soilProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaRes; });
             return p;
         }
-        return useModelCreatorDefaults ? kModelCreatorDefaults : manualProps;
+        if (useVnReferenceDefaults) {
+            return kVnReferenceDefaults;
+        }
+        if (useModelCreatorDefaults) {
+            return kModelCreatorDefaults;
+        }
+        return manualProps;
     };
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
