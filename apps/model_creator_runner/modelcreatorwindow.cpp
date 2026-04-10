@@ -624,6 +624,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftDepthToGwEdit(new QLineEdit(this)),
       vnSoftTopElevationEdit(new QLineEdit(this)),
       vnSoftLayerThicknessEdit(new QLineEdit(this)),
+      vnSoftSoilKsatOriginalEdit(new QLineEdit(this)),
+      vnSoftSoilAlphaEdit(new QLineEdit(this)),
+      vnSoftSoilNEdit(new QLineEdit(this)),
+      vnSoftSoilThetaSatEdit(new QLineEdit(this)),
+      vnSoftSoilThetaResEdit(new QLineEdit(this)),
+      vnSoftSoilParamModeCombo(new QComboBox(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -786,6 +792,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftDepthToGwEdit, tr("43.2816"));
     setupCompactNumericEdit(vnSoftTopElevationEdit, tr("-5.0"));
     setupCompactNumericEdit(vnSoftLayerThicknessEdit, tr("1.0"));
+    setupCompactNumericEdit(vnSoftSoilKsatOriginalEdit, tr("1.05196"));
+    setupCompactNumericEdit(vnSoftSoilAlphaEdit, tr("3.47536"));
+    setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
+    setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
+    setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
+    vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
+    vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -866,6 +879,27 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
         vnSoftTopElevationRowWidget = container;
         vnSoftLayerThicknessRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft soil")));
+        row->addWidget(new QLabel(tr("mode")));
+        row->addWidget(vnSoftSoilParamModeCombo);
+        row->addWidget(new QLabel(tr("Ksat")));
+        row->addWidget(vnSoftSoilKsatOriginalEdit);
+        row->addWidget(new QLabel(tr("alpha")));
+        row->addWidget(vnSoftSoilAlphaEdit);
+        row->addWidget(new QLabel(tr("n")));
+        row->addWidget(vnSoftSoilNEdit);
+        row->addWidget(new QLabel(tr("theta_sat")));
+        row->addWidget(vnSoftSoilThetaSatEdit);
+        row->addWidget(new QLabel(tr("theta_res")));
+        row->addWidget(vnSoftSoilThetaResEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftSoilParamsRowWidget = container;
     }
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
@@ -1032,6 +1066,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftDepthToGwEdit);
     saveOnEdit(vnSoftTopElevationEdit);
     saveOnEdit(vnSoftLayerThicknessEdit);
+    saveOnEdit(vnSoftSoilKsatOriginalEdit);
+    saveOnEdit(vnSoftSoilAlphaEdit);
+    saveOnEdit(vnSoftSoilNEdit);
+    saveOnEdit(vnSoftSoilThetaSatEdit);
+    saveOnEdit(vnSoftSoilThetaResEdit);
+    connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     saveOnEdit(observationObjectEdit);
     saveOnEdit(observationExpressionEdit);
     saveOnEdit(observationNameEdit);
@@ -1232,6 +1272,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -1632,6 +1673,12 @@ void ModelCreatorWindow::previewScript()
         AssignDoubleIfProvided(vnSoftDepthToGwEdit, &options.vnSoftDepthToGroundWater);
         AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
         AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
+        AssignDoubleIfProvided(vnSoftSoilKsatOriginalEdit, &options.vnSoftSoilKsatOriginal);
+        AssignDoubleIfProvided(vnSoftSoilAlphaEdit, &options.vnSoftSoilAlpha);
+        AssignDoubleIfProvided(vnSoftSoilNEdit, &options.vnSoftSoilN);
+        AssignDoubleIfProvided(vnSoftSoilThetaSatEdit, &options.vnSoftSoilThetaSat);
+        AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options.vnSoftSoilThetaRes);
+        options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
                 ? vnBuildModeCombo->currentData().toString().trimmed()
@@ -1766,6 +1813,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     AssignDoubleIfProvided(vnSoftDepthToGwEdit, &options.vnSoftDepthToGroundWater);
     AssignDoubleIfProvided(vnSoftTopElevationEdit, &options.vnSoftTopElevation);
     AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options.vnSoftLayerThickness);
+    AssignDoubleIfProvided(vnSoftSoilKsatOriginalEdit, &options.vnSoftSoilKsatOriginal);
+    AssignDoubleIfProvided(vnSoftSoilAlphaEdit, &options.vnSoftSoilAlpha);
+    AssignDoubleIfProvided(vnSoftSoilNEdit, &options.vnSoftSoilN);
+    AssignDoubleIfProvided(vnSoftSoilThetaSatEdit, &options.vnSoftSoilThetaSat);
+    AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options.vnSoftSoilThetaRes);
+    options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedVnBuildMode = vnBuildModeCombo != nullptr
             ? vnBuildModeCombo->currentData().toString().trimmed()
@@ -3009,6 +3062,14 @@ void ModelCreatorWindow::loadSettings()
     vnSoftDepthToGwEdit->setText(settingTextOrDefault("vnSoftDepthToGroundWater", "43.2816"));
     vnSoftTopElevationEdit->setText(settingTextOrDefault("vnSoftTopElevation", "-5.0"));
     vnSoftLayerThicknessEdit->setText(settingTextOrDefault("vnSoftLayerThickness", "1.0"));
+    vnSoftSoilKsatOriginalEdit->setText(settingTextOrDefault("vnSoftSoilKsatOriginal", "1.05196"));
+    vnSoftSoilAlphaEdit->setText(settingTextOrDefault("vnSoftSoilAlpha", "3.47536"));
+    vnSoftSoilNEdit->setText(settingTextOrDefault("vnSoftSoilN", "1.74582"));
+    vnSoftSoilThetaSatEdit->setText(settingTextOrDefault("vnSoftSoilThetaSat", "0.39"));
+    vnSoftSoilThetaResEdit->setText(settingTextOrDefault("vnSoftSoilThetaRes", "0.049"));
+    const QString vnSoftSoilParamMode = settingTextOrDefault("vnSoftSoilParamMode", "Manual");
+    const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
+    vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }
@@ -3065,6 +3126,12 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftDepthToGroundWater", vnSoftDepthToGwEdit->text());
     settings.setValue("vnSoftTopElevation", vnSoftTopElevationEdit->text());
     settings.setValue("vnSoftLayerThickness", vnSoftLayerThicknessEdit->text());
+    settings.setValue("vnSoftSoilKsatOriginal", vnSoftSoilKsatOriginalEdit->text());
+    settings.setValue("vnSoftSoilAlpha", vnSoftSoilAlphaEdit->text());
+    settings.setValue("vnSoftSoilN", vnSoftSoilNEdit->text());
+    settings.setValue("vnSoftSoilThetaSat", vnSoftSoilThetaSatEdit->text());
+    settings.setValue("vnSoftSoilThetaRes", vnSoftSoilThetaResEdit->text());
+    settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
     }

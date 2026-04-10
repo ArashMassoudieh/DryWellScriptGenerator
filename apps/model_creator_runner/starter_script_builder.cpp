@@ -1,5 +1,6 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
+#include "modelcreator.h"
 
 #include <QDir>
 #include <QFile>
@@ -1702,7 +1703,8 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
         && same(options.vnSoftSoilAlpha, 3.47536)
         && same(options.vnSoftSoilN, 1.74582)
         && same(options.vnSoftSoilThetaSat, 0.39)
-        && same(options.vnSoftSoilThetaRes, 0.049);
+        && same(options.vnSoftSoilThetaRes, 0.049)
+        && options.vnSoftSoilParamMode.compare(QStringLiteral("Manual"), Qt::CaseInsensitive) == 0;
 }
 
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
@@ -1964,11 +1966,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     // Keep naming aligned with ModelCreator interpolation sources:
     //   SoilData keys: Ksat, alpha, n, theta_s, theta_r
     //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
-    const double kKsatSource = options.vnSoftSoilKsatOriginal;
-    const double kAlphaSource = options.vnSoftSoilAlpha;
-    const double kNSource = options.vnSoftSoilN;
-    const double kThetaSSource = options.vnSoftSoilThetaSat;
-    const double kThetaRSource = options.vnSoftSoilThetaRes;
+    const bool useModelCreatorDefaults =
+        options.vnSoftSoilParamMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0;
+    model_parameters mpDefaults;
+    const double kKsatSource = useModelCreatorDefaults ? mpDefaults.K_sat : options.vnSoftSoilKsatOriginal;
+    const double kAlphaSource = useModelCreatorDefaults ? mpDefaults.alpha : options.vnSoftSoilAlpha;
+    const double kNSource = useModelCreatorDefaults ? mpDefaults.n : options.vnSoftSoilN;
+    const double kThetaSSource = useModelCreatorDefaults ? mpDefaults.theta_sat : options.vnSoftSoilThetaSat;
+    const double kThetaRSource = useModelCreatorDefaults ? mpDefaults.theta_r : options.vnSoftSoilThetaRes;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
        << ",_height=500,x=" << (-uwNx * 1000.0)

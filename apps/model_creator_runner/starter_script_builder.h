@@ -92,6 +92,10 @@ struct StarterScriptOptions
     double vnSoftSoilN = 1.74582;
     double vnSoftSoilThetaSat = 0.39;
     double vnSoftSoilThetaRes = 0.049;
+    // Soil parameter source mode:
+    //   Manual: use explicit VN soft soil fields above
+    //   ModelCreatorDefaults: use defaults from model_parameters in modelcreator.h
+    QString vnSoftSoilParamMode = "Manual";
 
     // ---------------------------------------------------------------------
     // General preset mode configuration
