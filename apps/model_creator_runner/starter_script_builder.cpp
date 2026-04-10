@@ -207,6 +207,9 @@ QString NormalizeVnBuildMode(const QString &mode)
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
     }
+    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("Preset");
+    }
     return QStringLiteral("SoftReference");
 }
 
