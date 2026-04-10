@@ -1666,6 +1666,57 @@ bool IsSoftReferenceGridLine(const QString &line)
         || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
 }
 
+bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
+{
+    constexpr double kEpsilon = 1e-9;
+    const auto same = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) <= kEpsilon;
+    };
+
+    return options.vnSoftGridXCount == 17
+        && options.vnSoftGridYCount == 12
+        && options.vnSoftUwGridXCount == 17
+        && options.vnSoftUwGridYCount == 12
+        && same(options.vnSoftCellSize, 586.9)
+        && same(options.vnSoftUwCellSize, 586.9)
+        && same(options.vnSoftGapSize, 0.0)
+        && same(options.vnSoftRwG, 1.2192)
+        && same(options.vnSoftRwUw, 1.2192)
+        && same(options.vnSoftRadiusOfInfluence, 20.0)
+        && same(options.vnSoftDepthOfWellC, 4.8768)
+        && same(options.vnSoftDepthOfWellG, 7.3152)
+        && same(options.vnSoftDepthToGroundWater, 43.2816)
+        && same(options.vnSoftTopElevation, -5.0)
+        && same(options.vnSoftLayerThickness, 1.0);
+}
+
+bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
+{
+    return IsDefaultVnSoftReferenceOptions(options)
+        && options.vnSoilLayersFile.trimmed().isEmpty()
+        && options.vnMoistureLayersFile.trimmed().isEmpty()
+        && options.additionalCommands.trimmed().isEmpty();
+}
+
+void AppendEmbeddedVnSoftReferenceGridDefault(const StarterScriptOptions &options, QTextStream *ts)
+{
+    if (ts == nullptr) {
+        return;
+    }
+
+    QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    ApplyVnKsatScaleOverrides(&embedded, options);
+
+    const QStringList lines = embedded.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || !IsSoftReferenceGridLine(trimmed)) {
+            continue;
+        }
+        *ts << line << '\n';
+    }
+}
+
 void AppendEmbeddedVnSoftReferenceScaffold(const StarterScriptOptions &options, QString *scriptText)
 {
     if (scriptText == nullptr) {
@@ -1850,18 +1901,33 @@ void AppendAdditionalCommandsIfAny(QTextStream &ts, const StarterScriptOptions &
 
 void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &options)
 {
+    if (IsDefaultVnSoftReferenceOptions(options)) {
+        AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
+        return;
+    }
+
     const int gNx = qMax(1, options.vnSoftGridXCount);
     const int gNy = qMax(1, options.vnSoftGridYCount);
     const int uwNx = qMax(1, options.vnSoftUwGridXCount);
     const int uwNy = qMax(1, options.vnSoftUwGridYCount);
-    // Keep block sizes aligned with VN cpp/ref defaults (non-parametric physical blocks),
-    // while allowing optional explicit overrides from options when provided.
-    const double gDx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
-    const double uwDx = options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx;
+    const bool geometryFromRadii = options.vnSoftRadiusOfInfluence > options.vnSoftRwG
+        && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw;
+    const double gDx = geometryFromRadii
+        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwG) / gNx
+        : (options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9);
+    const double uwDx = geometryFromRadii
+        ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwUw) / uwNx
+        : (options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx);
     const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
-    const double gLayerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
-    const double uwLayerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const bool geometryFromDepths = options.vnSoftDepthOfWellG > 0.0
+        && options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG);
+    const double gLayerThickness = geometryFromDepths
+        ? options.vnSoftDepthOfWellG / gNy
+        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
+    const double uwLayerThickness = geometryFromDepths
+        ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
+        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
     const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
     const double uwXOffset = (gNx * gDx) + gap;
@@ -2160,15 +2226,28 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (vnModelType && vnMode == QStringLiteral("SoftReference")) {
         QString out;
         AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
-        AppendEmbeddedVnSoftReferenceScaffold(options, &out);
-        QTextStream ts(&out);
-        ts.seek(out.size());
-        ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
-        ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
-        ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
-        ts << "setvalue; object=Well_c, quantity=inflow, value=" << inflow << "\n";
-        ts << "# VN_Drywell soft reference scaffold generated from embedded VN reference + controllable Soil-uw grid\n";
-        AppendVnSoftReferenceGrid(ts, options);
+
+        if (ShouldUseCanonicalVnSoftReference(options)) {
+            AppendEmbeddedVnFullReferenceScript(options, &out);
+            out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
+                       .arg(options.simulationStart);
+            out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n")
+                       .arg(options.simulationEnd);
+            out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
+                       .arg(options.outputSeriesFile);
+            out += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
+                       .arg(inflow);
+        } else {
+            AppendEmbeddedVnSoftReferenceScaffold(options, &out);
+            QTextStream ts(&out);
+            ts.seek(out.size());
+            ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
+            ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
+            ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
+            ts << "setvalue; object=Well_c, quantity=inflow, value=" << inflow << "\n";
+            ts << "# VN_Drywell soft reference scaffold generated from embedded VN reference + controllable Soil-uw grid\n";
+            AppendVnSoftReferenceGrid(ts, options);
+        }
 
         if (!AppendSnippetFile(options.vnSoilLayersFile,
                                QStringLiteral("VN soil layers"),
