@@ -70,8 +70,8 @@ void ApplyVnKsatScaleOverrides(QString *scriptText, const StarterScriptOptions &
     if (scriptText == nullptr) {
         return;
     }
-    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
-    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("1.0"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("1.0"));
     scriptText->replace(QStringLiteral("K_sat_scale_factor=2.5"),
                         QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
     scriptText->replace(QStringLiteral("K_sat_scale_factor=35"),
@@ -1953,8 +1953,8 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
     const double topElevation = options.vnSoftTopElevation;
     const double gap = qMax(0.0, options.vnSoftGapSize);
-    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
-    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("1.0"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("1.0"));
     const double depthWellT = options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG;
     const int assumedNzC = qMax(1, static_cast<int>(std::round(options.vnSoftDepthOfWellC / qMax(1e-9, gLayerThickness))));
     const double gwHead = topElevation - options.vnSoftDepthToGroundWater;
