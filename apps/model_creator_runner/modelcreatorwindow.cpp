@@ -908,7 +908,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *soilFileBrowseButton = new QPushButton(tr("Browse"), container);
         connect(soilFileBrowseButton, &QPushButton::clicked, this, &ModelCreatorWindow::chooseVnSoftSoilParameterFile);
         row->addWidget(soilFileBrowseButton);
-        auto *vnRefTableButton = new QPushButton(tr("VN Ref table"), container);
+        auto *vnRefTableButton = new QPushButton(tr("Soil params table"), container);
         connect(vnRefTableButton, &QPushButton::clicked, this, [this]() { showVnReferenceDefaultsTable(); });
         row->addWidget(vnRefTableButton);
         row->addStretch(1);
@@ -1632,27 +1632,54 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
 
 void ModelCreatorWindow::showVnReferenceDefaultsTable()
 {
-    const QString csv = StarterScriptBuilder::VnReferenceSoilProfileCsv();
+    const QString currentMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+    QString csv;
+    if (currentMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+        && !vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
+        QFile file(vnSoftSoilParameterFileEdit->text().trimmed());
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            csv = QString::fromUtf8(file.readAll());
+        }
+    } else if (currentMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
+        csv = StarterScriptBuilder::VnReferenceSoilProfileCsv();
+    } else {
+        const bool modelCreatorDefaults =
+            currentMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0;
+        const double ksat = modelCreatorDefaults ? 1.05196 : vnSoftSoilKsatOriginalEdit->text().toDouble();
+        const double alpha = modelCreatorDefaults ? 3.47536 : vnSoftSoilAlphaEdit->text().toDouble();
+        const double n = modelCreatorDefaults ? 1.74582 : vnSoftSoilNEdit->text().toDouble();
+        const double thetaSat = modelCreatorDefaults ? 0.39 : vnSoftSoilThetaSatEdit->text().toDouble();
+        const double thetaRes = modelCreatorDefaults ? 0.049 : vnSoftSoilThetaResEdit->text().toDouble();
+        csv = QStringLiteral("zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n"
+                             "Soil-g,-5.0,5.0,%1,%2,%3,%4,%5\n"
+                             "Soil-uw,-15.0,15.0,%1,%2,%3,%4,%5\n")
+                  .arg(ksat, 0, 'g', 10)
+                  .arg(alpha, 0, 'g', 10)
+                  .arg(n, 0, 'g', 10)
+                  .arg(thetaSat, 0, 'g', 10)
+                  .arg(thetaRes, 0, 'g', 10);
+    }
+
     if (csv.trimmed().isEmpty()) {
-        QMessageBox::warning(this, tr("VN Ref defaults"), tr("Could not load VN reference default profile."));
+        QMessageBox::warning(this, tr("Soil params table"), tr("Could not load soil-parameter profile for current mode."));
         return;
     }
 
     const QStringList lines = csv.split('\n', Qt::SkipEmptyParts);
     if (lines.isEmpty()) {
-        QMessageBox::warning(this, tr("VN Ref defaults"), tr("VN reference profile table is empty."));
+        QMessageBox::warning(this, tr("Soil params table"), tr("Soil-parameter table is empty."));
         return;
     }
 
     const QStringList headers = lines.first().split(',', Qt::KeepEmptyParts);
     auto *dialog = new QDialog(this);
-    dialog->setWindowTitle(tr("VN Ref defaults profile"));
+    dialog->setWindowTitle(tr("Soil params matrix (%1)").arg(currentMode.isEmpty() ? QStringLiteral("Manual") : currentMode));
     dialog->resize(760, 520);
     auto *layout = new QVBoxLayout(dialog);
     auto *table = new QTableWidget(dialog);
     table->setColumnCount(headers.size());
     table->setHorizontalHeaderLabels(headers);
-    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setAlternatingRowColors(true);
 
@@ -1673,9 +1700,85 @@ void ModelCreatorWindow::showVnReferenceDefaultsTable()
     table->resizeColumnsToContents();
     layout->addWidget(table);
 
+    auto *buttonsRow = new QHBoxLayout();
+    auto *applyManualBtn = new QPushButton(tr("Apply first row to Manual"), dialog);
+    connect(applyManualBtn, &QPushButton::clicked, dialog, [this, table]() {
+        if (table->rowCount() == 0) {
+            return;
+        }
+        if (table->columnCount() < 8) {
+            QMessageBox::warning(table, tr("Apply to Manual"),
+                                 tr("Table format requires at least 8 columns: zone, act_Y, depth_m, Ksat, alpha, n, theta_sat, theta_res."));
+            return;
+        }
+        const auto cellText = [table](int row, int col) {
+            auto *item = table->item(row, col);
+            return item ? item->text().trimmed() : QString();
+        };
+        bool okKsat = false, okAlpha = false, okN = false, okThetaSat = false, okThetaRes = false;
+        const double ksat = cellText(0, 3).toDouble(&okKsat);
+        const double alpha = cellText(0, 4).toDouble(&okAlpha);
+        const double n = cellText(0, 5).toDouble(&okN);
+        const double thetaSat = cellText(0, 6).toDouble(&okThetaSat);
+        const double thetaRes = cellText(0, 7).toDouble(&okThetaRes);
+        if (!(okKsat && okAlpha && okN && okThetaSat && okThetaRes)) {
+            QMessageBox::warning(table, tr("Apply to Manual"), tr("First row has invalid numeric cells."));
+            return;
+        }
+        vnSoftSoilKsatOriginalEdit->setText(QString::number(ksat, 'g', 10));
+        vnSoftSoilAlphaEdit->setText(QString::number(alpha, 'g', 10));
+        vnSoftSoilNEdit->setText(QString::number(n, 'g', 10));
+        vnSoftSoilThetaSatEdit->setText(QString::number(thetaSat, 'g', 10));
+        vnSoftSoilThetaResEdit->setText(QString::number(thetaRes, 'g', 10));
+        const int manualIndex = vnSoftSoilParamModeCombo->findData(QStringLiteral("Manual"));
+        if (manualIndex >= 0) {
+            vnSoftSoilParamModeCombo->setCurrentIndex(manualIndex);
+        }
+        saveSettings();
+    });
+    buttonsRow->addWidget(applyManualBtn);
+
+    auto *saveAsFileBtn = new QPushButton(tr("Save as File profile"), dialog);
+    connect(saveAsFileBtn, &QPushButton::clicked, dialog, [this, table, headers, dialog]() {
+        const QString target = QFileDialog::getSaveFileName(dialog,
+                                                            tr("Save soil profile CSV"),
+                                                            QDir(workingDirEdit->text().trimmed()).filePath("vn_soft_soil_profile.csv"),
+                                                            tr("CSV files (*.csv);;All files (*.*)"));
+        if (target.isEmpty()) {
+            return;
+        }
+        QSaveFile out(target);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::warning(dialog, tr("Save profile"), tr("Could not open file for writing."));
+            return;
+        }
+        QTextStream ts(&out);
+        ts << headers.join(',') << "\n";
+        for (int r = 0; r < table->rowCount(); ++r) {
+            QStringList rowValues;
+            for (int c = 0; c < table->columnCount(); ++c) {
+                auto *item = table->item(r, c);
+                rowValues << (item ? item->text().trimmed() : QString());
+            }
+            ts << rowValues.join(',') << "\n";
+        }
+        if (!out.commit()) {
+            QMessageBox::warning(dialog, tr("Save profile"), tr("Could not finalize saved CSV."));
+            return;
+        }
+        vnSoftSoilParameterFileEdit->setText(target);
+        const int fileIndex = vnSoftSoilParamModeCombo->findData(QStringLiteral("File"));
+        if (fileIndex >= 0) {
+            vnSoftSoilParamModeCombo->setCurrentIndex(fileIndex);
+        }
+        saveSettings();
+    });
+    buttonsRow->addWidget(saveAsFileBtn);
+
     auto *closeBtn = new QPushButton(tr("Close"), dialog);
     connect(closeBtn, &QPushButton::clicked, dialog, &QDialog::accept);
-    layout->addWidget(closeBtn);
+    buttonsRow->addWidget(closeBtn);
+    layout->addLayout(buttonsRow);
 
     dialog->exec();
 }
