@@ -79,6 +79,9 @@ struct StarterScriptOptions
     double vnSoftRwG = 1.2192;
     double vnSoftRwUw = 1.2192;
     double vnSoftRadiusOfInfluence = 20.0;
+    double vnSoftDepthOfWellC = 4.8768;
+    double vnSoftDepthOfWellG = 7.3152;
+    double vnSoftDepthToGroundWater = 43.2816;
     double vnSoftTopElevation = -5.0;
     double vnSoftLayerThickness = 1.0;
 

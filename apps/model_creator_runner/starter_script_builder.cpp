@@ -1864,7 +1864,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         : (options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx);
     const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
-    const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const bool geometryFromDepths = options.vnSoftDepthOfWellG > 0.0
+        && options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG);
+    const double gLayerThickness = geometryFromDepths
+        ? options.vnSoftDepthOfWellG / gNy
+        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
+    const double uwLayerThickness = geometryFromDepths
+        ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNy
+        : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
     const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
     const double uwXOffset = (gNx * gDx) + gap;
@@ -1874,22 +1881,22 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
 
     for (int y = 0; y < gNy; ++y) {
         for (int x = 0; x < gNx; ++x) {
-            const double bottom = topElevation - ((y + 1) * layerThickness);
+            const double bottom = topElevation - ((y + 1) * gLayerThickness);
             ts << "create block;type=Soil,name=Soil-g (" << (x + 1) << "$" << y << "),"
                << "_width=" << gDx << ",_height=" << gDx
                << ",x=" << (x * gDx) << ",y=" << (y * gDx)
-               << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
+               << ",bottom_elevation=" << bottom << "[m],depth=" << gLayerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << gScale << ",alpha=10,n=1.35,L=-0.5\n";
         }
     }
     for (int y = 0; y < uwNy; ++y) {
         for (int x = 0; x < uwNx; ++x) {
-            const double bottom = topElevation - ((y + 1) * layerThickness);
+            const double bottom = (topElevation - options.vnSoftDepthOfWellG) - ((y + 1) * uwLayerThickness);
             ts << "create block;type=Soil,name=Soil-uw (" << x << "$" << y << "),"
                << "_width=" << uwDx << ",_height=" << uwDx
                << ",x=" << (uwXOffset + (x * uwDx)) << ",y=" << (y * uwDx)
-               << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
+               << ",bottom_elevation=" << bottom << "[m],depth=" << uwLayerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
         }
@@ -2017,6 +2024,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         || !std::isfinite(options.vnSoftRwG)
         || !std::isfinite(options.vnSoftRwUw)
         || !std::isfinite(options.vnSoftRadiusOfInfluence)
+        || !std::isfinite(options.vnSoftDepthOfWellC)
+        || !std::isfinite(options.vnSoftDepthOfWellG)
+        || !std::isfinite(options.vnSoftDepthToGroundWater)
         || (options.vnSoftLayerThickness > 0.0 && !std::isfinite(options.vnSoftLayerThickness))
         || !std::isfinite(options.vnSoftTopElevation)) {
         if (errorMessage) {

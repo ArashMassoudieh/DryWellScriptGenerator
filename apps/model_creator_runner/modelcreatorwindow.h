@@ -127,6 +127,9 @@ private:
     QLineEdit *vnSoftRwGEdit;
     QLineEdit *vnSoftRwUwEdit;
     QLineEdit *vnSoftRadiusInfluenceEdit;
+    QLineEdit *vnSoftDepthWellCEdit;
+    QLineEdit *vnSoftDepthWellGEdit;
+    QLineEdit *vnSoftDepthToGwEdit;
     QLineEdit *vnSoftTopElevationEdit;
     QLineEdit *vnSoftLayerThicknessEdit;
     QLineEdit *observationObjectEdit;
@@ -161,6 +164,7 @@ private:
     QWidget *vnSoftUwCellSizeRowWidget = nullptr;
     QWidget *vnSoftGapSizeRowWidget = nullptr;
     QWidget *vnSoftRadiusRowWidget = nullptr;
+    QWidget *vnSoftDepthRowWidget = nullptr;
     QWidget *vnSoftTopElevationRowWidget = nullptr;
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QTabWidget *tabs;

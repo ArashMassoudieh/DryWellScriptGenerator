@@ -41,6 +41,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - **VN soft uw grid X/Y + cell [m]** for `Soil-uw`
     - **VN soft uw gap [m]** to control spacing between `Soil-g` and `Soil-uw`
     - **VN soft radii [m]** (`rw_g`, `rw_uw`, `ROI`) to derive ring spacing from reference-style geometry
+    - **VN soft depths [m]** (`well_c`, `well_g`, `to_gw`) to derive vertical layer thickness from reference-style geometry
     - **VN soft top elevation [m]**
     - **VN soft layer thickness [m]**
   - VN script generation now respects **Ksat scale** UI inputs:

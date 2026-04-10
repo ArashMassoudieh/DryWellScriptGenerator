@@ -281,6 +281,9 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
     constexpr double kDefaultRwG = 1.2192;
     constexpr double kDefaultRwUw = 1.2192;
     constexpr double kDefaultRoi = 20.0;
+    constexpr double kDefaultDepthWellC = 4.8768;
+    constexpr double kDefaultDepthWellG = 7.3152;
+    constexpr double kDefaultDepthToGw = 43.2816;
     constexpr double kDefaultTopElevation = -5.0;
     constexpr double kDefaultLayerThickness = 1.0;
     constexpr double kEpsilon = 1e-9;
@@ -299,6 +302,9 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftRwG, kDefaultRwG)
         || differs(options.vnSoftRwUw, kDefaultRwUw)
         || differs(options.vnSoftRadiusOfInfluence, kDefaultRoi)
+        || differs(options.vnSoftDepthOfWellC, kDefaultDepthWellC)
+        || differs(options.vnSoftDepthOfWellG, kDefaultDepthWellG)
+        || differs(options.vnSoftDepthToGroundWater, kDefaultDepthToGw)
         || differs(options.vnSoftTopElevation, kDefaultTopElevation)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
 }
@@ -580,6 +586,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftRwGEdit(new QLineEdit(this)),
       vnSoftRwUwEdit(new QLineEdit(this)),
       vnSoftRadiusInfluenceEdit(new QLineEdit(this)),
+      vnSoftDepthWellCEdit(new QLineEdit(this)),
+      vnSoftDepthWellGEdit(new QLineEdit(this)),
+      vnSoftDepthToGwEdit(new QLineEdit(this)),
       vnSoftTopElevationEdit(new QLineEdit(this)),
       vnSoftLayerThicknessEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
@@ -733,6 +742,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftRwGEdit, tr("1.2192"));
     setupCompactNumericEdit(vnSoftRwUwEdit, tr("1.2192"));
     setupCompactNumericEdit(vnSoftRadiusInfluenceEdit, tr("20.0"));
+    setupCompactNumericEdit(vnSoftDepthWellCEdit, tr("4.8768"));
+    setupCompactNumericEdit(vnSoftDepthWellGEdit, tr("7.3152"));
+    setupCompactNumericEdit(vnSoftDepthToGwEdit, tr("43.2816"));
     setupCompactNumericEdit(vnSoftTopElevationEdit, tr("-5.0"));
     setupCompactNumericEdit(vnSoftLayerThicknessEdit, tr("1.0"));
     {
@@ -786,6 +798,21 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addStretch(1);
         layout->addWidget(container);
         vnSoftRadiusRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft depths [m]")));
+        row->addWidget(new QLabel(tr("well_c")));
+        row->addWidget(vnSoftDepthWellCEdit);
+        row->addWidget(new QLabel(tr("well_g")));
+        row->addWidget(vnSoftDepthWellGEdit);
+        row->addWidget(new QLabel(tr("to_gw")));
+        row->addWidget(vnSoftDepthToGwEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftDepthRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -960,6 +987,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftRwGEdit);
     saveOnEdit(vnSoftRwUwEdit);
     saveOnEdit(vnSoftRadiusInfluenceEdit);
+    saveOnEdit(vnSoftDepthWellCEdit);
+    saveOnEdit(vnSoftDepthWellGEdit);
+    saveOnEdit(vnSoftDepthToGwEdit);
     saveOnEdit(vnSoftTopElevationEdit);
     saveOnEdit(vnSoftLayerThicknessEdit);
     saveOnEdit(observationObjectEdit);
@@ -1153,6 +1183,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext);
 
@@ -1550,6 +1581,9 @@ void ModelCreatorWindow::previewScript()
         options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
         options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
         options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
+        options.vnSoftDepthOfWellC = vnSoftDepthWellCEdit->text().trimmed().toDouble();
+        options.vnSoftDepthOfWellG = vnSoftDepthWellGEdit->text().trimmed().toDouble();
+        options.vnSoftDepthToGroundWater = vnSoftDepthToGwEdit->text().trimmed().toDouble();
         options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
         options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -1676,6 +1710,9 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnSoftRwG = vnSoftRwGEdit->text().trimmed().toDouble();
     options.vnSoftRwUw = vnSoftRwUwEdit->text().trimmed().toDouble();
     options.vnSoftRadiusOfInfluence = vnSoftRadiusInfluenceEdit->text().trimmed().toDouble();
+    options.vnSoftDepthOfWellC = vnSoftDepthWellCEdit->text().trimmed().toDouble();
+    options.vnSoftDepthOfWellG = vnSoftDepthWellGEdit->text().trimmed().toDouble();
+    options.vnSoftDepthToGroundWater = vnSoftDepthToGwEdit->text().trimmed().toDouble();
     options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
     options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -2899,6 +2936,9 @@ void ModelCreatorWindow::loadSettings()
     vnSoftRwGEdit->setText(settings.value("vnSoftRwG", "1.2192").toString());
     vnSoftRwUwEdit->setText(settings.value("vnSoftRwUw", "1.2192").toString());
     vnSoftRadiusInfluenceEdit->setText(settings.value("vnSoftRadiusOfInfluence", "20.0").toString());
+    vnSoftDepthWellCEdit->setText(settings.value("vnSoftDepthOfWellC", "4.8768").toString());
+    vnSoftDepthWellGEdit->setText(settings.value("vnSoftDepthOfWellG", "7.3152").toString());
+    vnSoftDepthToGwEdit->setText(settings.value("vnSoftDepthToGroundWater", "43.2816").toString());
     vnSoftTopElevationEdit->setText(settings.value("vnSoftTopElevation", "-5.0").toString());
     vnSoftLayerThicknessEdit->setText(settings.value("vnSoftLayerThickness", "1.0").toString());
     if (showOptionalFieldsCheck) {
@@ -2949,6 +2989,9 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftRwG", vnSoftRwGEdit->text());
     settings.setValue("vnSoftRwUw", vnSoftRwUwEdit->text());
     settings.setValue("vnSoftRadiusOfInfluence", vnSoftRadiusInfluenceEdit->text());
+    settings.setValue("vnSoftDepthOfWellC", vnSoftDepthWellCEdit->text());
+    settings.setValue("vnSoftDepthOfWellG", vnSoftDepthWellGEdit->text());
+    settings.setValue("vnSoftDepthToGroundWater", vnSoftDepthToGwEdit->text());
     settings.setValue("vnSoftTopElevation", vnSoftTopElevationEdit->text());
     settings.setValue("vnSoftLayerThickness", vnSoftLayerThicknessEdit->text());
     if (showOptionalFieldsCheck) {
