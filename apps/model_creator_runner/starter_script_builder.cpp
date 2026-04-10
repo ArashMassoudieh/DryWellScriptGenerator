@@ -1968,12 +1968,18 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
     const bool useModelCreatorDefaults =
         options.vnSoftSoilParamMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0;
-    model_parameters mpDefaults;
-    const double kKsatSource = useModelCreatorDefaults ? mpDefaults.K_sat : options.vnSoftSoilKsatOriginal;
-    const double kAlphaSource = useModelCreatorDefaults ? mpDefaults.alpha : options.vnSoftSoilAlpha;
-    const double kNSource = useModelCreatorDefaults ? mpDefaults.n : options.vnSoftSoilN;
-    const double kThetaSSource = useModelCreatorDefaults ? mpDefaults.theta_sat : options.vnSoftSoilThetaSat;
-    const double kThetaRSource = useModelCreatorDefaults ? mpDefaults.theta_r : options.vnSoftSoilThetaRes;
+    // Keep ModelCreator defaults local to script-builder so this module does not
+    // depend on UI-side headers or include-path availability.
+    constexpr double kModelCreatorDefaultKsat = 1.05196;
+    constexpr double kModelCreatorDefaultAlpha = 3.47536;
+    constexpr double kModelCreatorDefaultN = 1.74582;
+    constexpr double kModelCreatorDefaultThetaSat = 0.39;
+    constexpr double kModelCreatorDefaultThetaRes = 0.049;
+    const double kKsatSource = useModelCreatorDefaults ? kModelCreatorDefaultKsat : options.vnSoftSoilKsatOriginal;
+    const double kAlphaSource = useModelCreatorDefaults ? kModelCreatorDefaultAlpha : options.vnSoftSoilAlpha;
+    const double kNSource = useModelCreatorDefaults ? kModelCreatorDefaultN : options.vnSoftSoilN;
+    const double kThetaSSource = useModelCreatorDefaults ? kModelCreatorDefaultThetaSat : options.vnSoftSoilThetaSat;
+    const double kThetaRSource = useModelCreatorDefaults ? kModelCreatorDefaultThetaRes : options.vnSoftSoilThetaRes;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
        << ",_height=500,x=" << (-uwNx * 1000.0)
