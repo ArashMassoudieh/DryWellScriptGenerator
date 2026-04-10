@@ -1633,18 +1633,27 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
 void ModelCreatorWindow::showVnReferenceDefaultsTable()
 {
     const QString currentMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+    const QString compactMode = currentMode.toLower().remove(' ').remove('_').remove('-');
+    const bool fileMode = currentMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("file")
+        || compactMode == QStringLiteral("filedepthprofile");
+    const bool vnRefMode = currentMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("vnrefdefaults")
+        || compactMode == QStringLiteral("vnreferencedefaults");
+    const bool modelCreatorDefaults =
+        currentMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("modelcreatordefaults");
+
     QString csv;
-    if (currentMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+    if (fileMode
         && !vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
         QFile file(vnSoftSoilParameterFileEdit->text().trimmed());
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             csv = QString::fromUtf8(file.readAll());
         }
-    } else if (currentMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
+    } else if (vnRefMode) {
         csv = StarterScriptBuilder::VnReferenceSoilProfileCsv();
     } else {
-        const bool modelCreatorDefaults =
-            currentMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0;
         const double ksat = modelCreatorDefaults ? 1.05196 : vnSoftSoilKsatOriginalEdit->text().toDouble();
         const double alpha = modelCreatorDefaults ? 3.47536 : vnSoftSoilAlphaEdit->text().toDouble();
         const double n = modelCreatorDefaults ? 1.74582 : vnSoftSoilNEdit->text().toDouble();

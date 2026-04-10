@@ -1742,8 +1742,10 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
         if (!line.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             continue;
         }
-        const bool isG = line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive);
-        const bool isUw = line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive);
+        const bool isG = line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive)
+            || line.contains(QStringLiteral("name=Soil-g("), Qt::CaseInsensitive);
+        const bool isUw = line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)
+            || line.contains(QStringLiteral("name=Soil-uw("), Qt::CaseInsensitive);
         if (!isG && !isUw) {
             continue;
         }
