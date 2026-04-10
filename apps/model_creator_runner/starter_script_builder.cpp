@@ -1742,8 +1742,10 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
         if (!line.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             continue;
         }
-        const bool isG = line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive);
-        const bool isUw = line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive);
+        const bool isG = line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive)
+            || line.contains(QStringLiteral("name=Soil-g("), Qt::CaseInsensitive);
+        const bool isUw = line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)
+            || line.contains(QStringLiteral("name=Soil-uw("), Qt::CaseInsensitive);
         if (!isG && !isUw) {
             continue;
         }
@@ -1802,13 +1804,20 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
 QString NormalizeVnSoftSoilParamMode(const QString &mode)
 {
     const QString trimmed = mode.trimmed();
-    if (trimmed.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
+    const QString compact = trimmed.toLower().remove(' ').remove('_').remove('-');
+
+    if (trimmed.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+        || compact == QStringLiteral("file")
+        || compact == QStringLiteral("filedepthprofile")) {
         return QStringLiteral("File");
     }
-    if (trimmed.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
+    if (trimmed.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0
+        || compact == QStringLiteral("vnrefdefaults")
+        || compact == QStringLiteral("vnreferencedefaults")) {
         return QStringLiteral("VnReferenceDefaults");
     }
-    if (trimmed.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0) {
+    if (trimmed.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0
+        || compact == QStringLiteral("modelcreatordefaults")) {
         return QStringLiteral("ModelCreatorDefaults");
     }
     return QStringLiteral("Manual");
