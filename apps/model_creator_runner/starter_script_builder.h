@@ -95,7 +95,12 @@ struct StarterScriptOptions
     // Soil parameter source mode:
     //   Manual: use explicit VN soft soil fields above
     //   ModelCreatorDefaults: use ModelCreator-equivalent constants in script builder
+    //   File: linearly interpolate params by depth from vnSoftSoilParameterFile CSV
     QString vnSoftSoilParamMode = "Manual";
+    // Optional CSV source used when vnSoftSoilParamMode == "File".
+    // Expected headers (case-insensitive, flexible aliases):
+    //   depth/depth_m, Ksat, alpha, n, theta_s/theta_sat, theta_r/theta_res
+    QString vnSoftSoilParameterFile;
 
     // ---------------------------------------------------------------------
     // General preset mode configuration
