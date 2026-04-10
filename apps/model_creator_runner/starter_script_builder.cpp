@@ -207,6 +207,9 @@ QString NormalizeVnBuildMode(const QString &mode)
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
     }
+    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("Preset");
+    }
     return QStringLiteral("SoftReference");
 }
 
@@ -1910,7 +1913,21 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const int gNy = qMax(1, options.vnSoftGridYCount);
     const int uwNx = qMax(1, options.vnSoftUwGridXCount);
     const int uwNy = qMax(1, options.vnSoftUwGridYCount);
-    const bool geometryFromRadii = options.vnSoftRadiusOfInfluence > options.vnSoftRwG
+
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+
+    const bool radiiCustomized = differs(options.vnSoftRwG, 1.2192)
+        || differs(options.vnSoftRwUw, 1.2192)
+        || differs(options.vnSoftRadiusOfInfluence, 20.0);
+    const bool depthsCustomized = differs(options.vnSoftDepthOfWellC, 4.8768)
+        || differs(options.vnSoftDepthOfWellG, 7.3152)
+        || differs(options.vnSoftDepthToGroundWater, 43.2816);
+
+    const bool geometryFromRadii = radiiCustomized
+        && options.vnSoftRadiusOfInfluence > options.vnSoftRwG
         && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw;
     const double gDx = geometryFromRadii
         ? (options.vnSoftRadiusOfInfluence - options.vnSoftRwG) / gNx
@@ -1920,7 +1937,8 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         : (options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx);
     const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
-    const bool geometryFromDepths = options.vnSoftDepthOfWellG > 0.0
+    const bool geometryFromDepths = depthsCustomized
+        && options.vnSoftDepthOfWellG > 0.0
         && options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG);
     const double gLayerThickness = geometryFromDepths
         ? options.vnSoftDepthOfWellG / gNy
