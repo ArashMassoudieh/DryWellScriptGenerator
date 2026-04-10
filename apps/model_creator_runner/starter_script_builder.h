@@ -36,6 +36,11 @@ struct StarterScriptOptions
     // Optional raw OHQ lines appended at the end of generated starter script.
     QString additionalCommands;
 
+    // Optional Ksat scale controls (used by VN generation when applicable).
+    QString ksatScaleAll;
+    QString ksatScaleG;
+    QString ksatScaleUw;
+
     // ---------------------------------------------------------------------
     // VN-specific configuration
     // ---------------------------------------------------------------------
@@ -44,10 +49,11 @@ struct StarterScriptOptions
     //
     //   "Preset"        -> use vnPreset / enrichmentPreset (default, legacy-friendly)
     //   "FullReference" -> use embedded full VN reference OHQ content
+    //   "SoftReference" -> template-based VN scaffold + user-provided VN snippets
     //   "LoadFromOhq"   -> load vnBaseOhqFile as authoritative base script
     //
     // For non-VN model types, these fields are ignored.
-    QString vnBuildMode = "Preset";   // Preset | FullReference | LoadFromOhq
+    QString vnBuildMode = "Preset";   // Preset | FullReference | SoftReference | LoadFromOhq
 
     // VN preset name used only when vnBuildMode == "Preset".
     // If empty, falls back to enrichmentPreset, then to "VN_Drywell".
@@ -61,6 +67,20 @@ struct StarterScriptOptions
     QString vnBaseOhqFile;
     QString vnSoilLayersFile;
     QString vnMoistureLayersFile;
+
+    // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
+    int vnSoftGridXCount = 17;
+    int vnSoftGridYCount = 12;
+    int vnSoftUwGridXCount = 17;
+    int vnSoftUwGridYCount = 12;
+    double vnSoftCellSize = 586.9;
+    double vnSoftUwCellSize = 586.9;
+    double vnSoftGapSize = 0.0;
+    double vnSoftRwG = 1.2192;
+    double vnSoftRwUw = 1.2192;
+    double vnSoftRadiusOfInfluence = 20.0;
+    double vnSoftTopElevation = -5.0;
+    double vnSoftLayerThickness = 1.0;
 
     // ---------------------------------------------------------------------
     // General preset mode configuration
