@@ -10,6 +10,7 @@
 #include <QCheckBox>
 #include <QDateTime>
 #include <QDialog>
+#include <QAbstractItemView>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -33,6 +34,7 @@
 #include <QSignalBlocker>
 #include <QSettings>
 #include <QTabWidget>
+#include <QTableWidget>
 #include <QTextStream>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -906,6 +908,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *soilFileBrowseButton = new QPushButton(tr("Browse"), container);
         connect(soilFileBrowseButton, &QPushButton::clicked, this, &ModelCreatorWindow::chooseVnSoftSoilParameterFile);
         row->addWidget(soilFileBrowseButton);
+        auto *vnRefTableButton = new QPushButton(tr("VN Ref table"), container);
+        connect(vnRefTableButton, &QPushButton::clicked, this, &ModelCreatorWindow::showVnReferenceDefaultsTable);
+        row->addWidget(vnRefTableButton);
         row->addStretch(1);
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
@@ -1623,6 +1628,56 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
         vnSoftSoilParameterFileEdit->setText(fileName);
         saveSettings();
     }
+}
+
+void ModelCreatorWindow::showVnReferenceDefaultsTable()
+{
+    const QString csv = StarterScriptBuilder::VnReferenceSoilProfileCsv();
+    if (csv.trimmed().isEmpty()) {
+        QMessageBox::warning(this, tr("VN Ref defaults"), tr("Could not load VN reference default profile."));
+        return;
+    }
+
+    const QStringList lines = csv.split('\n', Qt::SkipEmptyParts);
+    if (lines.isEmpty()) {
+        QMessageBox::warning(this, tr("VN Ref defaults"), tr("VN reference profile table is empty."));
+        return;
+    }
+
+    const QStringList headers = lines.first().split(',', Qt::KeepEmptyParts);
+    auto *dialog = new QDialog(this);
+    dialog->setWindowTitle(tr("VN Ref defaults profile"));
+    dialog->resize(760, 520);
+    auto *layout = new QVBoxLayout(dialog);
+    auto *table = new QTableWidget(dialog);
+    table->setColumnCount(headers.size());
+    table->setHorizontalHeaderLabels(headers);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setAlternatingRowColors(true);
+
+    int rowIndex = 0;
+    for (int i = 1; i < lines.size(); ++i) {
+        const QString line = lines.at(i).trimmed();
+        if (line.isEmpty()) {
+            continue;
+        }
+        const QStringList cells = line.split(',', Qt::KeepEmptyParts);
+        table->insertRow(rowIndex);
+        for (int c = 0; c < headers.size(); ++c) {
+            const QString value = c < cells.size() ? cells.at(c).trimmed() : QString();
+            table->setItem(rowIndex, c, new QTableWidgetItem(value));
+        }
+        ++rowIndex;
+    }
+    table->resizeColumnsToContents();
+    layout->addWidget(table);
+
+    auto *closeBtn = new QPushButton(tr("Close"), dialog);
+    connect(closeBtn, &QPushButton::clicked, dialog, &QDialog::accept);
+    layout->addWidget(closeBtn);
+
+    dialog->exec();
 }
 
 void ModelCreatorWindow::loadAdditionalCommandsFromFile()

@@ -43,6 +43,7 @@ private slots:
     void chooseVnSoilLayersFile();
     void chooseVnMoistureLayersFile();
     void chooseVnSoftSoilParameterFile();
+    void showVnReferenceDefaultsTable();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
     void quickGenerateRunAndSave();

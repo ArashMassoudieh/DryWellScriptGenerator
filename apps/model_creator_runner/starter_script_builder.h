@@ -125,6 +125,8 @@ struct StarterScriptOptions
 class StarterScriptBuilder
 {
 public:
+    static QString VnReferenceSoilProfileCsv();
+
     static bool BuildText(const StarterScriptOptions &options,
                           QString *scriptText,
                           QString *errorMessage = nullptr);

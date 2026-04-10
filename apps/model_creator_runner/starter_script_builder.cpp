@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QSaveFile>
 #include <QTextStream>
 #include <QVector>
@@ -1695,6 +1696,84 @@ struct VnSoftSoilProfileRow
     VnSoftSoilProps props;
 };
 
+QString ExtractCommandValue(const QString &line, const QString &key)
+{
+    const QString token = key + QStringLiteral("=");
+    const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+    if (start < 0) {
+        return {};
+    }
+    const int valueStart = start + token.size();
+    int end = line.indexOf(',', valueStart);
+    if (end < 0) {
+        end = line.size();
+    }
+    return line.mid(valueStart, end - valueStart).trimmed();
+}
+
+bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *rows)
+{
+    if (rows == nullptr) {
+        return false;
+    }
+    rows->clear();
+
+    const QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    const QStringList lines = embedded.split('\n', Qt::SkipEmptyParts);
+    QHash<int, VnSoftSoilProfileRow> uniqueByDepthKey;
+
+    for (const QString &rawLine : lines) {
+        const QString line = rawLine.trimmed();
+        if (!line.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+            continue;
+        }
+        if (!line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive)
+            && !line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)) {
+            continue;
+        }
+
+        bool okActY = false;
+        bool okKsat = false;
+        bool okAlpha = false;
+        bool okN = false;
+        bool okThetaSat = false;
+        bool okThetaRes = false;
+
+        const double actY = ExtractCommandValue(line, QStringLiteral("act_Y")).toDouble(&okActY);
+        const double ksat = ExtractCommandValue(line, QStringLiteral("K_sat_original")).toDouble(&okKsat);
+        const double alpha = ExtractCommandValue(line, QStringLiteral("alpha")).toDouble(&okAlpha);
+        const double n = ExtractCommandValue(line, QStringLiteral("n")).toDouble(&okN);
+        const double thetaSat = ExtractCommandValue(line, QStringLiteral("theta_sat")).toDouble(&okThetaSat);
+        const double thetaRes = ExtractCommandValue(line, QStringLiteral("theta_res")).toDouble(&okThetaRes);
+        if (!(okActY && okKsat && okAlpha && okN && okThetaSat && okThetaRes)) {
+            continue;
+        }
+
+        const double depth = std::fabs(actY);
+        const int depthKey = qRound(depth * 1000.0);
+        if (uniqueByDepthKey.contains(depthKey)) {
+            continue;
+        }
+        VnSoftSoilProfileRow row;
+        row.depth = depth;
+        row.props.ksat = ksat;
+        row.props.alpha = alpha;
+        row.props.n = n;
+        row.props.thetaSat = thetaSat;
+        row.props.thetaRes = thetaRes;
+        uniqueByDepthKey.insert(depthKey, row);
+    }
+
+    rows->reserve(uniqueByDepthKey.size());
+    for (auto it = uniqueByDepthKey.cbegin(); it != uniqueByDepthKey.cend(); ++it) {
+        rows->push_back(it.value());
+    }
+    std::sort(rows->begin(), rows->end(), [](const VnSoftSoilProfileRow &lhs, const VnSoftSoilProfileRow &rhs) {
+        return lhs.depth < rhs.depth;
+    });
+    return rows->size() >= 2;
+}
+
 QString NormalizeVnSoftSoilParamMode(const QString &mode)
 {
     const QString trimmed = mode.trimmed();
@@ -2126,14 +2205,14 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const bool useVnReferenceDefaults = soilMode == QStringLiteral("VnReferenceDefaults");
     const bool useModelCreatorDefaults = soilMode == QStringLiteral("ModelCreatorDefaults");
     QVector<VnSoftSoilProfileRow> soilProfileRows;
+    QVector<VnSoftSoilProfileRow> vnReferenceProfileRows;
     const bool fileProfileLoaded = useFileProfile
         && TryLoadVnSoftSoilProfile(options.vnSoftSoilParameterFile, &soilProfileRows);
+    const bool vnReferenceProfileLoaded = useVnReferenceDefaults
+        && LoadVnReferenceProfileRows(&vnReferenceProfileRows);
 
     // Keep ModelCreator defaults local to script-builder so this module does not
     // depend on UI-side headers or include-path availability.
-    constexpr VnSoftSoilProps kVnReferenceDefaults {
-        1.05196, 3.47536, 1.74582, 0.39, 0.049
-    };
     constexpr VnSoftSoilProps kModelCreatorDefaults {
         1.05196, 3.47536, 1.74582, 0.39, 0.049
     };
@@ -2155,7 +2234,16 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
             return p;
         }
         if (useVnReferenceDefaults) {
-            return kVnReferenceDefaults;
+            if (vnReferenceProfileLoaded) {
+                VnSoftSoilProps p;
+                p.ksat = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.ksat; });
+                p.alpha = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.alpha; });
+                p.n = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.n; });
+                p.thetaSat = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaSat; });
+                p.thetaRes = InterpolateByDepth(vnReferenceProfileRows, depthFromTop, [](const VnSoftSoilProfileRow &r) { return r.props.thetaRes; });
+                return p;
+            }
+            return manualProps;
         }
         if (useModelCreatorDefaults) {
             return kModelCreatorDefaults;
@@ -2287,6 +2375,27 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
 }
 
 } // namespace
+
+QString StarterScriptBuilder::VnReferenceSoilProfileCsv()
+{
+    QVector<VnSoftSoilProfileRow> rows;
+    if (!LoadVnReferenceProfileRows(&rows)) {
+        return QString();
+    }
+
+    QString out;
+    QTextStream ts(&out);
+    ts << "depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
+    for (const auto &row : rows) {
+        ts << row.depth << ","
+           << row.props.ksat << ","
+           << row.props.alpha << ","
+           << row.props.n << ","
+           << row.props.thetaSat << ","
+           << row.props.thetaRes << "\n";
+    }
+    return out;
+}
 
 bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                                      QString *scriptText,
