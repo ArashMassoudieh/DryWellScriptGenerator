@@ -909,7 +909,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         connect(soilFileBrowseButton, &QPushButton::clicked, this, &ModelCreatorWindow::chooseVnSoftSoilParameterFile);
         row->addWidget(soilFileBrowseButton);
         auto *vnRefTableButton = new QPushButton(tr("VN Ref table"), container);
-        connect(vnRefTableButton, &QPushButton::clicked, this, &ModelCreatorWindow::showVnReferenceDefaultsTable);
+        connect(vnRefTableButton, &QPushButton::clicked, this, [this]() { showVnReferenceDefaultsTable(); });
         row->addWidget(vnRefTableButton);
         row->addStretch(1);
         layout->addWidget(container);

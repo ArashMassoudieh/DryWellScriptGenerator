@@ -1704,6 +1704,7 @@ struct VnSoftSoilProps
 struct VnSoftSoilProfileRow
 {
     double depth = 0.0;
+    double actY = 0.0;
     VnSoftSoilProps props;
 };
 
@@ -1772,6 +1773,7 @@ bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
         }
         VnSoftSoilProfileRow row;
         row.depth = depth;
+        row.actY = actY;
         row.props.ksat = ksat;
         row.props.alpha = alpha;
         row.props.n = n;
@@ -2411,9 +2413,10 @@ QString StarterScriptBuilder::VnReferenceSoilProfileCsv()
 
     QString out;
     QTextStream ts(&out);
-    ts << "zone,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
+    ts << "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
     for (const auto &row : gRows) {
         ts << "Soil-g,"
+           << row.actY << ","
            << row.depth << ","
            << row.props.ksat << ","
            << row.props.alpha << ","
@@ -2423,6 +2426,7 @@ QString StarterScriptBuilder::VnReferenceSoilProfileCsv()
     }
     for (const auto &row : uwRows) {
         ts << "Soil-uw,"
+           << row.actY << ","
            << row.depth << ","
            << row.props.ksat << ","
            << row.props.alpha << ","
