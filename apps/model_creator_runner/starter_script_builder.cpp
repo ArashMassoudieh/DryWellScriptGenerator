@@ -59,13 +59,24 @@ QString ResolveKsatScaleString(const QString &primary,
                                const QString &fallback,
                                const QString &defaultValue)
 {
+    const auto sanePositive = [](const QString &raw) -> QString {
+        bool ok = false;
+        const double parsed = raw.toDouble(&ok);
+        if (ok && std::isfinite(parsed) && parsed > 0.0) {
+            return raw;
+        }
+        return {};
+    };
+
     const QString p = primary.trimmed();
-    if (!p.isEmpty()) {
-        return p;
+    const QString pSane = sanePositive(p);
+    if (!pSane.isEmpty()) {
+        return pSane;
     }
     const QString f = fallback.trimmed();
-    if (!f.isEmpty()) {
-        return f;
+    const QString fSane = sanePositive(f);
+    if (!fSane.isEmpty()) {
+        return fSane;
     }
     return defaultValue;
 }
