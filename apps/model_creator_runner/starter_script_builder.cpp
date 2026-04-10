@@ -1676,9 +1676,9 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
         return std::fabs(lhs - rhs) <= kEpsilon;
     };
 
-    return options.vnSoftGridXCount == 17
-        && options.vnSoftGridYCount == 12
-        && options.vnSoftUwGridXCount == 17
+    return options.vnSoftGridXCount == 16
+        && options.vnSoftGridYCount == 15
+        && options.vnSoftUwGridXCount == 16
         && options.vnSoftUwGridYCount == 12
         && same(options.vnSoftCellSize, 586.9)
         && same(options.vnSoftUwCellSize, 586.9)
