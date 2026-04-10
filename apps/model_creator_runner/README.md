@@ -36,10 +36,10 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - If VN soft-grid controls differ from defaults, mode is treated as **SoftReference** so grid settings are applied.
   - VN controls are now always shown in VN context (not hidden behind optional fields), including soft-grid controls and VN base/snippet paths.
   - If VN inflow is left empty, generation now defaults to `Synthetic_rain_flow.csv` (matching VN reference behavior).
-  - In **SoftReference**, optional VN window controls now shape a deterministic Soil-uw grid/link topology grafted onto the embedded VN reference scaffold:
-    - **VN soft grid X count**
-    - **VN soft grid Y count**
-    - **VN soft cell size [m]**
+  - In **SoftReference**, optional VN window controls now shape deterministic `Soil-g` + `Soil-uw` grid/link topology grafted onto the embedded VN reference scaffold:
+    - **VN soft grid X/Y + cell [m]** for `Soil-g`
+    - **VN soft uw grid X/Y + cell [m]** for `Soil-uw`
+    - **VN soft uw gap [m]** to control spacing between `Soil-g` and `Soil-uw`
     - **VN soft top elevation [m]**
     - **VN soft layer thickness [m]**
   - VN script generation now respects **Ksat scale** UI inputs:

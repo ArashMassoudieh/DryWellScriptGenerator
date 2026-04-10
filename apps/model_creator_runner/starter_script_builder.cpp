@@ -1655,9 +1655,13 @@ void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QS
 bool IsSoftReferenceGridLine(const QString &line)
 {
     return line.contains(QStringLiteral("name=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("name=Soil-g ("), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("from=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=Soil-g ("), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("to=Soil-uw ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=Soil-g ("), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("HL_Well_g - Soil-uw"), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("HL_Well_g - Soil-g"), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("Soil to Groundwater ("), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
 }
@@ -1846,48 +1850,88 @@ void AppendAdditionalCommandsIfAny(QTextStream &ts, const StarterScriptOptions &
 
 void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &options)
 {
-    const int nx = qMax(1, options.vnSoftGridXCount);
-    const int ny = qMax(1, options.vnSoftGridYCount);
-    const double dx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
+    const int gNx = qMax(1, options.vnSoftGridXCount);
+    const int gNy = qMax(1, options.vnSoftGridYCount);
+    const int uwNx = qMax(1, options.vnSoftUwGridXCount);
+    const int uwNy = qMax(1, options.vnSoftUwGridYCount);
+    const double gDx = options.vnSoftCellSize > 0.0 ? options.vnSoftCellSize : 586.9;
+    const double uwDx = options.vnSoftUwCellSize > 0.0 ? options.vnSoftUwCellSize : gDx;
+    const double gap = options.vnSoftGapSize > 0.0 ? options.vnSoftGapSize : 0.0;
     const double topElevation = options.vnSoftTopElevation;
     const double layerThickness = options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0;
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
     const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
+    const double uwXOffset = (gNx * gDx) + gap;
 
     ts << "create block;type=fixed_head,name=Ground Water,_width=180,_height=180,"
           "x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
 
-    for (int y = 0; y < ny; ++y) {
-        for (int x = 0; x < nx; ++x) {
+    for (int y = 0; y < gNy; ++y) {
+        for (int x = 0; x < gNx; ++x) {
+            const double bottom = topElevation - ((y + 1) * layerThickness);
+            ts << "create block;type=Soil,name=Soil-g (" << (x + 1) << "$" << y << "),"
+               << "_width=" << gDx << ",_height=" << gDx
+               << ",x=" << (x * gDx) << ",y=" << (y * gDx)
+               << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
+               << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
+               << "K_sat_original=2.5,K_sat_scale_factor=" << gScale << ",alpha=10,n=1.35,L=-0.5\n";
+        }
+    }
+    for (int y = 0; y < uwNy; ++y) {
+        for (int x = 0; x < uwNx; ++x) {
             const double bottom = topElevation - ((y + 1) * layerThickness);
             ts << "create block;type=Soil,name=Soil-uw (" << x << "$" << y << "),"
-               << "_width=" << dx << ",_height=" << dx
-               << ",x=" << (x * dx) << ",y=" << (y * dx)
+               << "_width=" << uwDx << ",_height=" << uwDx
+               << ",x=" << (uwXOffset + (x * uwDx)) << ",y=" << (y * uwDx)
                << ",bottom_elevation=" << bottom << "[m],depth=" << layerThickness << "[m],"
                << "specific_storage=0.01,theta=0.2,theta_res=0.03,theta_sat=0.35,"
                << "K_sat_original=2.5,K_sat_scale_factor=" << uwScale << ",alpha=10,n=1.35,L=-0.5\n";
         }
     }
 
-    for (int y = 0; y < ny; ++y) {
-        for (int x = 0; x < nx - 1; ++x) {
+    for (int y = 0; y < gNy; ++y) {
+        for (int x = 1; x < gNx; ++x) {
+            ts << "create link;from=Soil-g (" << x << "$" << y << "),to=Soil-g (" << (x + 1) << "$" << y
+               << "),type=soil_to_soil_link,name=HL-Soil-g (" << x << "$" << y << ") - Soil-g (" << (x + 1) << "$" << y << ")\n";
+        }
+    }
+    for (int x = 1; x <= gNx; ++x) {
+        for (int y = 0; y < gNy - 1; ++y) {
+            ts << "create link;from=Soil-g (" << x << "$" << y << "),to=Soil-g (" << x << "$" << (y + 1)
+               << "),type=soil_to_soil_link,name=VL-Soil-g (" << x << "$" << y << ") - Soil-g (" << x << "$" << (y + 1) << ")\n";
+        }
+    }
+
+    for (int y = 0; y < uwNy; ++y) {
+        for (int x = 0; x < uwNx - 1; ++x) {
             ts << "create link;from=Soil-uw (" << x << "$" << y << "),to=Soil-uw (" << (x + 1) << "$" << y
                << "),type=soil_to_soil_link,name=HL-Soil-uw (" << x << "$" << y << ") - Soil-uw (" << (x + 1) << "$" << y << ")\n";
         }
     }
-    for (int x = 0; x < nx; ++x) {
-        for (int y = 0; y < ny - 1; ++y) {
+    for (int x = 0; x < uwNx; ++x) {
+        for (int y = 0; y < uwNy - 1; ++y) {
             ts << "create link;from=Soil-uw (" << x << "$" << y << "),to=Soil-uw (" << x << "$" << (y + 1)
                << "),type=soil_to_soil_link,name=VL-Soil-uw (" << x << "$" << y << ") - Soil-uw (" << x << "$" << (y + 1) << ")\n";
         }
     }
 
-    for (int y = 0; y < ny; ++y) {
+    for (int y = 0; y < qMin(gNy, uwNy); ++y) {
+        ts << "create link;from=Soil-g (" << gNx << "$" << y
+           << "),to=Soil-uw (0$" << y
+           << "),type=soil_to_soil_link,name=HL-Soil-g (" << gNx << "$" << y << ") - Soil-uw (0$" << y << ")\n";
+    }
+
+    for (int y = 0; y < gNy; ++y) {
+        ts << "create link;from=Well_g,to=Soil-g (1$" << y
+           << "),type=Well2soil horizontal link,length=0.5869,name=HL_Well_g - Soil-g (1$" << y << ")\n";
+    }
+    for (int y = 0; y < uwNy; ++y) {
         ts << "create link;from=Well_g,to=Soil-uw (0$" << y
            << "),type=Well2soil horizontal link,length=0.5869,name=HL_Well_g - Soil-uw (0$" << y << ")\n";
     }
 
-    for (int x = 0; x < nx; ++x) {
-        ts << "create link;from=Soil-uw (" << x << "$" << (ny - 1)
+    for (int x = 0; x < uwNx; ++x) {
+        ts << "create link;from=Soil-uw (" << x << "$" << (uwNy - 1)
            << "),to=Ground Water,type=soil_to_fixedhead_link,name=Soil to Groundwater (" << x << ")\n";
     }
 }
@@ -1960,6 +2004,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     if ((options.vnSoftCellSize > 0.0 && !std::isfinite(options.vnSoftCellSize))
+        || (options.vnSoftUwCellSize > 0.0 && !std::isfinite(options.vnSoftUwCellSize))
+        || (options.vnSoftGapSize > 0.0 && !std::isfinite(options.vnSoftGapSize))
         || (options.vnSoftLayerThickness > 0.0 && !std::isfinite(options.vnSoftLayerThickness))
         || !std::isfinite(options.vnSoftTopElevation)) {
         if (errorMessage) {

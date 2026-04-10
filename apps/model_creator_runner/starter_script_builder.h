@@ -71,7 +71,11 @@ struct StarterScriptOptions
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 17;
     int vnSoftGridYCount = 12;
+    int vnSoftUwGridXCount = 17;
+    int vnSoftUwGridYCount = 12;
     double vnSoftCellSize = 586.9;
+    double vnSoftUwCellSize = 586.9;
+    double vnSoftGapSize = 0.0;
     double vnSoftTopElevation = -5.0;
     double vnSoftLayerThickness = 1.0;
 

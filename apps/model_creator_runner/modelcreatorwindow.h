@@ -119,7 +119,11 @@ private:
     QLineEdit *vnMoistureLayersFileEdit;
     QLineEdit *vnSoftGridXEdit;
     QLineEdit *vnSoftGridYEdit;
+    QLineEdit *vnSoftUwGridXEdit;
+    QLineEdit *vnSoftUwGridYEdit;
     QLineEdit *vnSoftCellSizeEdit;
+    QLineEdit *vnSoftUwCellSizeEdit;
+    QLineEdit *vnSoftGapSizeEdit;
     QLineEdit *vnSoftTopElevationEdit;
     QLineEdit *vnSoftLayerThicknessEdit;
     QLineEdit *observationObjectEdit;
@@ -148,7 +152,11 @@ private:
     QWidget *vnMoistureRowWidget = nullptr;
     QWidget *vnSoftGridXRowWidget = nullptr;
     QWidget *vnSoftGridYRowWidget = nullptr;
+    QWidget *vnSoftUwGridXRowWidget = nullptr;
+    QWidget *vnSoftUwGridYRowWidget = nullptr;
     QWidget *vnSoftCellSizeRowWidget = nullptr;
+    QWidget *vnSoftUwCellSizeRowWidget = nullptr;
+    QWidget *vnSoftGapSizeRowWidget = nullptr;
     QWidget *vnSoftTopElevationRowWidget = nullptr;
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QTabWidget *tabs;

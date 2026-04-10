@@ -273,7 +273,11 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
 {
     constexpr int kDefaultGridX = 17;
     constexpr int kDefaultGridY = 12;
+    constexpr int kDefaultUwGridX = 17;
+    constexpr int kDefaultUwGridY = 12;
     constexpr double kDefaultCellSize = 586.9;
+    constexpr double kDefaultUwCellSize = 586.9;
+    constexpr double kDefaultGapSize = 0.0;
     constexpr double kDefaultTopElevation = -5.0;
     constexpr double kDefaultLayerThickness = 1.0;
     constexpr double kEpsilon = 1e-9;
@@ -284,7 +288,11 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
 
     return options.vnSoftGridXCount != kDefaultGridX
         || options.vnSoftGridYCount != kDefaultGridY
+        || options.vnSoftUwGridXCount != kDefaultUwGridX
+        || options.vnSoftUwGridYCount != kDefaultUwGridY
         || differs(options.vnSoftCellSize, kDefaultCellSize)
+        || differs(options.vnSoftUwCellSize, kDefaultUwCellSize)
+        || differs(options.vnSoftGapSize, kDefaultGapSize)
         || differs(options.vnSoftTopElevation, kDefaultTopElevation)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
 }
@@ -558,7 +566,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnMoistureLayersFileEdit(new QLineEdit(this)),
       vnSoftGridXEdit(new QLineEdit(this)),
       vnSoftGridYEdit(new QLineEdit(this)),
+      vnSoftUwGridXEdit(new QLineEdit(this)),
+      vnSoftUwGridYEdit(new QLineEdit(this)),
       vnSoftCellSizeEdit(new QLineEdit(this)),
+      vnSoftUwCellSizeEdit(new QLineEdit(this)),
+      vnSoftGapSizeEdit(new QLineEdit(this)),
       vnSoftTopElevationEdit(new QLineEdit(this)),
       vnSoftLayerThicknessEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
@@ -704,7 +716,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
     setupCompactNumericEdit(vnSoftGridXEdit, tr("17"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("12"));
+    setupCompactNumericEdit(vnSoftUwGridXEdit, tr("17"));
+    setupCompactNumericEdit(vnSoftUwGridYEdit, tr("12"));
     setupCompactNumericEdit(vnSoftCellSizeEdit, tr("586.9"));
+    setupCompactNumericEdit(vnSoftUwCellSizeEdit, tr("586.9"));
+    setupCompactNumericEdit(vnSoftGapSizeEdit, tr("0.0"));
     setupCompactNumericEdit(vnSoftTopElevationEdit, tr("-5.0"));
     setupCompactNumericEdit(vnSoftLayerThicknessEdit, tr("1.0"));
     {
@@ -723,6 +739,26 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         vnSoftGridXRowWidget = container;
         vnSoftGridYRowWidget = container;
         vnSoftCellSizeRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN soft uw grid")));
+        row->addWidget(new QLabel(tr("X")));
+        row->addWidget(vnSoftUwGridXEdit);
+        row->addWidget(new QLabel(tr("Y")));
+        row->addWidget(vnSoftUwGridYEdit);
+        row->addWidget(new QLabel(tr("cell[m]")));
+        row->addWidget(vnSoftUwCellSizeEdit);
+        row->addWidget(new QLabel(tr("gap[m]")));
+        row->addWidget(vnSoftGapSizeEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnSoftUwGridXRowWidget = container;
+        vnSoftUwGridYRowWidget = container;
+        vnSoftUwCellSizeRowWidget = container;
+        vnSoftGapSizeRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -889,7 +925,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnMoistureLayersFileEdit);
     saveOnEdit(vnSoftGridXEdit);
     saveOnEdit(vnSoftGridYEdit);
+    saveOnEdit(vnSoftUwGridXEdit);
+    saveOnEdit(vnSoftUwGridYEdit);
     saveOnEdit(vnSoftCellSizeEdit);
+    saveOnEdit(vnSoftUwCellSizeEdit);
+    saveOnEdit(vnSoftGapSizeEdit);
     saveOnEdit(vnSoftTopElevationEdit);
     saveOnEdit(vnSoftLayerThicknessEdit);
     saveOnEdit(observationObjectEdit);
@@ -1078,6 +1118,10 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftUwGridXRowWidget) vnSoftUwGridXRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(!loadExistingMode && vnContext);
 
@@ -1467,7 +1511,11 @@ void ModelCreatorWindow::previewScript()
         options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
         options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
         options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
+        options.vnSoftUwGridXCount = vnSoftUwGridXEdit->text().trimmed().toInt();
+        options.vnSoftUwGridYCount = vnSoftUwGridYEdit->text().trimmed().toInt();
         options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
+        options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
+        options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
         options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
         options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -1586,7 +1634,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
     options.vnSoftGridXCount = vnSoftGridXEdit->text().trimmed().toInt();
     options.vnSoftGridYCount = vnSoftGridYEdit->text().trimmed().toInt();
+    options.vnSoftUwGridXCount = vnSoftUwGridXEdit->text().trimmed().toInt();
+    options.vnSoftUwGridYCount = vnSoftUwGridYEdit->text().trimmed().toInt();
     options.vnSoftCellSize = vnSoftCellSizeEdit->text().trimmed().toDouble();
+    options.vnSoftUwCellSize = vnSoftUwCellSizeEdit->text().trimmed().toDouble();
+    options.vnSoftGapSize = vnSoftGapSizeEdit->text().trimmed().toDouble();
     options.vnSoftTopElevation = vnSoftTopElevationEdit->text().trimmed().toDouble();
     options.vnSoftLayerThickness = vnSoftLayerThicknessEdit->text().trimmed().toDouble();
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -2802,7 +2854,11 @@ void ModelCreatorWindow::loadSettings()
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     vnSoftGridXEdit->setText(settings.value("vnSoftGridXCount", "17").toString());
     vnSoftGridYEdit->setText(settings.value("vnSoftGridYCount", "12").toString());
+    vnSoftUwGridXEdit->setText(settings.value("vnSoftUwGridXCount", "17").toString());
+    vnSoftUwGridYEdit->setText(settings.value("vnSoftUwGridYCount", "12").toString());
     vnSoftCellSizeEdit->setText(settings.value("vnSoftCellSize", "586.9").toString());
+    vnSoftUwCellSizeEdit->setText(settings.value("vnSoftUwCellSize", "586.9").toString());
+    vnSoftGapSizeEdit->setText(settings.value("vnSoftGapSize", "0.0").toString());
     vnSoftTopElevationEdit->setText(settings.value("vnSoftTopElevation", "-5.0").toString());
     vnSoftLayerThicknessEdit->setText(settings.value("vnSoftLayerThickness", "1.0").toString());
     if (showOptionalFieldsCheck) {
@@ -2845,7 +2901,11 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     settings.setValue("vnSoftGridXCount", vnSoftGridXEdit->text());
     settings.setValue("vnSoftGridYCount", vnSoftGridYEdit->text());
+    settings.setValue("vnSoftUwGridXCount", vnSoftUwGridXEdit->text());
+    settings.setValue("vnSoftUwGridYCount", vnSoftUwGridYEdit->text());
     settings.setValue("vnSoftCellSize", vnSoftCellSizeEdit->text());
+    settings.setValue("vnSoftUwCellSize", vnSoftUwCellSizeEdit->text());
+    settings.setValue("vnSoftGapSize", vnSoftGapSizeEdit->text());
     settings.setValue("vnSoftTopElevation", vnSoftTopElevationEdit->text());
     settings.setValue("vnSoftLayerThickness", vnSoftLayerThicknessEdit->text());
     if (showOptionalFieldsCheck) {
