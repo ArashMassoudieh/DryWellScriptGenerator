@@ -2177,6 +2177,14 @@ void AppendAdditionalCommandsIfAny(QTextStream &ts, const StarterScriptOptions &
 
 void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &options)
 {
+    const QString normalizedSoilMode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+    if (normalizedSoilMode == QStringLiteral("VnReferenceDefaults")) {
+        // Exact VN Ref mode: emit embedded Full-reference soil/grid content directly
+        // so parameters match canonical VN reference values exactly.
+        AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
+        return;
+    }
+
     if (IsDefaultVnSoftReferenceOptions(options)) {
         AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
         return;
@@ -2225,7 +2233,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     // Keep naming aligned with ModelCreator interpolation sources:
     //   SoilData keys: Ksat, alpha, n, theta_s, theta_r
     //   OHQ block fields: K_sat_original, alpha, n, theta_sat, theta_res
-    const QString soilMode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+    const QString soilMode = normalizedSoilMode;
     const bool useFileProfile = soilMode == QStringLiteral("File");
     const bool useVnReferenceDefaults = soilMode == QStringLiteral("VnReferenceDefaults");
     const bool useModelCreatorDefaults = soilMode == QStringLiteral("ModelCreatorDefaults");
