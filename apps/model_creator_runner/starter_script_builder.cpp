@@ -1970,15 +1970,16 @@ bool IsDefaultVnSoftReferenceOptions(const StarterScriptOptions &options)
         && same(options.vnSoftSoilAlpha, 3.47536)
         && same(options.vnSoftSoilN, 1.74582)
         && same(options.vnSoftSoilThetaSat, 0.39)
-        && same(options.vnSoftSoilThetaRes, 0.049)
-        && options.vnSoftSoilParamMode.compare(QStringLiteral("Manual"), Qt::CaseInsensitive) == 0
-        && options.vnSoftSoilParameterFile.trimmed().isEmpty();
+        && same(options.vnSoftSoilThetaRes, 0.049);
 }
 
 bool ShouldUseCanonicalVnSoftReference(const StarterScriptOptions &options)
 {
     const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
-    return mode == QStringLiteral("VnReferenceDefaults");
+    return mode == QStringLiteral("VnReferenceDefaults")
+        && IsDefaultVnSoftReferenceOptions(options)
+        && options.vnSoilLayersFile.trimmed().isEmpty()
+        && options.vnMoistureLayersFile.trimmed().isEmpty();
 }
 
 void AppendEmbeddedVnSoftReferenceGridDefault(const StarterScriptOptions &options, QTextStream *ts)
