@@ -115,6 +115,8 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
     return true;
 }
 
+QString ExtractCommandValue(const QString &line, const QString &key);
+
 void ApplyCommonScriptFixups(QString *scriptText, const QString &inflowFile)
 {
     if (scriptText == nullptr) {
@@ -122,9 +124,31 @@ void ApplyCommonScriptFixups(QString *scriptText, const QString &inflowFile)
     }
     if (!inflowFile.trimmed().isEmpty()) {
         scriptText->replace(QStringLiteral("Synthetic_rain_flow.csv"), inflowFile);
+        scriptText->replace(QRegularExpression(QStringLiteral("(?i)(\\binflow\\s*=)\\s*([^,\\n\\r]+)")),
+                            QStringLiteral("\\1") + inflowFile);
+        scriptText->replace(QRegularExpression(QStringLiteral("(?i)(\\bquantity\\s*=\\s*inflow\\s*,\\s*value\\s*=)\\s*([^\\n\\r]+)")),
+                            QStringLiteral("\\1") + inflowFile);
     }
     scriptText->replace(QRegularExpression(QStringLiteral("(?i)\\bactual_x\\b")), QStringLiteral("act_X"));
     scriptText->replace(QRegularExpression(QStringLiteral("(?i)\\bactual_y\\b")), QStringLiteral("act_Y"));
+
+    const QStringList lines = scriptText->split('\n', Qt::KeepEmptyParts);
+    QStringList filtered;
+    filtered.reserve(lines.size());
+    for (const QString &line : lines) {
+        const QString lower = line.toLower();
+        if (lower.contains(QStringLiteral("create observation;")) && lower.contains(QStringLiteral("observed_data="))) {
+            const QString observed = ExtractCommandValue(line, QStringLiteral("observed_data"));
+            if (!observed.trimmed().isEmpty()) {
+                QFileInfo fi(observed.trimmed());
+                if (!fi.exists()) {
+                    continue;
+                }
+            }
+        }
+        filtered.push_back(line);
+    }
+    *scriptText = filtered.join('\n');
 }
 
 bool AppendSnippetFile(const QString &path,
