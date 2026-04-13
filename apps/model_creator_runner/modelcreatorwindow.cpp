@@ -58,8 +58,6 @@ QString VnBuildModeFromPresetSelection(const QString &selection)
     return QString();
 }
 
-}
-
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
