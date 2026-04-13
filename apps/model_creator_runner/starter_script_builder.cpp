@@ -1,5 +1,6 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
+#include "vn_drywell_builder.h"
 
 #include <QDir>
 #include <QFile>
@@ -149,31 +150,31 @@ bool AppendSnippetFile(const QString &path,
 bool IsKnownPreset(const QString &preset)
 {
     static const QStringList knownPresets = {
-        QStringLiteral("Drywell_MonitoringWell"),
-        QStringLiteral("Drywell_GroundwaterBoundary"),
-        QStringLiteral("Drywell_PretreatmentChambers"),
-        QStringLiteral("Drywell_SuiteStyle"),
-        QStringLiteral("Drywell_LegacyStyle"),
+        QStringLiteral("HQ_Drywell_MonitoringWell"),
+        QStringLiteral("HQ_Drywell_GroundwaterBoundary"),
+        QStringLiteral("HQ_Drywell_PretreatmentChambers"),
+        QStringLiteral("HQ_Drywell_SuiteStyle"),
+        QStringLiteral("HQ_Drywell_LegacyStyle"),
         QStringLiteral("VN_Drywell"),
         QStringLiteral("VN_Drywell_Pro"),
-        QStringLiteral("Bioswale_Underdrain"),
-        QStringLiteral("Bioswale_Underdrain_GW"),
-        QStringLiteral("Bioswale_SuiteStyle"),
-        QStringLiteral("Bioswale_LegacyStyle")
+        QStringLiteral("R_Bioswale_Underdrain"),
+        QStringLiteral("R_Bioswale_Underdrain_GW"),
+        QStringLiteral("R_Bioswale_SuiteStyle"),
+        QStringLiteral("R_Bioswale_LegacyStyle")
     };
     return knownPresets.contains(preset.trimmed());
 }
 
-bool IsDrywellLikeModel(const QString &modelType)
+bool IsHQ_DrywellLikeModel(const QString &modelType)
 {
-    return modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0
+    return modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         || modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
 }
 
 bool IsKnownModelType(const QString &modelType)
 {
-    return IsDrywellLikeModel(modelType)
-        || modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
+    return IsHQ_DrywellLikeModel(modelType)
+        || modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
 }
 
 bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType)
@@ -183,12 +184,12 @@ bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType
         return true;
     }
 
-    const bool drywellModel = IsDrywellLikeModel(modelType);
-    const bool bioswaleModel = modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0;
-    const bool drywellPreset = trimmedPreset.startsWith(QStringLiteral("Drywell_"));
-    const bool bioswalePreset = trimmedPreset.startsWith(QStringLiteral("Bioswale_"));
+    const bool hq_drywellModel = IsHQ_DrywellLikeModel(modelType);
+    const bool r_bioswaleModel = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+    const bool hq_drywellPreset = trimmedPreset.startsWith(QStringLiteral("HQ_Drywell_"));
+    const bool r_bioswalePreset = trimmedPreset.startsWith(QStringLiteral("R_Bioswale_"));
 
-    if ((drywellModel && bioswalePreset) || (bioswaleModel && drywellPreset)) {
+    if ((hq_drywellModel && r_bioswalePreset) || (r_bioswaleModel && hq_drywellPreset)) {
         return false;
     }
 
@@ -2037,28 +2038,28 @@ void AppendEnrichmentPreset(QTextStream &ts,
                             const QString &preset,
                             const QString &inflowFile = QString())
 {
-    if (preset == QStringLiteral("Drywell_MonitoringWell")) {
-        ts << "\n# enrichment_preset: Drywell_MonitoringWell\n";
+    if (preset == QStringLiteral("HQ_Drywell_MonitoringWell")) {
+        ts << "\n# enrichment_preset: HQ_Drywell_MonitoringWell\n";
         ts << "create block;type=Well,name=Monitoring_Well,_width=180,_height=180,x=350,y=-120,bottom_elevation=-2[m],depth=4[m],diameter=0.3[m]\n";
         ts << "create link;from=Infiltration_Pond,to=Monitoring_Well,type=soil_to_well_link,name=Pond_to_MonitoringWell\n";
-    } else if (preset == QStringLiteral("Drywell_GroundwaterBoundary")) {
-        ts << "\n# enrichment_preset: Drywell_GroundwaterBoundary\n";
+    } else if (preset == QStringLiteral("HQ_Drywell_GroundwaterBoundary")) {
+        ts << "\n# enrichment_preset: HQ_Drywell_GroundwaterBoundary\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Infiltration_Pond,to=GW,type=soil_to_fixedhead_link,name=Pond_to_GW\n";
-    } else if (preset == QStringLiteral("Drywell_PretreatmentChambers")) {
-        ts << "\n# enrichment_preset: Drywell_PretreatmentChambers\n";
+    } else if (preset == QStringLiteral("HQ_Drywell_PretreatmentChambers")) {
+        ts << "\n# enrichment_preset: HQ_Drywell_PretreatmentChambers\n";
         ts << "create block;type=Pond,name=Side_Settling_Chamber,_width=180,_height=180,x=-260,y=40,bottom_elevation=0[m],Storage=0[m~^3],alpha=50,beta=2.2\n";
         ts << "create block;type=Pond,name=Sedimentation_Chamber,_width=180,_height=180,x=-120,y=20,bottom_elevation=0[m],Storage=0[m~^3],alpha=60,beta=2.3\n";
         ts << "create link;from=Side_Settling_Chamber,to=Sedimentation_Chamber,type=surfacewater_to_surfacewater_link,name=Pretreat_Link_1\n";
         ts << "create link;from=Sedimentation_Chamber,to=Infiltration_Pond,type=surfacewater_to_surfacewater_link,name=Pretreat_Link_2\n";
-    } else if (preset == QStringLiteral("Drywell_SuiteStyle")) {
-        ts << "\n# enrichment_preset: Drywell_SuiteStyle\n";
+    } else if (preset == QStringLiteral("HQ_Drywell_SuiteStyle")) {
+        ts << "\n# enrichment_preset: HQ_Drywell_SuiteStyle\n";
         ts << "create block;type=Well,name=Monitoring_Well,_width=180,_height=180,x=350,y=-120,bottom_elevation=-2[m],depth=4[m],diameter=0.3[m]\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Infiltration_Pond,to=Monitoring_Well,type=soil_to_well_link,name=Suite_Pond_to_MonitoringWell\n";
         ts << "create link;from=Infiltration_Pond,to=GW,type=soil_to_fixedhead_link,name=Suite_Pond_to_GW\n";
-    } else if (preset == QStringLiteral("Drywell_LegacyStyle")) {
-        ts << "\n# enrichment_preset: Drywell_LegacyStyle\n";
+    } else if (preset == QStringLiteral("HQ_Drywell_LegacyStyle")) {
+        ts << "\n# enrichment_preset: HQ_Drywell_LegacyStyle\n";
         ts << "create block;type=Pond,name=Side_Settling_Chamber,_width=180,_height=180,x=-260,y=40,bottom_elevation=0[m],Storage=0[m~^3],alpha=50,beta=2.2\n";
         ts << "create block;type=Pond,name=Sedimentation_Chamber,_width=180,_height=180,x=-120,y=20,bottom_elevation=0[m],Storage=0[m~^3],alpha=60,beta=2.3\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=0,y=-420,head=-3[m],Storage=100000[m~^3]\n";
@@ -2102,24 +2103,24 @@ void AppendEnrichmentPreset(QTextStream &ts,
               "name=Well_to_junction\n";
         ts << "create link;from=Junction_elastic,to=Well_g,type=darcy_connector,"
               "name=Junction_to_well\n";
-    } else if (preset == QStringLiteral("Bioswale_Underdrain")) {
-        ts << "\n# enrichment_preset: Bioswale_Underdrain\n";
+    } else if (preset == QStringLiteral("R_Bioswale_Underdrain")) {
+        ts << "\n# enrichment_preset: R_Bioswale_Underdrain\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
         ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Catchment_to_Underdrain\n";
-    } else if (preset == QStringLiteral("Bioswale_Underdrain_GW")) {
-        ts << "\n# enrichment_preset: Bioswale_Underdrain_GW\n";
+    } else if (preset == QStringLiteral("R_Bioswale_Underdrain_GW")) {
+        ts << "\n# enrichment_preset: R_Bioswale_Underdrain_GW\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=420,y=-360,head=-2[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Catchment_to_Underdrain\n";
         ts << "create link;from=Underdrain,to=GW,type=pipe_to_fixedhead_link,name=Underdrain_to_GW\n";
-    } else if (preset == QStringLiteral("Bioswale_SuiteStyle")) {
-        ts << "\n# enrichment_preset: Bioswale_SuiteStyle\n";
+    } else if (preset == QStringLiteral("R_Bioswale_SuiteStyle")) {
+        ts << "\n# enrichment_preset: R_Bioswale_SuiteStyle\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=320,y=-320,diameter=0.15[m],length=40[m],slope=0.01\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=420,y=-360,head=-2[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Suite_Catchment_to_Underdrain\n";
         ts << "create link;from=Underdrain,to=GW,type=pipe_to_fixedhead_link,name=Suite_Underdrain_to_GW\n";
-    } else if (preset == QStringLiteral("Bioswale_LegacyStyle")) {
-        ts << "\n# enrichment_preset: Bioswale_LegacyStyle\n";
+    } else if (preset == QStringLiteral("R_Bioswale_LegacyStyle")) {
+        ts << "\n# enrichment_preset: R_Bioswale_LegacyStyle\n";
         ts << "create block;type=Pipe,name=Underdrain,_width=180,_height=180,x=300,y=-300,diameter=0.15[m],length=35[m],slope=0.01\n";
         ts << "create block;type=fixed_head,name=GW,_width=180,_height=180,x=420,y=-360,head=-2[m],Storage=100000[m~^3]\n";
         ts << "create link;from=Catchment (1),to=Underdrain,type=surfacewater_to_pipe_link,name=Legacy_Catchment_to_Underdrain\n";
@@ -2621,6 +2622,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
 
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
+        QString vnFileHeader;
+        QString vnFileError;
+        if (VnDrywellBuilder::Build(options, &vnFileHeader, &vnFileError)) {
+            out += vnFileHeader;
+            if (!out.endsWith('\n')) {
+                out += '\n';
+            }
+        }
         AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
         AppendEmbeddedVnFullReferenceScript(options, &out);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
@@ -2758,7 +2767,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
 
-    if (options.modelType.compare(QStringLiteral("Bioswale"), Qt::CaseInsensitive) == 0) {
+    if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),"
               "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
               "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"

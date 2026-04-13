@@ -12,8 +12,8 @@ struct StarterScriptOptions
     /// Destination path for writing generated starter script text.
     QString outputFile;
 
-    /// Base model flavor for starter creation ("Drywell", "VN_Drywell", or "Bioswale").
-    QString modelType = "Drywell";    // Drywell | VN_Drywell | Bioswale
+    /// Base model flavor for starter creation ("HQ_Drywell", "VN_Drywell", or "R_Bioswale").
+    QString modelType = "HQ_Drywell";    // HQ_Drywell | VN_Drywell | R_Bioswale
 
     /// Input inflow time series file path.
     QString inflowFile;
@@ -110,11 +110,11 @@ struct StarterScriptOptions
     // Optional preset that appends extra model blocks/links.
     //
     // Supported:
-    //   "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
-    //   "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
-    //   "Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
-    //   "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
-    //   "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
+    //   "", "HQ_Drywell_MonitoringWell", "HQ_Drywell_GroundwaterBoundary",
+    //   "HQ_Drywell_PretreatmentChambers", "HQ_Drywell_SuiteStyle",
+    //   "HQ_Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
+    //   "R_Bioswale_Underdrain", "R_Bioswale_Underdrain_GW",
+    //   "R_Bioswale_SuiteStyle", "R_Bioswale_LegacyStyle"
     //
     // Notes:
     //   - For VN_Drywell in Preset mode, vnPreset is preferred.

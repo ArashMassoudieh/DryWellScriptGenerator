@@ -16,6 +16,7 @@ SOURCES += \
     ohqprocessrunner.cpp \
     simplelineplotwidget.cpp \
     starter_script_builder.cpp \
+    vn_drywell_builder.cpp \
     scripteditordialog.cpp
 
 HEADERS += \
@@ -23,4 +24,5 @@ HEADERS += \
     ohqprocessrunner.h \
     simplelineplotwidget.h \
     starter_script_builder.h \
+    vn_drywell_builder.h \
     scripteditordialog.h
