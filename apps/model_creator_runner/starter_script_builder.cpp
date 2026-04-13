@@ -2086,10 +2086,10 @@ void AppendEnrichmentPreset(QTextStream &ts,
         ts << "\n# enrichment_preset: VN_Drywell_Pro\n";
         ts << "create block;type=Pond,name=Infiltration_Pond,_width=200,_height=200,"
               "x=-5971,y=-249,bottom_elevation=0[m],Storage=0[m~^3],alpha=86.061,"
-              "beta=2.766,inflow=" << inflowFile << "\n";
+              "beta=2.766\n";
         ts << "create block;type=Well_aggregate,name=Well_c,_height=9753.6,"
               "_width=1219.2,bottom_elevation=-4.8768[m],diameter=2.4384[m],"
-              "depth=0[m],porosity=1,x=780.8,y=975.36\n";
+              "depth=0[m],porosity=1,x=780.8,y=975.36,inflow=" << inflowFile << "\n";
         ts << "create block;type=Well_aggregate,name=Well_g,_height=23408.64,"
               "_width=1219.2,bottom_elevation=-12.192[m],diameter=2.4384[m],"
               "depth=0.01[m],porosity=0.5,x=780.8,y=12192\n";
@@ -2221,7 +2221,7 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
     const double gLayerThickness = validDepthGeometry
         ? options.vnSoftDepthOfWellG / gNy
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
-    const int uwNyTotal = qMax(uwNy, 30);
+    const int uwNyTotal = qMax(1, uwNy);
     const double uwLayerThickness = validDepthGeometry
         ? (options.vnSoftDepthToGroundWater - (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG)) / uwNyTotal
         : (options.vnSoftLayerThickness > 0.0 ? options.vnSoftLayerThickness : 1.0);
