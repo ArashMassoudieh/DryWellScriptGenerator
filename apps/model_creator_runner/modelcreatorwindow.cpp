@@ -4,6 +4,7 @@
 #include "ohqprocessrunner.h"
 #include "simplelineplotwidget.h"
 #include "starter_script_builder.h"
+#include "structure_registry.h"
 #include "scripteditordialog.h"
 
 #include <QComboBox>
@@ -54,6 +55,16 @@ QString VnBuildModeFromPresetSelection(const QString &selection)
     const QString trimmed = selection.trimmed();
     if (trimmed.startsWith(QStringLiteral("VN_MODE:"), Qt::CaseInsensitive)) {
         return trimmed.mid(QStringLiteral("VN_MODE:").size()).trimmed();
+    }
+    return QString();
+}
+
+QString BuildModeFromPresetSelection(const QString &selection, const QString &prefix)
+{
+    const QString trimmed = selection.trimmed();
+    const QString token = prefix.trimmed() + QStringLiteral(":");
+    if (trimmed.startsWith(token, Qt::CaseInsensitive)) {
+        return trimmed.mid(token.size()).trimmed();
     }
     return QString();
 }
@@ -714,7 +725,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     workflowModeCombo->addItem(tr("Generate from scratch"), "generate");
     workflowModeCombo->addItem(tr("Load/Edit existing .ohq"), "load");
-    modelTypeCombo->addItems({"Drywell", "VN_Drywell", "Bioswale"});
+    modelTypeCombo->addItems(StructureRegistry::ModelTypes());
     syncEnrichmentPresetForModel();
 
     auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) -> QWidget* {
@@ -757,7 +768,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     layout->addWidget(allowGuiExecutionCheck);
     addFileRow(layout, tr("OHQ script (.ohq)"), scriptPathEdit, tr("Browse"), [this]() { chooseScript(); });
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
-    scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/drywell.ohq or <repo>/bioswale.ohq"));
+    scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/hq_drywell.ohq or <repo>/r_bioswale.ohq"));
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
     workingDirEdit->setPlaceholderText(tr("Suggested: this repository root"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
@@ -1191,7 +1202,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                     "Try one of the following:\n"
                                     "1) Select an OHQ CLI solver binary if available.\n"
                                     "2) Provide explicit executable args required by your OpenHydroQual build.\n"
-                                    "3) Use your server/worker runner flow (e.g., DrywellDT) for this build.\n"
+                                    "3) Use your server/worker runner flow (e.g., HQ_DrywellDT) for this build.\n"
                                     "4) Or select a custom internal solver executable (System/Solve main) and leave args empty."));
             appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
             return;
@@ -1262,28 +1273,12 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 {
     const QString modelType = modelTypeCombo->currentText().trimmed();
     const QString previousPreset = enrichmentPresetCombo->currentData().toString().trimmed();
-    const bool drywellModel = modelType.compare(QStringLiteral("Drywell"), Qt::CaseInsensitive) == 0;
-    const bool vnDrywellModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const QSignalBlocker blocker(enrichmentPresetCombo);
     enrichmentPresetCombo->clear();
     enrichmentPresetCombo->addItem(tr("None"), "");
-    if (drywellModel) {
-        enrichmentPresetCombo->addItem(tr("Drywell (DryWellSuite style)"), "Drywell_SuiteStyle");
-        enrichmentPresetCombo->addItem(tr("Drywell (Legacy ScriptGenerator style)"), "Drywell_LegacyStyle");
-        enrichmentPresetCombo->addItem(tr("Drywell + Monitoring Well"), "Drywell_MonitoringWell");
-        enrichmentPresetCombo->addItem(tr("Drywell + Groundwater Boundary"), "Drywell_GroundwaterBoundary");
-        enrichmentPresetCombo->addItem(tr("Drywell + Pretreatment Chambers"), "Drywell_PretreatmentChambers");
-    } else if (vnDrywellModel) {
-        enrichmentPresetCombo->addItem(tr("VN build mode: SoftReference (editable default)"), "VN_MODE:SoftReference");
-        enrichmentPresetCombo->addItem(tr("VN build mode: FullReference (embedded canonical)"), "VN_MODE:FullReference");
-        enrichmentPresetCombo->addItem(tr("VN build mode: LoadFromOhq (use VN base file)"), "VN_MODE:LoadFromOhq");
-        enrichmentPresetCombo->addItem(tr("VN preset: DryWellSuite Pro default"), "VN_Drywell_Pro");
-        enrichmentPresetCombo->addItem(tr("VN preset: legacy structure"), "VN_Drywell");
-    } else {
-        enrichmentPresetCombo->addItem(tr("Bioswale (DryWellSuite style)"), "Bioswale_SuiteStyle");
-        enrichmentPresetCombo->addItem(tr("Bioswale (Legacy ScriptGenerator style)"), "Bioswale_LegacyStyle");
-        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain"), "Bioswale_Underdrain");
-        enrichmentPresetCombo->addItem(tr("Bioswale + Underdrain + Groundwater"), "Bioswale_Underdrain_GW");
+    const auto options = StructureRegistry::PresetOptionsForModel(modelType);
+    for (const auto &option : options) {
+        enrichmentPresetCombo->addItem(option.first, option.second);
     }
 
     const int index = enrichmentPresetCombo->findData(previousPreset);
@@ -1473,12 +1468,12 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
     const QString suggestedScriptPath = FirstExistingFile({
-        QDir(suggestedWorkingDirectory).filePath("drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
-        QDir(suggestedWorkingDirectory).filePath("bioswale.ohq"),
-        QDir(suggestedWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("r_bioswale.ohq"),
+        QDir(suggestedWorkingDirectory).filePath("examples/hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("examples/vn_drywell.ohq"),
-        QDir(suggestedWorkingDirectory).filePath("examples/bioswale.ohq")
+        QDir(suggestedWorkingDirectory).filePath("examples/r_bioswale.ohq")
     });
 
     auto applyIfEmpty = [](QLineEdit *edit, const QString &value) {
@@ -1928,6 +1923,22 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("Preset");
                 options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
             }
+        } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+            if (!selectedHqMode.isEmpty()) {
+                options.hqBuildMode = selectedHqMode;
+                options.enrichmentPreset.clear();
+            } else {
+                options.hqBuildMode = QStringLiteral("Preset");
+            }
+        } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+            if (!selectedRMode.isEmpty()) {
+                options.rBioswaleBuildMode = selectedRMode;
+                options.enrichmentPreset.clear();
+            } else {
+                options.rBioswaleBuildMode = QStringLiteral("Preset");
+            }
         }
 
         QString error;
@@ -2071,6 +2082,22 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else {
             options.vnBuildMode = QStringLiteral("Preset");
             options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
+        }
+    } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+        if (!selectedHqMode.isEmpty()) {
+            options.hqBuildMode = selectedHqMode;
+            options.enrichmentPreset.clear();
+        } else {
+            options.hqBuildMode = QStringLiteral("Preset");
+        }
+    } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+        if (!selectedRMode.isEmpty()) {
+            options.rBioswaleBuildMode = selectedRMode;
+            options.enrichmentPreset.clear();
+        } else {
+            options.rBioswaleBuildMode = QStringLiteral("Preset");
         }
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
@@ -3249,15 +3276,15 @@ void ModelCreatorWindow::loadSettings()
     const QString defaultGeneratedScriptPath = QDir(defaultWorkingDirectory).filePath("starter_generated.ohq");
     const QString defaultExecutablePath = DetectExecutablePath(rootCandidates);
     const QString defaultScriptPath = FirstExistingFile({
-        QDir(defaultWorkingDirectory).filePath("drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("vn_drywell.ohq"),
-        QDir(defaultWorkingDirectory).filePath("bioswale.ohq"),
-        QDir(defaultWorkingDirectory).filePath("examples/drywell.ohq"),
+        QDir(defaultWorkingDirectory).filePath("r_bioswale.ohq"),
+        QDir(defaultWorkingDirectory).filePath("examples/hq_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("examples/vn_drywell.ohq"),
-        QDir(defaultWorkingDirectory).filePath("examples/bioswale.ohq")
+        QDir(defaultWorkingDirectory).filePath("examples/r_bioswale.ohq")
     });
 
-    modelTypeCombo->setCurrentText(settings.value("modelType", "Drywell").toString());
+    modelTypeCombo->setCurrentText(settings.value("modelType", "HQ_Drywell").toString());
     const int workflowIndex = workflowModeCombo->findData(settings.value("workflowMode", "generate").toString());
     workflowModeCombo->setCurrentIndex(workflowIndex >= 0 ? workflowIndex : 0);
     const QString enrichmentPreset = settings.value("enrichmentPreset").toString().trimmed();
