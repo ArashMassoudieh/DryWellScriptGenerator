@@ -8,6 +8,8 @@
 namespace HqDrywellBuilder
 {
 
+QString FullReferenceScript();
+
 bool AppendBaseInflowBlock(const StarterScriptOptions &options,
                            const QString &inflow,
                            QString *scriptText,

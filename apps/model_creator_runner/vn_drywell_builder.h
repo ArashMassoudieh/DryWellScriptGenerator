@@ -7,6 +7,8 @@
 
 namespace VnDrywellBuilder
 {
+    QString VnFullReferenceScript();
+
     bool Build(const StarterScriptOptions &options,
                QString *scriptText,
                QString *errorMessage = nullptr);
