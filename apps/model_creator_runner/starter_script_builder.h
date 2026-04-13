@@ -68,6 +68,24 @@ struct StarterScriptOptions
     QString vnSoilLayersFile;
     QString vnMoistureLayersFile;
 
+    // ---------------------------------------------------------------------
+    // HQ_Drywell-specific build mode configuration
+    // ---------------------------------------------------------------------
+    //   "Preset"        -> existing starter generation path (default)
+    //   "FullReference" -> use embedded HQ full-reference payload from builder
+    //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
+    QString hqBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString hqBaseOhqFile;
+
+    // ---------------------------------------------------------------------
+    // R_Bioswale-specific build mode configuration
+    // ---------------------------------------------------------------------
+    //   "Preset"        -> existing starter generation path (default)
+    //   "FullReference" -> use embedded R_Bioswale full-reference payload
+    //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
+    QString rBioswaleBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString rBioswaleBaseOhqFile;
+
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 16;
     int vnSoftGridYCount = 15;

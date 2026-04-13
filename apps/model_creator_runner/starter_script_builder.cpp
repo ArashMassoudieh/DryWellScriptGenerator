@@ -199,6 +199,21 @@ QString NormalizeVnBuildMode(const QString &mode)
     return QStringLiteral("SoftReference");
 }
 
+QString NormalizeStructureBuildMode(const QString &mode)
+{
+    const QString m = mode.trimmed();
+    if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("FullReference");
+    }
+    if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("LoadFromOhq");
+    }
+    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("Preset");
+    }
+    return QStringLiteral("Preset");
+}
+
 QString ResolveVnPreset(const StarterScriptOptions &options)
 {
     const QString vnPreset = options.vnPreset.trimmed();
@@ -1072,11 +1087,23 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     const bool vnModelType = IsVnModel(options.modelType);
+    const bool hqModelType = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
+    const bool rBioswaleModelType = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
     const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
                                        : QStringLiteral("Preset");
-    const QStringList requiredTemplates = (vnModelType && vnMode == QStringLiteral("FullReference"))
-                                              ? RequiredVnFullReferenceTemplates()
-                                              : RequiredTemplates();
+    const QString hqMode = hqModelType ? NormalizeStructureBuildMode(options.hqBuildMode)
+                                       : QStringLiteral("Preset");
+    const QString rBioswaleMode = rBioswaleModelType ? NormalizeStructureBuildMode(options.rBioswaleBuildMode)
+                                                     : QStringLiteral("Preset");
+
+    const bool directScriptMode = (hqModelType && (hqMode == QStringLiteral("FullReference") || hqMode == QStringLiteral("LoadFromOhq")))
+        || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference") || rBioswaleMode == QStringLiteral("LoadFromOhq")));
+
+    const QStringList requiredTemplates = directScriptMode
+                                              ? QStringList{}
+                                              : ((vnModelType && vnMode == QStringLiteral("FullReference"))
+                                                     ? RequiredVnFullReferenceTemplates()
+                                                     : RequiredTemplates());
 
     for (const QString &templateFile : requiredTemplates) {
         const QFileInfo fileInfo(TemplateFile(options.templateDirectory, templateFile));
@@ -1147,6 +1174,76 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             *errorMessage = QStringLiteral("Inflow file is required.");
         }
         return false;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("LoadFromOhq")) {
+        if (options.hqBaseOhqFile.trimmed().isEmpty()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("HQ LoadFromOhq mode requires hqBaseOhqFile.");
+            }
+            return false;
+        }
+        QString hqText;
+        if (!LoadEntireFile(options.hqBaseOhqFile, &hqText, errorMessage)) {
+            return false;
+        }
+        if (!hqText.endsWith('\n')) {
+            hqText += '\n';
+        }
+        hqText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        hqText += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        *scriptText = hqText;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("LoadFromOhq")) {
+        if (options.rBioswaleBaseOhqFile.trimmed().isEmpty()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("R_Bioswale LoadFromOhq mode requires rBioswaleBaseOhqFile.");
+            }
+            return false;
+        }
+        QString rText;
+        if (!LoadEntireFile(options.rBioswaleBaseOhqFile, &rText, errorMessage)) {
+            return false;
+        }
+        if (!rText.endsWith('\n')) {
+            rText += '\n';
+        }
+        rText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        rText += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        *scriptText = rText;
+        return true;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("FullReference")) {
+        QString out = HqDrywellBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("FullReference")) {
+        QString out = RBioswaleBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        *scriptText = out;
+        return true;
     }
 
     if (vnModelType && vnMode == QStringLiteral("LoadFromOhq")) {
