@@ -1212,6 +1212,89 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         }
         return false;
     }
+    {
+        const QFileInfo inflowInfo(inflow);
+        if (inflowInfo.isAbsolute() && !inflowInfo.exists()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("Inflow file was not found: %1").arg(inflow);
+            }
+            return false;
+        }
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("LoadFromOhq")) {
+        if (options.hqBaseOhqFile.trimmed().isEmpty()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("HQ LoadFromOhq mode requires hqBaseOhqFile.");
+            }
+            return false;
+        }
+        QString hqText;
+        if (!LoadEntireFile(options.hqBaseOhqFile, &hqText, errorMessage)) {
+            return false;
+        }
+        if (!hqText.endsWith('\n')) {
+            hqText += '\n';
+        }
+        hqText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        hqText += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&hqText, inflow);
+        *scriptText = hqText;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("LoadFromOhq")) {
+        if (options.rBioswaleBaseOhqFile.trimmed().isEmpty()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("R_Bioswale LoadFromOhq mode requires rBioswaleBaseOhqFile.");
+            }
+            return false;
+        }
+        QString rText;
+        if (!LoadEntireFile(options.rBioswaleBaseOhqFile, &rText, errorMessage)) {
+            return false;
+        }
+        if (!rText.endsWith('\n')) {
+            rText += '\n';
+        }
+        rText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        rText += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&rText, inflow);
+        *scriptText = rText;
+        return true;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("FullReference")) {
+        QString out = HqDrywellBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("FullReference")) {
+        QString out = RBioswaleBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        out += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
 
     if (hqModelType && hqMode == QStringLiteral("LoadFromOhq")) {
         if (options.hqBaseOhqFile.trimmed().isEmpty()) {
