@@ -52,30 +52,30 @@ def compute_depth_slice(rows, x_col, y_col, depth_col, target_x):
 
 def is_known_preset(preset):
     return preset in {
-        "Drywell_MonitoringWell",
-        "Drywell_GroundwaterBoundary",
-        "Drywell_PretreatmentChambers",
-        "Drywell_SuiteStyle",
-        "Drywell_LegacyStyle",
+        "HQ_Drywell_MonitoringWell",
+        "HQ_Drywell_GroundwaterBoundary",
+        "HQ_Drywell_PretreatmentChambers",
+        "HQ_Drywell_SuiteStyle",
+        "HQ_Drywell_LegacyStyle",
         "VN_Drywell",
         "VN_Drywell_Pro",
-        "Bioswale_Underdrain",
-        "Bioswale_Underdrain_GW",
-        "Bioswale_SuiteStyle",
-        "Bioswale_LegacyStyle",
+        "R_Bioswale_Underdrain",
+        "R_Bioswale_Underdrain_GW",
+        "R_Bioswale_SuiteStyle",
+        "R_Bioswale_LegacyStyle",
     }
 
 
 def is_preset_compatible_with_model(preset, model_type):
     if not preset:
         return True
-    drywell_model = model_type.lower() in {"drywell", "vn_drywell"}
-    bioswale_model = model_type.lower() == "bioswale"
-    drywell_preset = preset.startswith("Drywell_")
-    bioswale_preset = preset.startswith("Bioswale_")
-    if (drywell_model and bioswale_preset) or (bioswale_model and drywell_preset):
+    hq_drywell_model = model_type.lower() in {"hq_drywell", "vn_drywell"}
+    r_bioswale_model = model_type.lower() == "r_bioswale"
+    hq_drywell_preset = preset.startswith("HQ_Drywell_")
+    r_bioswale_preset = preset.startswith("R_Bioswale_")
+    if (hq_drywell_model and r_bioswale_preset) or (r_bioswale_model and hq_drywell_preset):
         return False
-    if preset in {"VN_Drywell", "VN_Drywell_Pro"} and not drywell_model:
+    if preset in {"VN_Drywell", "VN_Drywell_Pro"} and not hq_drywell_model:
         return False
     return True
 
@@ -104,30 +104,30 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertAlmostEqual(out[1][1], 0.40)
 
     def test_known_enrichment_presets(self):
-        self.assertTrue(is_known_preset("Drywell_MonitoringWell"))
-        self.assertTrue(is_known_preset("Drywell_GroundwaterBoundary"))
-        self.assertTrue(is_known_preset("Drywell_PretreatmentChambers"))
-        self.assertTrue(is_known_preset("Drywell_SuiteStyle"))
-        self.assertTrue(is_known_preset("Drywell_LegacyStyle"))
+        self.assertTrue(is_known_preset("HQ_Drywell_MonitoringWell"))
+        self.assertTrue(is_known_preset("HQ_Drywell_GroundwaterBoundary"))
+        self.assertTrue(is_known_preset("HQ_Drywell_PretreatmentChambers"))
+        self.assertTrue(is_known_preset("HQ_Drywell_SuiteStyle"))
+        self.assertTrue(is_known_preset("HQ_Drywell_LegacyStyle"))
         self.assertTrue(is_known_preset("VN_Drywell"))
         self.assertTrue(is_known_preset("VN_Drywell_Pro"))
-        self.assertTrue(is_known_preset("Bioswale_Underdrain"))
-        self.assertTrue(is_known_preset("Bioswale_Underdrain_GW"))
-        self.assertTrue(is_known_preset("Bioswale_SuiteStyle"))
-        self.assertTrue(is_known_preset("Bioswale_LegacyStyle"))
-        self.assertFalse(is_known_preset("Drywell_Unknown"))
+        self.assertTrue(is_known_preset("R_Bioswale_Underdrain"))
+        self.assertTrue(is_known_preset("R_Bioswale_Underdrain_GW"))
+        self.assertTrue(is_known_preset("R_Bioswale_SuiteStyle"))
+        self.assertTrue(is_known_preset("R_Bioswale_LegacyStyle"))
+        self.assertFalse(is_known_preset("HQ_Drywell_Unknown"))
 
     def test_preset_model_compatibility(self):
-        self.assertTrue(is_preset_compatible_with_model("", "Drywell"))
-        self.assertTrue(is_preset_compatible_with_model("Drywell_MonitoringWell", "Drywell"))
-        self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "Drywell"))
+        self.assertTrue(is_preset_compatible_with_model("", "HQ_Drywell"))
+        self.assertTrue(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "HQ_Drywell"))
+        self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "HQ_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "VN_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell_Pro", "VN_Drywell"))
-        self.assertTrue(is_preset_compatible_with_model("Bioswale_Underdrain", "Bioswale"))
-        self.assertFalse(is_preset_compatible_with_model("Bioswale_Underdrain", "Drywell"))
-        self.assertFalse(is_preset_compatible_with_model("Drywell_MonitoringWell", "Bioswale"))
-        self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "Bioswale"))
-        self.assertFalse(is_preset_compatible_with_model("VN_Drywell_Pro", "Bioswale"))
+        self.assertTrue(is_preset_compatible_with_model("R_Bioswale_Underdrain", "R_Bioswale"))
+        self.assertFalse(is_preset_compatible_with_model("R_Bioswale_Underdrain", "HQ_Drywell"))
+        self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "R_Bioswale"))
+        self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "R_Bioswale"))
+        self.assertFalse(is_preset_compatible_with_model("VN_Drywell_Pro", "R_Bioswale"))
 
 
 if __name__ == "__main__":
