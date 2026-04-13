@@ -58,6 +58,28 @@ QString VnBuildModeFromPresetSelection(const QString &selection)
     return QString();
 }
 
+QString ResolveVnBuildModeForUi(const QString &modelType,
+                                const QString &presetSelection,
+                                const QString &fallbackBuildMode)
+{
+    const bool vnModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    if (!vnModel) {
+        return fallbackBuildMode;
+    }
+
+    const QString modeFromPreset = VnBuildModeFromPresetSelection(presetSelection);
+    if (!modeFromPreset.isEmpty()) {
+        return modeFromPreset;
+    }
+
+    const QString trimmedPreset = presetSelection.trimmed();
+    if (trimmedPreset.startsWith(QStringLiteral("VN_"), Qt::CaseInsensitive) || trimmedPreset.isEmpty()) {
+        return QStringLiteral("Preset");
+    }
+
+    return fallbackBuildMode;
+}
+
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
@@ -1282,11 +1304,10 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
         || preset.startsWith(QStringLiteral("VN_"));
     const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
-    const QString vnBuildModeFromPreset = VnBuildModeFromPresetSelection(preset);
-    const QString vnBuildMode = !vnBuildModeFromPreset.isEmpty()
-        ? vnBuildModeFromPreset
-        : (vnBuildModeCombo != nullptr ? vnBuildModeCombo->currentData().toString().trimmed()
-                                       : QStringLiteral("SoftReference"));
+    const QString fallbackBuildMode = vnBuildModeCombo != nullptr
+        ? vnBuildModeCombo->currentData().toString().trimmed()
+        : QStringLiteral("SoftReference");
+    const QString vnBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
@@ -3239,7 +3260,7 @@ void ModelCreatorWindow::loadSettings()
     modelTypeCombo->setCurrentText(settings.value("modelType", "Drywell").toString());
     const int workflowIndex = workflowModeCombo->findData(settings.value("workflowMode", "generate").toString());
     workflowModeCombo->setCurrentIndex(workflowIndex >= 0 ? workflowIndex : 0);
-    const QString enrichmentPreset = settings.value("enrichmentPreset").toString();
+    const QString enrichmentPreset = settings.value("enrichmentPreset").toString().trimmed();
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
@@ -3273,7 +3294,10 @@ void ModelCreatorWindow::loadSettings()
         vnBuildModeCombo->setCurrentIndex(vnBuildModeIndex >= 0 ? vnBuildModeIndex : 0);
         const bool vnModel = modelTypeCombo->currentText().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
         const QString currentPreset = enrichmentPresetCombo->currentData().toString().trimmed();
-        if (vnModel && !currentPreset.startsWith(QStringLiteral("VN_MODE:"), Qt::CaseInsensitive)) {
+        const bool shouldMigrateLegacyBuildMode = enrichmentPreset.isEmpty();
+        if (vnModel
+            && shouldMigrateLegacyBuildMode
+            && !currentPreset.startsWith(QStringLiteral("VN_MODE:"), Qt::CaseInsensitive)) {
             const QString normalizedBuildMode = savedVnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : savedVnBuildMode;
             if (normalizedBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0
                 || normalizedBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
@@ -3284,6 +3308,14 @@ void ModelCreatorWindow::loadSettings()
                     enrichmentPresetCombo->setCurrentIndex(modePresetIndex);
                 }
             }
+        }
+
+        const QString resolvedBuildMode = ResolveVnBuildModeForUi(modelTypeCombo->currentText().trimmed(),
+                                                                  enrichmentPresetCombo->currentData().toString().trimmed(),
+                                                                  savedVnBuildMode);
+        const int resolvedBuildModeIndex = vnBuildModeCombo->findData(resolvedBuildMode);
+        if (resolvedBuildModeIndex >= 0) {
+            vnBuildModeCombo->setCurrentIndex(resolvedBuildModeIndex);
         }
     }
     vnSoftGridXEdit->setText(settingTextOrDefault("vnSoftGridXCount", "16"));
@@ -3349,7 +3381,11 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     if (vnBuildModeCombo) {
-        settings.setValue("vnBuildMode", vnBuildModeCombo->currentData().toString());
+        const QString modelType = modelTypeCombo->currentText().trimmed();
+        const QString preset = enrichmentPresetCombo->currentData().toString().trimmed();
+        const QString fallbackBuildMode = vnBuildModeCombo->currentData().toString().trimmed();
+        const QString resolvedBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
+        settings.setValue("vnBuildMode", resolvedBuildMode);
     }
     settings.setValue("vnSoftGridXCount", vnSoftGridXEdit->text());
     settings.setValue("vnSoftGridYCount", vnSoftGridYEdit->text());
