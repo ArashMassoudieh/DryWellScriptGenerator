@@ -4,6 +4,7 @@
 #include "ohqprocessrunner.h"
 #include "simplelineplotwidget.h"
 #include "starter_script_builder.h"
+#include "structure_registry.h"
 #include "scripteditordialog.h"
 
 #include <QComboBox>
@@ -714,7 +715,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
     workflowModeCombo->addItem(tr("Generate from scratch"), "generate");
     workflowModeCombo->addItem(tr("Load/Edit existing .ohq"), "load");
-    modelTypeCombo->addItems({"HQ_Drywell", "VN_Drywell", "R_Bioswale"});
+    modelTypeCombo->addItems(StructureRegistry::ModelTypes());
     syncEnrichmentPresetForModel();
 
     auto addFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit, const QString &buttonText, auto slot) -> QWidget* {
@@ -1262,28 +1263,12 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 {
     const QString modelType = modelTypeCombo->currentText().trimmed();
     const QString previousPreset = enrichmentPresetCombo->currentData().toString().trimmed();
-    const bool hq_drywellModel = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
-    const bool vnHQ_DrywellModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const QSignalBlocker blocker(enrichmentPresetCombo);
     enrichmentPresetCombo->clear();
     enrichmentPresetCombo->addItem(tr("None"), "");
-    if (hq_drywellModel) {
-        enrichmentPresetCombo->addItem(tr("HQ_Drywell (DryWellSuite style)"), "HQ_Drywell_SuiteStyle");
-        enrichmentPresetCombo->addItem(tr("HQ_Drywell (Legacy ScriptGenerator style)"), "HQ_Drywell_LegacyStyle");
-        enrichmentPresetCombo->addItem(tr("HQ_Drywell + Monitoring Well"), "HQ_Drywell_MonitoringWell");
-        enrichmentPresetCombo->addItem(tr("HQ_Drywell + Groundwater Boundary"), "HQ_Drywell_GroundwaterBoundary");
-        enrichmentPresetCombo->addItem(tr("HQ_Drywell + Pretreatment Chambers"), "HQ_Drywell_PretreatmentChambers");
-    } else if (vnHQ_DrywellModel) {
-        enrichmentPresetCombo->addItem(tr("VN build mode: SoftReference (editable default)"), "VN_MODE:SoftReference");
-        enrichmentPresetCombo->addItem(tr("VN build mode: FullReference (embedded canonical)"), "VN_MODE:FullReference");
-        enrichmentPresetCombo->addItem(tr("VN build mode: LoadFromOhq (use VN base file)"), "VN_MODE:LoadFromOhq");
-        enrichmentPresetCombo->addItem(tr("VN preset: DryWellSuite Pro default"), "VN_Drywell_Pro");
-        enrichmentPresetCombo->addItem(tr("VN preset: legacy structure"), "VN_Drywell");
-    } else {
-        enrichmentPresetCombo->addItem(tr("R_Bioswale (DryWellSuite style)"), "R_Bioswale_SuiteStyle");
-        enrichmentPresetCombo->addItem(tr("R_Bioswale (Legacy ScriptGenerator style)"), "R_Bioswale_LegacyStyle");
-        enrichmentPresetCombo->addItem(tr("R_Bioswale + Underdrain"), "R_Bioswale_Underdrain");
-        enrichmentPresetCombo->addItem(tr("R_Bioswale + Underdrain + Groundwater"), "R_Bioswale_Underdrain_GW");
+    const auto options = StructureRegistry::PresetOptionsForModel(modelType);
+    for (const auto &option : options) {
+        enrichmentPresetCombo->addItem(option.first, option.second);
     }
 
     const int index = enrichmentPresetCombo->findData(previousPreset);

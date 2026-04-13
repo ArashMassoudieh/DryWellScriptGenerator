@@ -1,5 +1,8 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
+#include "hq_drywell_builder.h"
+#include "r_bioswale_builder.h"
+#include "structure_registry.h"
 #include "vn_drywell_builder.h"
 
 #include <QDir>
@@ -149,20 +152,7 @@ bool AppendSnippetFile(const QString &path,
 
 bool IsKnownPreset(const QString &preset)
 {
-    static const QStringList knownPresets = {
-        QStringLiteral("HQ_Drywell_MonitoringWell"),
-        QStringLiteral("HQ_Drywell_GroundwaterBoundary"),
-        QStringLiteral("HQ_Drywell_PretreatmentChambers"),
-        QStringLiteral("HQ_Drywell_SuiteStyle"),
-        QStringLiteral("HQ_Drywell_LegacyStyle"),
-        QStringLiteral("VN_Drywell"),
-        QStringLiteral("VN_Drywell_Pro"),
-        QStringLiteral("R_Bioswale_Underdrain"),
-        QStringLiteral("R_Bioswale_Underdrain_GW"),
-        QStringLiteral("R_Bioswale_SuiteStyle"),
-        QStringLiteral("R_Bioswale_LegacyStyle")
-    };
-    return knownPresets.contains(preset.trimmed());
+    return StructureRegistry::IsKnownPreset(preset);
 }
 
 bool IsHQ_DrywellLikeModel(const QString &modelType)
@@ -173,33 +163,12 @@ bool IsHQ_DrywellLikeModel(const QString &modelType)
 
 bool IsKnownModelType(const QString &modelType)
 {
-    return IsHQ_DrywellLikeModel(modelType)
-        || modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+    return StructureRegistry::IsKnownModelType(modelType);
 }
 
 bool IsPresetCompatibleWithModel(const QString &preset, const QString &modelType)
 {
-    const QString trimmedPreset = preset.trimmed();
-    if (trimmedPreset.isEmpty()) {
-        return true;
-    }
-
-    const bool hq_drywellModel = IsHQ_DrywellLikeModel(modelType);
-    const bool r_bioswaleModel = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
-    const bool hq_drywellPreset = trimmedPreset.startsWith(QStringLiteral("HQ_Drywell_"));
-    const bool r_bioswalePreset = trimmedPreset.startsWith(QStringLiteral("R_Bioswale_"));
-
-    if ((hq_drywellModel && r_bioswalePreset) || (r_bioswaleModel && hq_drywellPreset)) {
-        return false;
-    }
-
-    const bool vnModel = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
-    if ((trimmedPreset == QStringLiteral("VN_Drywell")
-         || trimmedPreset == QStringLiteral("VN_Drywell_Pro")) && !vnModel) {
-        return false;
-    }
-
-    return true;
+    return StructureRegistry::IsPresetCompatibleWithModel(preset, modelType);
 }
 
 bool IsVnModel(const QString &modelType)
@@ -2768,16 +2737,19 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
 
     if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),"
-              "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
-              "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
-              "depression_storage=0[m],depth=0[m],elevation=0[m]\n";
+        QString bioswaleBase;
+        if (!RBioswaleBuilder::AppendBaseInflowBlock(options, inflow, &bioswaleBase, errorMessage)) {
+            return false;
+        }
+        ts << bioswaleBase;
     } else if (vnModelType) {
         ts << "# VN_Drywell base generated via VN preset block\n";
     } else {
-        ts << "create block;type=Pond,inflow=" << inflow
-           << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
-              "Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=0,y=0,_height=200\n";
+        QString hqDrywellBase;
+        if (!HqDrywellBuilder::AppendBaseInflowBlock(options, inflow, &hqDrywellBase, errorMessage)) {
+            return false;
+        }
+        ts << hqDrywellBase;
     }
 
     AppendObservationIfAny(ts, options);
