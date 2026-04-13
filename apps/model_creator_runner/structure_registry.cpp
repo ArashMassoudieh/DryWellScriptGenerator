@@ -83,7 +83,7 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
 {
     if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         return {
-            {QStringLiteral("HQ build mode: Preset"), QStringLiteral("HQ_MODE:Preset")},
+            {QStringLiteral("HQ build mode: SoftReference (editable default)"), QStringLiteral("HQ_MODE:SoftReference")},
             {QStringLiteral("HQ build mode: FullReference"), QStringLiteral("HQ_MODE:FullReference")},
             {QStringLiteral("HQ build mode: LoadFromOhq"), QStringLiteral("HQ_MODE:LoadFromOhq")},
             {QStringLiteral("HQ_Drywell (DryWellSuite style)"), QStringLiteral("HQ_Drywell_SuiteStyle")},
@@ -105,7 +105,7 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
     }
 
     return {
-        {QStringLiteral("R build mode: Preset"), QStringLiteral("R_MODE:Preset")},
+        {QStringLiteral("R build mode: SoftReference (editable default)"), QStringLiteral("R_MODE:SoftReference")},
         {QStringLiteral("R build mode: FullReference"), QStringLiteral("R_MODE:FullReference")},
         {QStringLiteral("R build mode: LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
         {QStringLiteral("R_Bioswale (DryWellSuite style)"), QStringLiteral("R_Bioswale_SuiteStyle")},
