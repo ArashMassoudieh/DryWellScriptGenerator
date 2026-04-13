@@ -831,8 +831,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("VN Ref defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
@@ -2086,7 +2086,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (!usingExplicitVnBase && options.inflowFile.isEmpty()) {
+    if (options.inflowFile.isEmpty()) {
         if (vnModel) {
             options.inflowFile = QStringLiteral("Synthetic_rain_flow.csv");
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
@@ -3338,7 +3338,7 @@ void ModelCreatorWindow::loadSettings()
     vnSoftSoilNEdit->setText(settingTextOrDefault("vnSoftSoilN", "1.74582"));
     vnSoftSoilThetaSatEdit->setText(settingTextOrDefault("vnSoftSoilThetaSat", "0.39"));
     vnSoftSoilThetaResEdit->setText(settingTextOrDefault("vnSoftSoilThetaRes", "0.049"));
-    const QString vnSoftSoilParamMode = settingTextOrDefault("vnSoftSoilParamMode", "Manual");
+    const QString vnSoftSoilParamMode = settingTextOrDefault("vnSoftSoilParamMode", "VnReferenceDefaults");
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
