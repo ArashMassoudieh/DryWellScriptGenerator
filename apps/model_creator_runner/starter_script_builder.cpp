@@ -1,5 +1,6 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
+#include "vn_drywell_builder.h"
 
 #include <QDir>
 #include <QFile>
@@ -2621,6 +2622,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
 
     if (vnModelType && vnMode == QStringLiteral("FullReference")) {
         QString out;
+        QString vnFileHeader;
+        QString vnFileError;
+        if (VnDrywellBuilder::Build(options, &vnFileHeader, &vnFileError)) {
+            out += vnFileHeader;
+            if (!out.endsWith('\n')) {
+                out += '\n';
+            }
+        }
         AppendTemplateLoads(&out, options.templateDirectory, RequiredVnFullReferenceTemplates());
         AppendEmbeddedVnFullReferenceScript(options, &out);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n")
