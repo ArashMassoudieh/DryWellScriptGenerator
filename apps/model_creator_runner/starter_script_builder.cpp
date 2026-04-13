@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QTextStream>
 #include <QVector>
@@ -112,6 +113,18 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
         *text = in.readAll();
     }
     return true;
+}
+
+void ApplyCommonScriptFixups(QString *scriptText, const QString &inflowFile)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+    if (!inflowFile.trimmed().isEmpty()) {
+        scriptText->replace(QStringLiteral("Synthetic_rain_flow.csv"), inflowFile);
+    }
+    scriptText->replace(QRegularExpression(QStringLiteral("(?i)\\bactual_x\\b")), QStringLiteral("act_X"));
+    scriptText->replace(QRegularExpression(QStringLiteral("(?i)\\bactual_y\\b")), QStringLiteral("act_Y"));
 }
 
 bool AppendSnippetFile(const QString &path,
@@ -1194,6 +1207,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         hqText += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&hqText, inflow);
         *scriptText = hqText;
         return true;
     }
@@ -1216,6 +1230,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         rText += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&rText, inflow);
         *scriptText = rText;
         return true;
     }
@@ -1229,6 +1244,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         out += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
     }
@@ -1242,6 +1258,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         out += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
+        ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
     }
@@ -1303,6 +1320,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             vnBaseText += "\n\n# additional_commands\n" + extra + "\n";
         }
 
+        ApplyCommonScriptFixups(&vnBaseText, inflow);
         *scriptText = vnBaseText;
         return true;
     }
@@ -1360,6 +1378,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             }
         }
 
+        ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
     }
@@ -1421,6 +1440,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             }
         }
         ApplyVnKsatScaleOverrides(&out, options);
+        ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
     }
