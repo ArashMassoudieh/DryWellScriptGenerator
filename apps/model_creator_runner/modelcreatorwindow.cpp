@@ -59,6 +59,16 @@ QString VnBuildModeFromPresetSelection(const QString &selection)
     return QString();
 }
 
+QString BuildModeFromPresetSelection(const QString &selection, const QString &prefix)
+{
+    const QString trimmed = selection.trimmed();
+    const QString token = prefix.trimmed() + QStringLiteral(":");
+    if (trimmed.startsWith(token, Qt::CaseInsensitive)) {
+        return trimmed.mid(token.size()).trimmed();
+    }
+    return QString();
+}
+
 QString ResolveVnBuildModeForUi(const QString &modelType,
                                 const QString &presetSelection,
                                 const QString &fallbackBuildMode)
@@ -1913,6 +1923,22 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("Preset");
                 options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
             }
+        } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+            if (!selectedHqMode.isEmpty()) {
+                options.hqBuildMode = selectedHqMode;
+                options.enrichmentPreset.clear();
+            } else {
+                options.hqBuildMode = QStringLiteral("Preset");
+            }
+        } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+            if (!selectedRMode.isEmpty()) {
+                options.rBioswaleBuildMode = selectedRMode;
+                options.enrichmentPreset.clear();
+            } else {
+                options.rBioswaleBuildMode = QStringLiteral("Preset");
+            }
         }
 
         QString error;
@@ -2056,6 +2082,22 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else {
             options.vnBuildMode = QStringLiteral("Preset");
             options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
+        }
+    } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+        if (!selectedHqMode.isEmpty()) {
+            options.hqBuildMode = selectedHqMode;
+            options.enrichmentPreset.clear();
+        } else {
+            options.hqBuildMode = QStringLiteral("Preset");
+        }
+    } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+        if (!selectedRMode.isEmpty()) {
+            options.rBioswaleBuildMode = selectedRMode;
+            options.enrichmentPreset.clear();
+        } else {
+            options.rBioswaleBuildMode = QStringLiteral("Preset");
         }
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
