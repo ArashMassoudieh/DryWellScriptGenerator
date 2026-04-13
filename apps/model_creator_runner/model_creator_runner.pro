@@ -15,12 +15,16 @@ SOURCES += \
     modelcreatorwindow.cpp \
     ohqprocessrunner.cpp \
     simplelineplotwidget.cpp \
+    structure_registry.cpp \
     starter_script_builder.cpp \
+    vn_drywell_builder.cpp \
     scripteditordialog.cpp
 
 HEADERS += \
     modelcreatorwindow.h \
     ohqprocessrunner.h \
     simplelineplotwidget.h \
+    structure_registry.h \
     starter_script_builder.h \
+    vn_drywell_builder.h \
     scripteditordialog.h
