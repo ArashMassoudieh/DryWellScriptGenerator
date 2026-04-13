@@ -1,5 +1,7 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
+#include "hq_drywell_builder.h"
+#include "r_bioswale_builder.h"
 #include "structure_registry.h"
 #include "vn_drywell_builder.h"
 
@@ -2735,16 +2737,19 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
 
     if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),"
-              "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
-              "inflow=" << inflow << ",Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
-              "depression_storage=0[m],depth=0[m],elevation=0[m]\n";
+        QString bioswaleBase;
+        if (!RBioswaleBuilder::AppendBaseInflowBlock(options, inflow, &bioswaleBase, errorMessage)) {
+            return false;
+        }
+        ts << bioswaleBase;
     } else if (vnModelType) {
         ts << "# VN_Drywell base generated via VN preset block\n";
     } else {
-        ts << "create block;type=Pond,inflow=" << inflow
-           << ",_width=200,Evapotranspiration=,Precipitation=,bottom_elevation=0[m],"
-              "Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=0,y=0,_height=200\n";
+        QString hqDrywellBase;
+        if (!HqDrywellBuilder::AppendBaseInflowBlock(options, inflow, &hqDrywellBase, errorMessage)) {
+            return false;
+        }
+        ts << hqDrywellBase;
     }
 
     AppendObservationIfAny(ts, options);
