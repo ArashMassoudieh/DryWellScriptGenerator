@@ -97,7 +97,7 @@ struct StarterScriptOptions
     //   VnReferenceDefaults: use VN full-reference depth profile in script builder
     //   ModelCreatorDefaults: use ModelCreator-equivalent constants in script builder
     //   File: linearly interpolate params by depth from vnSoftSoilParameterFile CSV
-    QString vnSoftSoilParamMode = "Manual";
+    QString vnSoftSoilParamMode = "VnReferenceDefaults";
     // Optional CSV source used when vnSoftSoilParamMode == "File".
     // Expected headers (case-insensitive, flexible aliases):
     //   depth/depth_m, Ksat, alpha, n, theta_s/theta_sat, theta_r/theta_res
