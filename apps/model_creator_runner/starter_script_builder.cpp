@@ -2186,7 +2186,8 @@ void AppendAdditionalCommandsIfAny(QTextStream &ts, const StarterScriptOptions &
 void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &options)
 {
     const QString normalizedSoilMode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
-    if (normalizedSoilMode == QStringLiteral("VnReferenceDefaults")) {
+    if (normalizedSoilMode == QStringLiteral("VnReferenceDefaults")
+        && IsDefaultVnSoftReferenceOptions(options)) {
         // Exact VN Ref mode: emit embedded Full-reference soil/grid content directly
         // so parameters match canonical VN reference values exactly.
         AppendEmbeddedVnSoftReferenceGridDefault(options, &ts);
