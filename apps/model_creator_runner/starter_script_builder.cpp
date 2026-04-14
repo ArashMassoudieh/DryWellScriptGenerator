@@ -321,7 +321,7 @@ QString NormalizeStructureBuildMode(const QString &mode)
 {
     const QString m = mode.trimmed();
     if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("Preset");
+        return QStringLiteral("SoftReference");
     }
     if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("FullReference");
