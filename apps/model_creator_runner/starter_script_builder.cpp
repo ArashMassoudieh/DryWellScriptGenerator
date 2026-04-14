@@ -1242,7 +1242,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        hqText += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
         ApplyCommonScriptFixups(&hqText, inflow);
         *scriptText = hqText;
         return true;
@@ -1265,7 +1264,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        rText += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
         ApplyCommonScriptFixups(&rText, inflow);
         *scriptText = rText;
         return true;
@@ -1279,7 +1277,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        out += QStringLiteral("setvalue; object=Infiltration_Pond, quantity=inflow, value=%1\n").arg(inflow);
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
@@ -1293,7 +1290,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        out += QStringLiteral("setvalue; object=Catchment (1), quantity=inflow, value=%1\n").arg(inflow);
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
