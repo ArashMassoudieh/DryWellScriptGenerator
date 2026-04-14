@@ -1136,8 +1136,12 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     const QString rBioswaleMode = rBioswaleModelType ? NormalizeStructureBuildMode(options.rBioswaleBuildMode)
                                                      : QStringLiteral("Preset");
 
-    const bool directScriptMode = (hqModelType && (hqMode == QStringLiteral("FullReference") || hqMode == QStringLiteral("LoadFromOhq")))
-        || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference") || rBioswaleMode == QStringLiteral("LoadFromOhq")));
+    const bool directScriptMode = (hqModelType && (hqMode == QStringLiteral("FullReference")
+                                                   || hqMode == QStringLiteral("LoadFromOhq")
+                                                   || hqMode == QStringLiteral("Preset")))
+        || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
+                                   || rBioswaleMode == QStringLiteral("LoadFromOhq")
+                                   || rBioswaleMode == QStringLiteral("Preset")));
 
     const QStringList requiredTemplates = directScriptMode
                                               ? QStringList{}
@@ -1305,6 +1309,54 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
         if (!rInflowTarget.trimmed().isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("Preset")) {
+        QString out = HqDrywellBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
+        if (!hqInflowTarget.trimmed().isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
+        }
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("Preset")) {
+        QString out = RBioswaleBuilder::FullReferenceScript();
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
+        if (!rInflowTarget.trimmed().isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
         }
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
