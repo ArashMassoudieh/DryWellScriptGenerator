@@ -343,10 +343,12 @@ bool IsKnownReferenceInflowForOtherModel(const QString &inflowPath, const QStrin
     const QString rRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("R_Bioswale"));
     const QString pName = QFileInfo(p).fileName();
     const QString vnName = vnRef.isEmpty() ? QStringLiteral("LA_Precipitaion (5 yr new).csv") : QFileInfo(vnRef).fileName();
+    const QString vnLegacyName = QStringLiteral("Synthetic_rain_flow.csv");
     const QString hqName = hqRef.isEmpty() ? QStringLiteral("Inflow_Corrected_New_Khiem.csv") : QFileInfo(hqRef).fileName();
     const QString rName = rRef.isEmpty() ? QStringLiteral("Inflow_Rosemead_August.txt") : QFileInfo(rRef).fileName();
     const bool isVnRef = (!vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0)
-        || pName.compare(vnName, Qt::CaseInsensitive) == 0;
+        || pName.compare(vnName, Qt::CaseInsensitive) == 0
+        || pName.compare(vnLegacyName, Qt::CaseInsensitive) == 0;
     const bool isHqRef = (!hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0)
         || pName.compare(hqName, Qt::CaseInsensitive) == 0;
     const bool isRRef = (!rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0)
@@ -682,16 +684,22 @@ QString ExtractCommandValue(const QString &line, const QString &key)
 QString ReplaceCommandValue(QString line, const QString &key, const QString &value)
 {
     const QString token = key + QStringLiteral("=");
-    const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
-    if (start < 0) {
-        return line;
+    int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+    while (start >= 0) {
+        const bool validPrefix = (start == 0)
+            || line.at(start - 1) == QChar(',')
+            || line.at(start - 1) == QChar(';');
+        if (validPrefix) {
+            const int valueStart = start + token.size();
+            int end = line.indexOf(',', valueStart);
+            if (end < 0) {
+                end = line.size();
+            }
+            line.replace(valueStart, end - valueStart, value);
+            return line;
+        }
+        start = line.indexOf(token, start + token.size(), Qt::CaseInsensitive);
     }
-    const int valueStart = start + token.size();
-    int end = line.indexOf(',', valueStart);
-    if (end < 0) {
-        end = line.size();
-    }
-    line.replace(valueStart, end - valueStart, value);
     return line;
 }
 
