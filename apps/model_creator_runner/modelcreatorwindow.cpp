@@ -115,6 +115,33 @@ void ApplyVnSoftUiProfile(StarterScriptOptions *options, const QString &uiMode)
     }
 }
 
+bool ValidateVnSoftReferenceGeometry(const StarterScriptOptions &options, QString *errorMessage)
+{
+    if (!IsVnSoftReferenceUiMode(options)) {
+        return true;
+    }
+    if (!(options.vnSoftRadiusOfInfluence > options.vnSoftRwG && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("VN SoftReference requires radius of influence larger than both well radii.");
+        }
+        return false;
+    }
+    if (!(options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG))) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("VN SoftReference requires depth to groundwater greater than depth_of_well_c + depth_of_well_g.");
+        }
+        return false;
+    }
+    if (options.vnSoftGridXCount <= 0 || options.vnSoftGridYCount <= 0
+        || options.vnSoftUwGridXCount <= 0 || options.vnSoftUwGridYCount <= 0) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("VN SoftReference requires all grid counts to be positive integers.");
+        }
+        return false;
+    }
+    return true;
+}
+
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
@@ -2007,6 +2034,11 @@ void ModelCreatorWindow::previewScript()
             }
         }
         ApplyVnSoftUiProfile(&options, vnSoftUiModeCombo->currentData().toString());
+        QString softValidationError;
+        if (!ValidateVnSoftReferenceGeometry(options, &softValidationError)) {
+            QMessageBox::warning(this, tr("Invalid VN soft-reference settings"), softValidationError);
+            return;
+        }
 
         QString error;
         const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
@@ -2168,6 +2200,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         }
     }
     ApplyVnSoftUiProfile(&options, vnSoftUiModeCombo->currentData().toString());
+    QString softValidationError;
+    if (!ValidateVnSoftReferenceGeometry(options, &softValidationError)) {
+        QMessageBox::warning(this, tr("Invalid VN soft-reference settings"), softValidationError);
+        return false;
+    }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
@@ -2209,6 +2246,16 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     }
     saveSettings();
 
+    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
+        && options.vnBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        appendLog(stamp(tr("VN softref summary: mode=%1, g-grid=%2x%3, uw-grid=%4x%5, soil=%6")
+                            .arg(vnSoftUiModeCombo->currentData().toString(),
+                                 QString::number(options.vnSoftGridXCount),
+                                 QString::number(options.vnSoftGridYCount),
+                                 QString::number(options.vnSoftUwGridXCount),
+                                 QString::number(options.vnSoftUwGridYCount),
+                                 options.vnSoftSoilParamMode)));
+    }
     appendLog(stamp(tr("Generated %1 starter script: %2").arg(options.modelType, options.outputFile)));
     return true;
 }
