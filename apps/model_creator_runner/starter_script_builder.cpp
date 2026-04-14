@@ -219,6 +219,57 @@ QString DefaultVnInflowFile()
     return QStringLiteral("Synthetic_rain_flow.csv");
 }
 
+QString EmbeddedFullReferenceScriptForModel(const QString &modelType)
+{
+    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return HqDrywellBuilder::FullReferenceScript();
+    }
+    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return RBioswaleBuilder::FullReferenceScript();
+    }
+    return VnDrywellBuilder::VnFullReferenceScript();
+}
+
+QString EmbeddedInflowTargetForModel(const QString &modelType)
+{
+    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return HqDrywellBuilder::InflowTargetObject();
+    }
+    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return RBioswaleBuilder::InflowTargetObject();
+    }
+    return VnDrywellBuilder::InflowTargetObject();
+}
+
+QString ExtractEmbeddedReferenceInflowForModel(const QString &modelType)
+{
+    const QString embedded = EmbeddedFullReferenceScriptForModel(modelType);
+    const QString target = EmbeddedInflowTargetForModel(modelType);
+    if (embedded.trimmed().isEmpty() || target.trimmed().isEmpty()) {
+        return QString();
+    }
+    const QStringList lines = embedded.split('\n', Qt::SkipEmptyParts);
+    for (const QString &rawLine : lines) {
+        const QString line = rawLine.trimmed();
+        if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+            const QString value = ExtractCommandValue(line, QStringLiteral("value"));
+            if (!value.trimmed().isEmpty()) {
+                return value.trimmed();
+            }
+        }
+        if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+            const QString value = ExtractCommandValue(line, QStringLiteral("inflow"));
+            if (!value.trimmed().isEmpty()) {
+                return value.trimmed();
+            }
+        }
+    }
+    return QString();
+}
+
 QStringList CandidateProjectRootsFromTemplateDirectory(const QString &templateDirectory)
 {
     QStringList roots {
@@ -252,6 +303,10 @@ QString DetectStructureDefaultInflowFile(const QString &modelType,
 {
     const QString normalizedModel = modelType.trimmed();
     QStringList candidates;
+    const QString embeddedDefault = ExtractEmbeddedReferenceInflowForModel(normalizedModel);
+    if (!embeddedDefault.trimmed().isEmpty()) {
+        candidates << embeddedDefault.trimmed();
+    }
     const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectory(templateDirectory);
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {
@@ -283,9 +338,12 @@ bool IsKnownReferenceInflowForOtherModel(const QString &inflowPath, const QStrin
     if (p.isEmpty()) {
         return false;
     }
-    const bool isVnRef = p.contains(QStringLiteral("LA_Precipitaion (5 yr new).csv"), Qt::CaseInsensitive);
-    const bool isHqRef = p.contains(QStringLiteral("Inflow_Corrected_New_Khiem.csv"), Qt::CaseInsensitive);
-    const bool isRRef = p.contains(QStringLiteral("Inflow_Rosemead_August.txt"), Qt::CaseInsensitive);
+    const QString vnRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("VN_Drywell"));
+    const QString hqRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("HQ_Drywell"));
+    const QString rRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("R_Bioswale"));
+    const bool isVnRef = !vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = !hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0;
+    const bool isRRef = !rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0;
 
     if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         return isHqRef || isRRef;

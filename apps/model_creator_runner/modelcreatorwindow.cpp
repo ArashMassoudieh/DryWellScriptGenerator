@@ -6,6 +6,9 @@
 #include "starter_script_builder.h"
 #include "structure_registry.h"
 #include "scripteditordialog.h"
+#include "hq_drywell_builder.h"
+#include "r_bioswale_builder.h"
+#include "vn_drywell_builder.h"
 
 #include <QComboBox>
 #include <QCheckBox>
@@ -299,13 +302,64 @@ QStringList CandidateProjectRootsFromTemplateDirectoryUi(const QString &template
 
 bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QString &targetModel)
 {
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
     const QString p = inflowPath.trimmed();
     if (p.isEmpty()) {
         return false;
     }
-    const bool isVnRef = p.contains(QStringLiteral("LA_Precipitaion (5 yr new).csv"), Qt::CaseInsensitive);
-    const bool isHqRef = p.contains(QStringLiteral("Inflow_Corrected_New_Khiem.csv"), Qt::CaseInsensitive);
-    const bool isRRef = p.contains(QStringLiteral("Inflow_Rosemead_August.txt"), Qt::CaseInsensitive);
+    const QString vnRef = embeddedInflow(QStringLiteral("VN_Drywell"));
+    const QString hqRef = embeddedInflow(QStringLiteral("HQ_Drywell"));
+    const QString rRef = embeddedInflow(QStringLiteral("R_Bioswale"));
+    const bool isVnRef = !vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = !hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0;
+    const bool isRRef = !rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0;
     if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         return isHqRef || isRRef;
     }
@@ -320,9 +374,61 @@ bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QStr
 
 QString DetectSuggestedInflowFile(const QString &modelType, const QString &templateDirectory = QString())
 {
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
     const QString normalizedModel = modelType.trimmed();
     QStringList candidates;
     const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectoryUi(templateDirectory);
+    const QString embeddedDefault = embeddedInflow(normalizedModel);
+    if (!embeddedDefault.trimmed().isEmpty()) {
+        candidates << embeddedDefault.trimmed();
+    }
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
