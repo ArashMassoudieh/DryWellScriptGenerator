@@ -734,6 +734,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnMoistureLayersFileEdit(new QLineEdit(this)),
       vnBuildModeCombo(new QComboBox(this)),
       vnSoftUiModeCombo(new QComboBox(this)),
+      vnSoftSummaryLabel(new QLabel(this)),
       vnSoftGridXEdit(new QLineEdit(this)),
       vnSoftGridYEdit(new QLineEdit(this)),
       vnSoftUwGridXEdit(new QLineEdit(this)),
@@ -908,6 +909,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoftUiModeCombo->addItem(tr("Advanced (manual)"), QStringLiteral("Advanced"));
     vnSoftUiModeCombo->setToolTip(tr("Quick keeps VN reference soil defaults. Calibrated applies ModelCreator soil defaults. Advanced exposes and uses full manual SoftReference controls."));
     vnSoftUiModeRowWidget = addTextRow(layout, tr("VN softref experience"), vnSoftUiModeCombo);
+    vnSoftSummaryLabel->setWordWrap(true);
+    vnSoftSummaryRowWidget = addTextRow(layout, tr("VN softref summary"), vnSoftSummaryLabel);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
     setupCompactNumericEdit(vnSoftUwGridXEdit, tr("16"));
@@ -1171,6 +1174,20 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
+    const auto updateVnSoftSummary = [this]() {
+        if (!vnSoftSummaryLabel) {
+            return;
+        }
+        const QString summary = tr("mode=%1 | g=%2x%3 | uw=%4x%5 | soil=%6")
+                                    .arg(vnSoftUiModeCombo->currentData().toString(),
+                                         vnSoftGridXEdit->text().trimmed(),
+                                         vnSoftGridYEdit->text().trimmed(),
+                                         vnSoftUwGridXEdit->text().trimmed(),
+                                         vnSoftUwGridYEdit->text().trimmed(),
+                                         vnSoftSoilParamModeCombo->currentData().toString());
+        vnSoftSummaryLabel->setText(summary);
+    };
+
     const auto saveOnEdit = [this](QLineEdit *edit) {
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
@@ -1215,6 +1232,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftSoilThetaSatEdit);
     saveOnEdit(vnSoftSoilThetaResEdit);
     saveOnEdit(vnSoftSoilParameterFileEdit);
+
+    connect(vnSoftUiModeCombo, &QComboBox::currentTextChanged, this, updateVnSoftSummary);
+    connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, updateVnSoftSummary);
+    connect(vnSoftGridXEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
+    connect(vnSoftGridYEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
+    connect(vnSoftUwGridXEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
+    connect(vnSoftUwGridYEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
         const QString mode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -1353,6 +1377,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     loadSettings();
     syncEnrichmentPresetForModel();
     updateFieldVisibilityForContext();
+    updateVnSoftSummary();
     refreshPlots();
 }
 
@@ -1410,6 +1435,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool advancedVnSoftMode = vnSoftUiModeCombo != nullptr
         && vnSoftUiModeCombo->currentData().toString().compare(QStringLiteral("Advanced"), Qt::CaseInsensitive) == 0;
     if (vnSoftUiModeRowWidget) vnSoftUiModeRowWidget->setVisible(showSoftRows);
+    if (vnSoftSummaryRowWidget) vnSoftSummaryRowWidget->setVisible(showSoftRows);
     const bool showAdvancedSoftRows = showSoftRows && advancedVnSoftMode;
     if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(showAdvancedSoftRows);
     if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(showAdvancedSoftRows);
