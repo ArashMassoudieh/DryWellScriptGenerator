@@ -1311,7 +1311,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
             if (!suggested.isEmpty()) {
                 inflowFileEdit->setText(suggested);
-                suggestSimulationWindowFromInflow(suggested);
+                suggestSimulationWindowFromInflow(suggested, true);
                 appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
             }
         }
@@ -1339,6 +1339,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(simulationEndEdit);
     connect(simulationStartEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationStartEdit); });
     connect(simulationEndEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationEndEdit); });
+    connect(simulationStartEdit, &QLineEdit::textEdited, this, [this]() { simulationWindowAutoSuggested = false; });
+    connect(simulationEndEdit, &QLineEdit::textEdited, this, [this]() { simulationWindowAutoSuggested = false; });
     UpdateSimulationDateTooltip(simulationStartEdit);
     UpdateSimulationDateTooltip(simulationEndEdit);
     saveOnEdit(ksatScaleEdit);
@@ -1750,7 +1752,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     applyIfEmpty(inflowFileEdit, suggestedInflowPath);
     applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
     if (!inflowFileEdit->text().trimmed().isEmpty()) {
-        suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed());
+        suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed(), true);
     }
     applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
     applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
@@ -1808,13 +1810,13 @@ void ModelCreatorWindow::chooseInflowFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         inflowFileEdit->setText(fileName);
-        suggestSimulationWindowFromInflow(fileName);
+        suggestSimulationWindowFromInflow(fileName, true);
         saveSettings();
         refreshPlots();
     }
 }
 
-void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path)
+void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path, bool forceApply)
 {
     QString error;
     const QVector<QPointF> points = loadSeriesFromFile(path, &error);
@@ -1833,12 +1835,13 @@ void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path)
     const QString currentEnd = simulationEndEdit->text().trimmed();
     const bool usingDefaults = (currentStart.isEmpty() && currentEnd.isEmpty())
         || (currentStart == "44435" && currentEnd == "44438");
-    if (!usingDefaults) {
+    if (!forceApply && !usingDefaults && !simulationWindowAutoSuggested) {
         return;
     }
 
     simulationStartEdit->setText(QString::number(minX, 'g', 12));
     simulationEndEdit->setText(QString::number(maxX, 'g', 12));
+    simulationWindowAutoSuggested = true;
     appendLog(stamp(tr("Suggested simulation window from inflow file: start=%1, end=%2")
                     .arg(simulationStartEdit->text(), simulationEndEdit->text())));
 }
