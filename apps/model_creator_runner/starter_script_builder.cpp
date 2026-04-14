@@ -425,6 +425,84 @@ bool IsSoftReferenceGridLine(const QString &line)
         || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
 }
 
+bool IsHqSoftReferenceSoilLine(const QString &line)
+{
+    return line.contains(QStringLiteral("name=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("name=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=SoilDeep ("), Qt::CaseInsensitive);
+}
+
+bool IsRBioswaleSoftReferenceSoilLine(const QString &line)
+{
+    const QStringList tokens {
+        QStringLiteral("EngineeredSoil ("),
+        QStringLiteral("UEngineered ("),
+        QStringLiteral("LeftTop ("),
+        QStringLiteral("RightTop ("),
+        QStringLiteral("LeftBottom ("),
+        QStringLiteral("RightBottom (")
+    };
+    for (const QString &token : tokens) {
+        if (line.contains(token, Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void AppendEmbeddedStructureSoftReferenceScaffold(const QString &embeddedScript,
+                                                  const QString &inflowObject,
+                                                  const std::function<bool(const QString &)> &isSoilLine,
+                                                  QString *scriptText)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+
+    const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+            || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("setvalue; object=%1, quantity=inflow").arg(inflowObject), Qt::CaseInsensitive)
+            || isSoilLine(trimmed)) {
+            continue;
+        }
+        *scriptText += line + '\n';
+    }
+
+    if (!scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+}
+
+void AppendEmbeddedStructureSoftReferenceSoils(const QString &embeddedScript,
+                                               const std::function<bool(const QString &)> &isSoilLine,
+                                               QTextStream *ts)
+{
+    if (ts == nullptr) {
+        return;
+    }
+    const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || !isSoilLine(trimmed)) {
+            continue;
+        }
+        *ts << line << '\n';
+    }
+}
+
 struct VnSoftSoilProps
 {
     double ksat = 1.05196;
@@ -1409,6 +1487,70 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
         if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        const QString embedded = HqDrywellBuilder::FullReferenceScript();
+        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
+                                                     HqDrywellBuilder::InflowTargetObject(),
+                                                     IsHqSoftReferenceSoilLine,
+                                                     &out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
+        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
+        }
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
+        AppendEmbeddedStructureSoftReferenceSoils(embedded, IsHqSoftReferenceSoilLine, &ts);
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        const QString embedded = RBioswaleBuilder::FullReferenceScript();
+        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
+                                                     RBioswaleBuilder::InflowTargetObject(),
+                                                     IsRBioswaleSoftReferenceSoilLine,
+                                                     &out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
+        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
+        AppendEmbeddedStructureSoftReferenceSoils(embedded, IsRBioswaleSoftReferenceSoilLine, &ts);
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
         }
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
