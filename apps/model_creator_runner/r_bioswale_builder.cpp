@@ -1,18 +1,6 @@
-#include "bioswale_builder.h"
+#include "r_bioswale_builder.h"
 
-#include <QFile>
-#include <QRegularExpression>
-#include <QStringList>
-#include <QTextStream>
-
-// ============================================================================
-// CANONICAL BIOSWALE FULL REFERENCE
-// ----------------------------------------------------------------------------
-// REPLACE THE CONTENT OF kBioswaleFullRef WITH YOUR REAL BIOSWALE REF SCRIPT.
-// Keep the R"BIO( ... )BIO" wrapper.
-// If your ref contains addtemplate/loadtemplate lines, they will be filtered
-// out before emission so the outer builder can manage template loading cleanly.
-// ============================================================================
+namespace {
 
 static const char *kBioswaleFullRef = R"BIO(
 loadtemplate; filename=/mnt/3rd900/Projects/OpenHydroQual/resources/main_components.json
@@ -3656,232 +3644,22 @@ create observation;type=Observation,object=EngineeredSoil (7),name=MC_2_7,expres
 create observation;type=Observation,object=Catchment (1),name=Depth,expression=depth,observed_data=/mnt/3rd900/Projects/LA Project new/Results/Depth.txt,error_structure=normal,error_standard_deviation=1
 )BIO";
 
-namespace {
-
-QString D(double v)
-{
-    return QString::number(v, 'g', 10);
-}
-
-void ReplaceAll(QString *text, const QString &pattern, const QString &replacement)
-{
-    if (!text) return;
-    text->replace(QRegularExpression(pattern), replacement);
-}
-
-bool LoadEntireFile(const QString &path, QString *out, QString *errorMessage = nullptr)
-{
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("Unable to read file: %1").arg(path);
-        }
-        return false;
-    }
-    QTextStream ts(&f);
-    if (out) {
-        *out = ts.readAll();
-    }
-    return true;
-}
-
-QString NormalizeBioswaleBuildMode(const QString &mode)
-{
-    const QString m = mode.trimmed();
-    if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("FullReference");
-    }
-    if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("SoftReference");
-    }
-    if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("LoadFromOhq");
-    }
-    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("Preset");
-    }
-    return QStringLiteral("SoftReference");
-}
-
-QString ResolveBioswalePreset(const StarterScriptOptions &options)
-{
-    const QString explicitPreset = options.bioswalePreset.trimmed();
-    if (!explicitPreset.isEmpty()) {
-        return explicitPreset;
-    }
-
-    const QString legacyPreset = options.enrichmentPreset.trimmed();
-    if (!legacyPreset.isEmpty()) {
-        return legacyPreset;
-    }
-
-    return QStringLiteral("Bioswale_SuiteStyle");
-}
-
-void ApplyBioswalePreset(StarterScriptOptions *options)
-{
-    if (!options) {
-        return;
-    }
-
-    const QString preset = ResolveBioswalePreset(*options);
-
-    if (preset.compare(QStringLiteral("Bioswale_Underdrain"), Qt::CaseInsensitive) == 0) {
-        options->bioswaleEngineeredKsatOriginal *= 1.2;
-    } else if (preset.compare(QStringLiteral("Bioswale_Underdrain_GW"), Qt::CaseInsensitive) == 0) {
-        options->bioswaleEngineeredKsatOriginal *= 1.5;
-    } else if (preset.compare(QStringLiteral("Bioswale_LegacyStyle"), Qt::CaseInsensitive) == 0) {
-        options->bioswaleCatchmentManning = 0.012;
-    }
-}
-
-void AppendEmbeddedBioswaleFullReferenceScript(QString *scriptText)
-{
-    if (scriptText == nullptr) {
-        return;
-    }
-
-    const QString embedded = QString::fromUtf8(kBioswaleFullRef);
-    const QStringList lines = embedded.split('\n', Qt::KeepEmptyParts);
-
-    for (const QString &line : lines) {
-        const QString trimmed = line.trimmed();
-        if (trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
-            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
-            || trimmed.startsWith(QStringLiteral("addtemplate "), Qt::CaseInsensitive)
-            || trimmed.startsWith(QStringLiteral("loadtemplate "), Qt::CaseInsensitive)) {
-            continue;
-        }
-        *scriptText += line;
-        *scriptText += QLatin1Char('\n');
-    }
-}
-
-void ApplyBioswaleSoftReferenceOverrides(QString *scriptText,
-                                         const StarterScriptOptions &options)
-{
-    if (scriptText == nullptr) {
-        return;
-    }
-
-    // System settings
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(setvalue;\s*object=system,\s*quantity=simulation_start_time,\s*value=[^\n\r]+)"),
-               QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1")
-                   .arg(options.simulationStart));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(setvalue;\s*object=system,\s*quantity=simulation_end_time,\s*value=[^\n\r]+)"),
-               QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1")
-                   .arg(options.simulationEnd));
-
-    if (!options.outputSeriesFile.trimmed().isEmpty()) {
-        ReplaceAll(scriptText,
-                   QStringLiteral(R"(setvalue;\s*object=system,\s*quantity=alloutputfile,\s*value=[^\n\r]+)"),
-                   QStringLiteral("setvalue; object=system, quantity=alloutputfile, value=%1")
-                       .arg(options.outputSeriesFile));
-    }
-
-    // Global parameter objects if present in the ref
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=KS_scale_factor,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=KS_scale_factor,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleKsScaleFactor)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=Anisotropy_ratio,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=Anisotropy_ratio,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleAnisotropyRatio)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=Eng_Soil_alpha,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=Eng_Soil_alpha,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleEngAlphaParam)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=Eng_Soil_n,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=Eng_Soil_n,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleEngNParam)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=EC_alpha,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=EC_alpha,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleEcAlpha)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(name=EC_beta,prior_distribution=log-normal,value=[^,\n\r]+)"),
-               QStringLiteral("name=EC_beta,prior_distribution=log-normal,value=%1")
-                   .arg(D(options.bioswaleEcBeta)));
-
-    // Catchment-type values
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(loss_coefficient=[^,\n\r]+)"),
-               QStringLiteral("loss_coefficient=%1[1/day]").arg(D(options.bioswaleCatchmentLossCoefficient)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(ManningCoeff=[^,\n\r]+)"),
-               QStringLiteral("ManningCoeff=%1").arg(D(options.bioswaleCatchmentManning)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(Slope=[^,\n\r]+)"),
-               QStringLiteral("Slope=%1").arg(D(options.bioswaleCatchmentSlope)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(Width=[^,\n\r]+\[m\])"),
-               QStringLiteral("Width=%1[m]").arg(D(options.bioswaleCatchmentWidth)));
-
-    // Engineered/soil values
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(theta_sat=[^,\n\r]+)"),
-               QStringLiteral("theta_sat=%1").arg(D(options.bioswaleEngineeredThetaSat)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(theta_res=[^,\n\r]+)"),
-               QStringLiteral("theta_res=%1").arg(D(options.bioswaleEngineeredThetaRes)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(theta=[^,\n\r]+)"),
-               QStringLiteral("theta=%1").arg(D(options.bioswaleEngineeredThetaInit)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(K_sat_original=[^,\n\r]+)"),
-               QStringLiteral("K_sat_original=%1").arg(D(options.bioswaleEngineeredKsatOriginal)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(alpha=[^,\n\r]+)"),
-               QStringLiteral("alpha=%1").arg(D(options.bioswaleEngineeredAlpha)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(n=[^,\n\r]+)"),
-               QStringLiteral("n=%1").arg(D(options.bioswaleEngineeredN)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(specific_storage=[^,\n\r]+)"),
-               QStringLiteral("specific_storage=%1").arg(D(options.bioswaleEngineeredSpecificStorage)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(area=[^,\n\r]+)"),
-               QStringLiteral("area=%1").arg(D(options.bioswaleEngineeredArea)));
-
-    ReplaceAll(scriptText,
-               QStringLiteral(R"(depth=[^,\n\r]+)"),
-               QStringLiteral("depth=%1").arg(D(options.bioswaleEngineeredDepth)));
-
-    if (!options.additionalCommands.trimmed().isEmpty()) {
-        if (!scriptText->endsWith('\n')) {
-            *scriptText += '\n';
-        }
-        *scriptText += QStringLiteral("\n# Additional Bioswale commands\n");
-        *scriptText += options.additionalCommands.trimmed();
-        *scriptText += QLatin1Char('\n');
-    }
-}
-
 } // namespace
 
-bool BioswaleBuilder::Build(const StarterScriptOptions &options,
-                            QString *scriptText,
-                            QString *errorMessage)
+QString RBioswaleBuilder::FullReferenceScript()
+{
+    return QString::fromUtf8(kBioswaleFullRef);
+}
+
+QString RBioswaleBuilder::InflowTargetObject()
+{
+    return QStringLiteral("Catchment (1)");
+}
+
+bool RBioswaleBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
+                                             const QString &inflow,
+                                             QString *scriptText,
+                                             QString *errorMessage)
 {
     if (scriptText == nullptr) {
         if (errorMessage) {
@@ -3890,36 +3668,11 @@ bool BioswaleBuilder::Build(const StarterScriptOptions &options,
         return false;
     }
 
-    StarterScriptOptions resolved = options;
-    ApplyBioswalePreset(&resolved);
-
-    const QString mode = NormalizeBioswaleBuildMode(resolved.bioswaleBuildMode);
-
-    if (mode == QStringLiteral("LoadFromOhq")) {
-        if (resolved.bioswaleBaseOhqFile.trimmed().isEmpty()) {
-            if (errorMessage) {
-                *errorMessage = QStringLiteral("bioswaleBaseOhqFile is required for Bioswale LoadFromOhq mode.");
-            }
-            return false;
-        }
-        return LoadEntireFile(resolved.bioswaleBaseOhqFile, scriptText, errorMessage);
-    }
-
-    if (mode == QStringLiteral("FullReference")) {
-        scriptText->clear();
-        AppendEmbeddedBioswaleFullReferenceScript(scriptText);
-        return true;
-    }
-
-    if (mode == QStringLiteral("SoftReference")) {
-        scriptText->clear();
-        AppendEmbeddedBioswaleFullReferenceScript(scriptText);
-        ApplyBioswaleSoftReferenceOverrides(scriptText, resolved);
-        return true;
-    }
-
-    // Preset fallback: emit FullRef and preset-only modification path.
-    scriptText->clear();
-    AppendEmbeddedBioswaleFullReferenceScript(scriptText);
+    *scriptText += QStringLiteral(
+        "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),"
+        "loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,"
+        "inflow=%1,Slope=0.02,Width=1[m],y=-200,area=1[m~^2],"
+        "depression_storage=0[m],depth=0[m],elevation=0[m]\n")
+                      .arg(inflow);
     return true;
 }
