@@ -269,6 +269,50 @@ QString ResolveVnPreset(const StarterScriptOptions &options)
     return QStringLiteral("VN_Drywell");
 }
 
+QString EffectiveBuildModeForMetadata(const StarterScriptOptions &options)
+{
+    if (IsVnModel(options.modelType)) {
+        return NormalizeVnBuildMode(options.vnBuildMode);
+    }
+    if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return NormalizeStructureBuildMode(options.hqBuildMode);
+    }
+    if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return NormalizeStructureBuildMode(options.rBioswaleBuildMode);
+    }
+    return QStringLiteral("Preset");
+}
+
+QString EffectivePresetForMetadata(const StarterScriptOptions &options,
+                                   const QString &effectiveBuildMode)
+{
+    if (effectiveBuildMode != QStringLiteral("Preset")) {
+        return QString();
+    }
+    if (IsVnModel(options.modelType)) {
+        return ResolveVnPreset(options);
+    }
+    return options.enrichmentPreset.trimmed();
+}
+
+void PrependStarterMetadata(const StarterScriptOptions &options, QString *scriptText)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+    QString header;
+    QTextStream hs(&header);
+    const QString buildMode = EffectiveBuildModeForMetadata(options);
+    const QString preset = EffectivePresetForMetadata(options, buildMode);
+    hs << "# starter_metadata:model_type=" << options.modelType.trimmed() << "\n";
+    hs << "# starter_metadata:build_mode=" << buildMode << "\n";
+    if (!preset.isEmpty()) {
+        hs << "# starter_metadata:preset=" << preset << "\n";
+    }
+    hs << "\n";
+    scriptText->prepend(header);
+}
+
 
 void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, const QStringList &templateFiles)
 {
@@ -1615,6 +1659,7 @@ bool StarterScriptBuilder::Write(const StarterScriptOptions &options,
     if (!BuildText(options, &scriptText, errorMessage)) {
         return false;
     }
+    PrependStarterMetadata(options, &scriptText);
 
     QSaveFile outFile(options.outputFile);
     if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
