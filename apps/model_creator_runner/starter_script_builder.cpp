@@ -218,6 +218,21 @@ QString DefaultVnInflowFile()
     return QStringLiteral("Synthetic_rain_flow.csv");
 }
 
+QString DefaultVnFullReferenceInflowFile()
+{
+    return QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+}
+
+QString DefaultHqInflowFile()
+{
+    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
+}
+
+QString DefaultRBioswaleInflowFile()
+{
+    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+}
+
 QString NormalizeVnBuildMode(const QString &mode)
 {
     const QString m = mode.trimmed();
@@ -1254,8 +1269,15 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     QString inflow = options.inflowFile.trimmed();
-    if (inflow.isEmpty() && vnModelType) {
-        inflow = DefaultVnInflowFile();
+    if (inflow.isEmpty()) {
+        if (vnModelType) {
+            inflow = (vnMode == QStringLiteral("FullReference")) ? DefaultVnFullReferenceInflowFile()
+                                                                 : DefaultVnInflowFile();
+        } else if (hqModelType && hqMode == QStringLiteral("FullReference")) {
+            inflow = DefaultHqInflowFile();
+        } else if (rBioswaleModelType && rBioswaleMode == QStringLiteral("FullReference")) {
+            inflow = DefaultRBioswaleInflowFile();
+        }
     }
     const bool inflowRequired = vnModelType
         || (hqModelType && hqMode == QStringLiteral("SoftReference"))
