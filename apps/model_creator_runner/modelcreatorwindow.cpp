@@ -270,24 +270,72 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
     return QString();
 }
 
-QString DetectSuggestedInflowFile(const QString &modelType)
+QStringList CandidateProjectRootsFromTemplateDirectoryUi(const QString &templateDirectory)
+{
+    QStringList roots = {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+    const QFileInfo templateInfo(templateDirectory);
+    if (templateInfo.exists()) {
+        QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
+                                        : templateInfo.absoluteDir();
+        if (dir.dirName().compare(QStringLiteral("resources"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+        }
+        if (dir.dirName().compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+            const QString inferredRoot = dir.absolutePath();
+            if (!inferredRoot.trimmed().isEmpty()) {
+                roots.prepend(inferredRoot);
+            }
+        }
+    }
+    roots.removeDuplicates();
+    return roots;
+}
+
+bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QString &targetModel)
+{
+    const QString p = inflowPath.trimmed();
+    if (p.isEmpty()) {
+        return false;
+    }
+    const bool isVnRef = p.contains(QStringLiteral("LA_Precipitaion (5 yr new).csv"), Qt::CaseInsensitive);
+    const bool isHqRef = p.contains(QStringLiteral("Inflow_Corrected_New_Khiem.csv"), Qt::CaseInsensitive);
+    const bool isRRef = p.contains(QStringLiteral("Inflow_Rosemead_August.txt"), Qt::CaseInsensitive);
+    if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isHqRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isHqRef;
+    }
+    return false;
+}
+
+QString DetectSuggestedInflowFile(const QString &modelType, const QString &templateDirectory = QString())
 {
     const QString normalizedModel = modelType.trimmed();
     QStringList candidates;
+    const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectoryUi(templateDirectory);
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
     } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
     } else {
-        const QString relativeInflow = QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
-        const QStringList projectRoots = {
-            QStringLiteral("/mnt/3rd900/Projects"),
-            QStringLiteral("/home/arash/Projects"),
-            QStringLiteral("/home/hoomanmoradpour/Projects"),
-            QStringLiteral("/media/arash/E/Projects")
-        };
         for (const QString &root : projectRoots) {
-            candidates << QDir(root).filePath(relativeInflow);
+            candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
         }
         candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
     }
@@ -1107,6 +1155,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, &ModelCreatorWindow::syncEnrichmentPresetForModel);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
+        const QString currentInflow = inflowFileEdit->text().trimmed();
+        if (currentInflow.isEmpty() || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
+            const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
+            if (!suggested.isEmpty()) {
+                inflowFileEdit->setText(suggested);
+                appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
+            }
+        }
+    });
     connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
@@ -1503,7 +1561,8 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
-    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText());
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText(),
+                                                                  templateDirEdit->text().trimmed());
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
@@ -2153,10 +2212,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
     if (options.inflowFile.isEmpty()) {
         if (vnModel) {
-            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"));
+            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"),
+                                                           options.templateDirectory);
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
         } else {
-            options.inflowFile = DetectSuggestedInflowFile(options.modelType);
+            options.inflowFile = DetectSuggestedInflowFile(options.modelType,
+                                                           options.templateDirectory);
             appendLog(stamp(tr("%1 inflow was empty; using default inflow file: %2")
                                 .arg(options.modelType, options.inflowFile)));
         }
