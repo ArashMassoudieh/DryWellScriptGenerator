@@ -86,11 +86,11 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
             {QStringLiteral("SoftReference"), QStringLiteral("HQ_MODE:SoftReference")},
             {QStringLiteral("FullReference"), QStringLiteral("HQ_MODE:FullReference")},
             {QStringLiteral("LoadFromOhq"), QStringLiteral("HQ_MODE:LoadFromOhq")},
-            {QStringLiteral("HQ_Drywell (DryWellSuite style)"), QStringLiteral("HQ_Drywell_SuiteStyle")},
-            {QStringLiteral("HQ_Drywell (Legacy ScriptGenerator style)"), QStringLiteral("HQ_Drywell_LegacyStyle")},
-            {QStringLiteral("HQ_Drywell + Monitoring Well"), QStringLiteral("HQ_Drywell_MonitoringWell")},
-            {QStringLiteral("HQ_Drywell + Groundwater Boundary"), QStringLiteral("HQ_Drywell_GroundwaterBoundary")},
-            {QStringLiteral("HQ_Drywell + Pretreatment Chambers"), QStringLiteral("HQ_Drywell_PretreatmentChambers")}
+            {QStringLiteral("HQ_Drywell_SuiteStyle"), QStringLiteral("HQ_Drywell_SuiteStyle")},
+            {QStringLiteral("HQ_Drywell_LegacyStyle"), QStringLiteral("HQ_Drywell_LegacyStyle")},
+            {QStringLiteral("HQ_Drywell_MonitoringWell"), QStringLiteral("HQ_Drywell_MonitoringWell")},
+            {QStringLiteral("HQ_Drywell_GroundwaterBoundary"), QStringLiteral("HQ_Drywell_GroundwaterBoundary")},
+            {QStringLiteral("HQ_Drywell_PretreatmentChambers"), QStringLiteral("HQ_Drywell_PretreatmentChambers")}
         };
     }
 
@@ -99,8 +99,8 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
             {QStringLiteral("SoftReference"), QStringLiteral("VN_MODE:SoftReference")},
             {QStringLiteral("FullReference"), QStringLiteral("VN_MODE:FullReference")},
             {QStringLiteral("LoadFromOhq"), QStringLiteral("VN_MODE:LoadFromOhq")},
-            {QStringLiteral("VN preset: DryWellSuite Pro default"), QStringLiteral("VN_Drywell_Pro")},
-            {QStringLiteral("VN preset: legacy structure"), QStringLiteral("VN_Drywell")}
+            {QStringLiteral("VN_Drywell_Pro"), QStringLiteral("VN_Drywell_Pro")},
+            {QStringLiteral("VN_Drywell"), QStringLiteral("VN_Drywell")}
         };
     }
 
@@ -108,9 +108,9 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
         {QStringLiteral("SoftReference"), QStringLiteral("R_MODE:SoftReference")},
         {QStringLiteral("FullReference"), QStringLiteral("R_MODE:FullReference")},
         {QStringLiteral("LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
-        {QStringLiteral("R_Bioswale (DryWellSuite style)"), QStringLiteral("R_Bioswale_SuiteStyle")},
-        {QStringLiteral("R_Bioswale (Legacy ScriptGenerator style)"), QStringLiteral("R_Bioswale_LegacyStyle")},
-        {QStringLiteral("R_Bioswale + Underdrain"), QStringLiteral("R_Bioswale_Underdrain")},
-        {QStringLiteral("R_Bioswale + Underdrain + Groundwater"), QStringLiteral("R_Bioswale_Underdrain_GW")}
+        {QStringLiteral("R_Bioswale_SuiteStyle"), QStringLiteral("R_Bioswale_SuiteStyle")},
+        {QStringLiteral("R_Bioswale_LegacyStyle"), QStringLiteral("R_Bioswale_LegacyStyle")},
+        {QStringLiteral("R_Bioswale_Underdrain"), QStringLiteral("R_Bioswale_Underdrain")},
+        {QStringLiteral("R_Bioswale_Underdrain_GW"), QStringLiteral("R_Bioswale_Underdrain_GW")}
     };
 }
