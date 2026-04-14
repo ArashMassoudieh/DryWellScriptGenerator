@@ -91,57 +91,6 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
     return fallbackBuildMode;
 }
 
-bool IsVnSoftReferenceUiMode(const StarterScriptOptions &options)
-{
-    return options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
-        && options.vnBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
-}
-
-void ApplyVnSoftUiProfile(StarterScriptOptions *options, const QString &uiMode)
-{
-    if (options == nullptr || !IsVnSoftReferenceUiMode(*options)) {
-        return;
-    }
-    const QString normalized = uiMode.trimmed();
-    if (normalized.compare(QStringLiteral("Advanced"), Qt::CaseInsensitive) == 0) {
-        return;
-    }
-    if (normalized.compare(QStringLiteral("Quick"), Qt::CaseInsensitive) == 0) {
-        options->vnSoftSoilParamMode = QStringLiteral("VnReferenceDefaults");
-        return;
-    }
-    if (normalized.compare(QStringLiteral("Calibrated"), Qt::CaseInsensitive) == 0) {
-        options->vnSoftSoilParamMode = QStringLiteral("ModelCreatorDefaults");
-    }
-}
-
-bool ValidateVnSoftReferenceGeometry(const StarterScriptOptions &options, QString *errorMessage)
-{
-    if (!IsVnSoftReferenceUiMode(options)) {
-        return true;
-    }
-    if (!(options.vnSoftRadiusOfInfluence > options.vnSoftRwG && options.vnSoftRadiusOfInfluence > options.vnSoftRwUw)) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("VN SoftReference requires radius of influence larger than both well radii.");
-        }
-        return false;
-    }
-    if (!(options.vnSoftDepthToGroundWater > (options.vnSoftDepthOfWellC + options.vnSoftDepthOfWellG))) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("VN SoftReference requires depth to groundwater greater than depth_of_well_c + depth_of_well_g.");
-        }
-        return false;
-    }
-    if (options.vnSoftGridXCount <= 0 || options.vnSoftGridYCount <= 0
-        || options.vnSoftUwGridXCount <= 0 || options.vnSoftUwGridYCount <= 0) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("VN SoftReference requires all grid counts to be positive integers.");
-        }
-        return false;
-    }
-    return true;
-}
-
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
@@ -733,8 +682,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoilLayersFileEdit(new QLineEdit(this)),
       vnMoistureLayersFileEdit(new QLineEdit(this)),
       vnBuildModeCombo(new QComboBox(this)),
-      vnSoftUiModeCombo(new QComboBox(this)),
-      vnSoftSummaryLabel(new QLabel(this)),
       vnSoftGridXEdit(new QLineEdit(this)),
       vnSoftGridYEdit(new QLineEdit(this)),
       vnSoftUwGridXEdit(new QLineEdit(this)),
@@ -904,13 +851,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
     vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
     vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
-    vnSoftUiModeCombo->addItem(tr("Quick (recommended)"), QStringLiteral("Quick"));
-    vnSoftUiModeCombo->addItem(tr("Calibrated"), QStringLiteral("Calibrated"));
-    vnSoftUiModeCombo->addItem(tr("Advanced (manual)"), QStringLiteral("Advanced"));
-    vnSoftUiModeCombo->setToolTip(tr("Quick keeps VN reference soil defaults. Calibrated applies ModelCreator soil defaults. Advanced exposes and uses full manual SoftReference controls."));
-    vnSoftUiModeRowWidget = addTextRow(layout, tr("VN softref experience"), vnSoftUiModeCombo);
-    vnSoftSummaryLabel->setWordWrap(true);
-    vnSoftSummaryRowWidget = addTextRow(layout, tr("VN softref summary"), vnSoftSummaryLabel);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
     setupCompactNumericEdit(vnSoftUwGridXEdit, tr("16"));
@@ -1170,23 +1110,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(vnBuildModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
-    connect(vnSoftUiModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
-
-    const auto updateVnSoftSummary = [this]() {
-        if (!vnSoftSummaryLabel) {
-            return;
-        }
-        const QString summary = tr("mode=%1 | g=%2x%3 | uw=%4x%5 | soil=%6")
-                                    .arg(vnSoftUiModeCombo->currentData().toString(),
-                                         vnSoftGridXEdit->text().trimmed(),
-                                         vnSoftGridYEdit->text().trimmed(),
-                                         vnSoftUwGridXEdit->text().trimmed(),
-                                         vnSoftUwGridYEdit->text().trimmed(),
-                                         vnSoftSoilParamModeCombo->currentData().toString());
-        vnSoftSummaryLabel->setText(summary);
-    };
 
     const auto saveOnEdit = [this](QLineEdit *edit) {
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
@@ -1232,13 +1157,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftSoilThetaSatEdit);
     saveOnEdit(vnSoftSoilThetaResEdit);
     saveOnEdit(vnSoftSoilParameterFileEdit);
-
-    connect(vnSoftUiModeCombo, &QComboBox::currentTextChanged, this, updateVnSoftSummary);
-    connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, updateVnSoftSummary);
-    connect(vnSoftGridXEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
-    connect(vnSoftGridYEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
-    connect(vnSoftUwGridXEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
-    connect(vnSoftUwGridYEdit, &QLineEdit::textChanged, this, updateVnSoftSummary);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
         const QString mode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -1377,7 +1295,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     loadSettings();
     syncEnrichmentPresetForModel();
     updateFieldVisibilityForContext();
-    updateVnSoftSummary();
     refreshPlots();
 }
 
@@ -1432,23 +1349,18 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext);
     const bool showSoftRows = !loadExistingMode && vnContext && !explicitNonSoftMode;
-    const bool advancedVnSoftMode = vnSoftUiModeCombo != nullptr
-        && vnSoftUiModeCombo->currentData().toString().compare(QStringLiteral("Advanced"), Qt::CaseInsensitive) == 0;
-    if (vnSoftUiModeRowWidget) vnSoftUiModeRowWidget->setVisible(showSoftRows);
-    if (vnSoftSummaryRowWidget) vnSoftSummaryRowWidget->setVisible(showSoftRows);
-    const bool showAdvancedSoftRows = showSoftRows && advancedVnSoftMode;
-    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftUwGridXRowWidget) vnSoftUwGridXRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showAdvancedSoftRows);
-    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showAdvancedSoftRows);
+    if (vnSoftGridXRowWidget) vnSoftGridXRowWidget->setVisible(showSoftRows);
+    if (vnSoftGridYRowWidget) vnSoftGridYRowWidget->setVisible(showSoftRows);
+    if (vnSoftCellSizeRowWidget) vnSoftCellSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwGridXRowWidget) vnSoftUwGridXRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwGridYRowWidget) vnSoftUwGridYRowWidget->setVisible(showSoftRows);
+    if (vnSoftUwCellSizeRowWidget) vnSoftUwCellSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftGapSizeRowWidget) vnSoftGapSizeRowWidget->setVisible(showSoftRows);
+    if (vnSoftRadiusRowWidget) vnSoftRadiusRowWidget->setVisible(showSoftRows);
+    if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
+    if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
+    if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -2059,12 +1971,6 @@ void ModelCreatorWindow::previewScript()
                 options.rBioswaleBuildMode = QStringLiteral("Preset");
             }
         }
-        ApplyVnSoftUiProfile(&options, vnSoftUiModeCombo->currentData().toString());
-        QString softValidationError;
-        if (!ValidateVnSoftReferenceGeometry(options, &softValidationError)) {
-            QMessageBox::warning(this, tr("Invalid VN soft-reference settings"), softValidationError);
-            return;
-        }
 
         QString error;
         const bool canBuildDraft = StarterScriptBuilder::BuildText(options, &scriptText, &error);
@@ -2225,12 +2131,6 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.rBioswaleBuildMode = QStringLiteral("Preset");
         }
     }
-    ApplyVnSoftUiProfile(&options, vnSoftUiModeCombo->currentData().toString());
-    QString softValidationError;
-    if (!ValidateVnSoftReferenceGeometry(options, &softValidationError)) {
-        QMessageBox::warning(this, tr("Invalid VN soft-reference settings"), softValidationError);
-        return false;
-    }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
@@ -2272,16 +2172,6 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     }
     saveSettings();
 
-    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
-        && options.vnBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
-        appendLog(stamp(tr("VN softref summary: mode=%1, g-grid=%2x%3, uw-grid=%4x%5, soil=%6")
-                            .arg(vnSoftUiModeCombo->currentData().toString(),
-                                 QString::number(options.vnSoftGridXCount),
-                                 QString::number(options.vnSoftGridYCount),
-                                 QString::number(options.vnSoftUwGridXCount),
-                                 QString::number(options.vnSoftUwGridYCount),
-                                 options.vnSoftSoilParamMode)));
-    }
     appendLog(stamp(tr("Generated %1 starter script: %2").arg(options.modelType, options.outputFile)));
     return true;
 }
@@ -3461,9 +3351,6 @@ void ModelCreatorWindow::loadSettings()
         }
         const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : savedVnBuildMode);
         vnBuildModeCombo->setCurrentIndex(vnBuildModeIndex >= 0 ? vnBuildModeIndex : 0);
-        const QString vnSoftUiMode = settings.value("vnSoftUiMode", "Quick").toString().trimmed();
-        const int vnSoftUiModeIndex = vnSoftUiModeCombo->findData(vnSoftUiMode.isEmpty() ? QStringLiteral("Quick") : vnSoftUiMode);
-        vnSoftUiModeCombo->setCurrentIndex(vnSoftUiModeIndex >= 0 ? vnSoftUiModeIndex : 0);
         const bool vnModel = modelTypeCombo->currentText().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
         const QString currentPreset = enrichmentPresetCombo->currentData().toString().trimmed();
         const bool shouldMigrateLegacyBuildMode = enrichmentPreset.isEmpty();
@@ -3558,9 +3445,6 @@ void ModelCreatorWindow::saveSettings() const
         const QString fallbackBuildMode = vnBuildModeCombo->currentData().toString().trimmed();
         const QString resolvedBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
         settings.setValue("vnBuildMode", resolvedBuildMode);
-    }
-    if (vnSoftUiModeCombo) {
-        settings.setValue("vnSoftUiMode", vnSoftUiModeCombo->currentData().toString());
     }
     settings.setValue("vnSoftGridXCount", vnSoftGridXEdit->text());
     settings.setValue("vnSoftGridYCount", vnSoftGridYEdit->text());
