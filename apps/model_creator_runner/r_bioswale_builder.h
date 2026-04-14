@@ -1,22 +1,39 @@
-#ifndef BIOSWALE_BUILDER_H
-#define BIOSWALE_BUILDER_H
+#ifndef R_BIOSWALE_BUILDER_H
+#define R_BIOSWALE_BUILDER_H
 
 #include "starter_script_builder.h"
+
 #include <QString>
 
-// Isolated Bioswale builder.
-// This does NOT modify Drywell or VN_Drywell logic.
-// Supported modes:
-//   - FullReference
-//   - SoftReference
-//   - LoadFromOhq
-//   - Preset
-
-namespace BioswaleBuilder
+namespace RBioswaleBuilder
 {
-    bool Build(const StarterScriptOptions &options,
-               QString *scriptText,
-               QString *errorMessage = nullptr);
-}
 
-#endif // BIOSWALE_BUILDER_H
+struct SoilBlockSpec
+{
+    QString name;
+    double thetaSat = 0.43;
+    double thetaRes = 0.078;
+    double n = 1.56;
+    double kSatOriginal = 0.25;
+    double alpha = 3.6;
+    double area = 4.0;
+    double x = 0.0;
+    double y = 0.0;
+    double bottomElevation = 0.0;
+    double depth = 0.1016;
+    double actualX = 0.0;
+    double actualY = 0.0;
+};
+
+QString FullReferenceScript();
+QString InflowTargetObject();
+QString BuildSoilBlockCommand(const SoilBlockSpec &spec);
+
+bool AppendBaseInflowBlock(const StarterScriptOptions &options,
+                           const QString &inflow,
+                           QString *scriptText,
+                           QString *errorMessage = nullptr);
+
+} // namespace RBioswaleBuilder
+
+#endif // R_BIOSWALE_BUILDER_H

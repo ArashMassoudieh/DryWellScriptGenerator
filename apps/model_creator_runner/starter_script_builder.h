@@ -12,8 +12,8 @@ struct StarterScriptOptions
     /// Destination path for writing generated starter script text.
     QString outputFile;
 
-    /// Base model flavor for starter creation ("Drywell", "VN_Drywell", or "Bioswale").
-    QString modelType = "Drywell";    // Drywell | VN_Drywell | Bioswale
+    /// Base model flavor for starter creation ("HQ_Drywell", "VN_Drywell", or "R_Bioswale").
+    QString modelType = "HQ_Drywell";    // HQ_Drywell | VN_Drywell | R_Bioswale
 
     /// Input inflow time series file path.
     QString inflowFile;
@@ -68,6 +68,24 @@ struct StarterScriptOptions
     QString vnSoilLayersFile;
     QString vnMoistureLayersFile;
 
+    // ---------------------------------------------------------------------
+    // HQ_Drywell-specific build mode configuration
+    // ---------------------------------------------------------------------
+    //   "Preset"        -> existing starter generation path (default)
+    //   "FullReference" -> use embedded HQ full-reference payload from builder
+    //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
+    QString hqBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString hqBaseOhqFile;
+
+    // ---------------------------------------------------------------------
+    // R_Bioswale-specific build mode configuration
+    // ---------------------------------------------------------------------
+    //   "Preset"        -> existing starter generation path (default)
+    //   "FullReference" -> use embedded R_Bioswale full-reference payload
+    //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
+    QString rBioswaleBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString rBioswaleBaseOhqFile;
+
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 16;
     int vnSoftGridYCount = 15;
@@ -110,11 +128,11 @@ struct StarterScriptOptions
     // Optional preset that appends extra model blocks/links.
     //
     // Supported:
-    //   "", "Drywell_MonitoringWell", "Drywell_GroundwaterBoundary",
-    //   "Drywell_PretreatmentChambers", "Drywell_SuiteStyle",
-    //   "Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
-    //   "Bioswale_Underdrain", "Bioswale_Underdrain_GW",
-    //   "Bioswale_SuiteStyle", "Bioswale_LegacyStyle"
+    //   "", "HQ_Drywell_MonitoringWell", "HQ_Drywell_GroundwaterBoundary",
+    //   "HQ_Drywell_PretreatmentChambers", "HQ_Drywell_SuiteStyle",
+    //   "HQ_Drywell_LegacyStyle", "VN_Drywell", "VN_Drywell_Pro",
+    //   "R_Bioswale_Underdrain", "R_Bioswale_Underdrain_GW",
+    //   "R_Bioswale_SuiteStyle", "R_Bioswale_LegacyStyle"
     //
     // Notes:
     //   - For VN_Drywell in Preset mode, vnPreset is preferred.
