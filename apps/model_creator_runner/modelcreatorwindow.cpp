@@ -53,6 +53,41 @@ QString stamp(const QString &message)
         .arg(QDateTime::currentDateTime().toString(Qt::ISODate), message);
 }
 
+QString SpreadsheetSerialToIsoString(double serialDay)
+{
+    if (!std::isfinite(serialDay)) {
+        return QString();
+    }
+    const int wholeDays = static_cast<int>(std::floor(serialDay));
+    const double frac = serialDay - static_cast<double>(wholeDays);
+    const int secs = qBound(0, static_cast<int>(std::round(frac * 86400.0)), 86399);
+    const QDate base(1899, 12, 30);
+    const QDate date = base.addDays(wholeDays);
+    if (!date.isValid()) {
+        return QString();
+    }
+    return QDateTime(date, QTime(0, 0).addSecs(secs), Qt::UTC).toString(Qt::ISODate);
+}
+
+void UpdateSimulationDateTooltip(QLineEdit *edit)
+{
+    if (edit == nullptr) {
+        return;
+    }
+    bool ok = false;
+    const double serial = edit->text().trimmed().toDouble(&ok);
+    if (!ok) {
+        edit->setToolTip(QString());
+        return;
+    }
+    const QString iso = SpreadsheetSerialToIsoString(serial);
+    if (iso.isEmpty()) {
+        edit->setToolTip(QString());
+        return;
+    }
+    edit->setToolTip(QObject::tr("Approx. UTC date-time: %1").arg(iso));
+}
+
 QString VnBuildModeFromPresetSelection(const QString &selection)
 {
     const QString trimmed = selection.trimmed();
@@ -1276,6 +1311,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
             if (!suggested.isEmpty()) {
                 inflowFileEdit->setText(suggested);
+                suggestSimulationWindowFromInflow(suggested);
                 appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
             }
         }
@@ -1301,6 +1337,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(inflowFileEdit);
     saveOnEdit(simulationStartEdit);
     saveOnEdit(simulationEndEdit);
+    connect(simulationStartEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationStartEdit); });
+    connect(simulationEndEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationEndEdit); });
+    UpdateSimulationDateTooltip(simulationStartEdit);
+    UpdateSimulationDateTooltip(simulationEndEdit);
     saveOnEdit(ksatScaleEdit);
     saveOnEdit(ksatScaleGEdit);
     saveOnEdit(ksatScaleUwEdit);
@@ -1709,6 +1749,9 @@ void ModelCreatorWindow::applySuggestedDefaults()
     applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
     applyIfEmpty(inflowFileEdit, suggestedInflowPath);
     applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    if (!inflowFileEdit->text().trimmed().isEmpty()) {
+        suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed());
+    }
     applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
     applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
 
