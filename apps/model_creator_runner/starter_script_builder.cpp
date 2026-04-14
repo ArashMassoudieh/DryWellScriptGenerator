@@ -116,6 +116,7 @@ bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
 }
 
 QString ExtractCommandValue(const QString &line, const QString &key);
+QString NormalizeVnSoftSoilParamMode(const QString &mode);
 
 void ApplyCommonScriptFixups(QString *scriptText, const QString &inflowFile)
 {
