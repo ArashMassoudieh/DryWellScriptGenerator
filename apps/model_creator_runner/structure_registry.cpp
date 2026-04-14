@@ -83,9 +83,9 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
 {
     if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         return {
-            {QStringLiteral("HQ build mode: SoftReference (editable default)"), QStringLiteral("HQ_MODE:SoftReference")},
-            {QStringLiteral("HQ build mode: FullReference"), QStringLiteral("HQ_MODE:FullReference")},
-            {QStringLiteral("HQ build mode: LoadFromOhq"), QStringLiteral("HQ_MODE:LoadFromOhq")},
+            {QStringLiteral("SoftReference"), QStringLiteral("HQ_MODE:SoftReference")},
+            {QStringLiteral("FullReference"), QStringLiteral("HQ_MODE:FullReference")},
+            {QStringLiteral("LoadFromOhq"), QStringLiteral("HQ_MODE:LoadFromOhq")},
             {QStringLiteral("HQ_Drywell (DryWellSuite style)"), QStringLiteral("HQ_Drywell_SuiteStyle")},
             {QStringLiteral("HQ_Drywell (Legacy ScriptGenerator style)"), QStringLiteral("HQ_Drywell_LegacyStyle")},
             {QStringLiteral("HQ_Drywell + Monitoring Well"), QStringLiteral("HQ_Drywell_MonitoringWell")},
@@ -96,18 +96,18 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
 
     if (IsVnModel(modelType)) {
         return {
-            {QStringLiteral("VN build mode: SoftReference (editable default)"), QStringLiteral("VN_MODE:SoftReference")},
-            {QStringLiteral("VN build mode: FullReference (embedded canonical)"), QStringLiteral("VN_MODE:FullReference")},
-            {QStringLiteral("VN build mode: LoadFromOhq (use VN base file)"), QStringLiteral("VN_MODE:LoadFromOhq")},
+            {QStringLiteral("SoftReference"), QStringLiteral("VN_MODE:SoftReference")},
+            {QStringLiteral("FullReference"), QStringLiteral("VN_MODE:FullReference")},
+            {QStringLiteral("LoadFromOhq"), QStringLiteral("VN_MODE:LoadFromOhq")},
             {QStringLiteral("VN preset: DryWellSuite Pro default"), QStringLiteral("VN_Drywell_Pro")},
             {QStringLiteral("VN preset: legacy structure"), QStringLiteral("VN_Drywell")}
         };
     }
 
     return {
-        {QStringLiteral("R build mode: SoftReference (editable default)"), QStringLiteral("R_MODE:SoftReference")},
-        {QStringLiteral("R build mode: FullReference"), QStringLiteral("R_MODE:FullReference")},
-        {QStringLiteral("R build mode: LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
+        {QStringLiteral("SoftReference"), QStringLiteral("R_MODE:SoftReference")},
+        {QStringLiteral("FullReference"), QStringLiteral("R_MODE:FullReference")},
+        {QStringLiteral("LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
         {QStringLiteral("R_Bioswale (DryWellSuite style)"), QStringLiteral("R_Bioswale_SuiteStyle")},
         {QStringLiteral("R_Bioswale (Legacy ScriptGenerator style)"), QStringLiteral("R_Bioswale_LegacyStyle")},
         {QStringLiteral("R_Bioswale + Underdrain"), QStringLiteral("R_Bioswale_Underdrain")},
