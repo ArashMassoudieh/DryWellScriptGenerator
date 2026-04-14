@@ -310,6 +310,31 @@ QString EffectivePresetForMetadata(const StarterScriptOptions &options,
     return options.enrichmentPreset.trimmed();
 }
 
+QString EffectiveSoilParameterStrategyForMetadata(const StarterScriptOptions &options,
+                                                  const QString &effectiveBuildMode)
+{
+    if (IsVnModel(options.modelType)) {
+        if (effectiveBuildMode == QStringLiteral("SoftReference")) {
+            const QString vnSoilMode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+            if (vnSoilMode == QStringLiteral("InputFile")) {
+                return QStringLiteral("VN_InputProfile");
+            }
+            if (vnSoilMode == QStringLiteral("VnReferenceDefaults")) {
+                return QStringLiteral("VN_ReferenceDefaults");
+            }
+            return QStringLiteral("VN_ModelCreatorDefaults");
+        }
+        return QStringLiteral("VN_EmbeddedReference");
+    }
+    if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("HQ_EmbeddedReference");
+    }
+    if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("R_EmbeddedReference");
+    }
+    return QStringLiteral("Unknown");
+}
+
 void PrependStarterMetadata(const StarterScriptOptions &options, QString *scriptText)
 {
     if (scriptText == nullptr) {
@@ -319,8 +344,10 @@ void PrependStarterMetadata(const StarterScriptOptions &options, QString *script
     QTextStream hs(&header);
     const QString buildMode = EffectiveBuildModeForMetadata(options);
     const QString preset = EffectivePresetForMetadata(options, buildMode);
+    const QString soilStrategy = EffectiveSoilParameterStrategyForMetadata(options, buildMode);
     hs << "# starter_metadata:model_type=" << options.modelType.trimmed() << "\n";
     hs << "# starter_metadata:build_mode=" << buildMode << "\n";
+    hs << "# starter_metadata:soil_param_strategy=" << soilStrategy << "\n";
     if (!preset.isEmpty()) {
         hs << "# starter_metadata:preset=" << preset << "\n";
     }
