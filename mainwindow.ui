@@ -45,12 +45,12 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionDrwWell">
    <property name="text">
-    <string>DryWell</string>
+    <string>HQ_Drywell</string>
    </property>
   </action>
   <action name="actionBioswale">
    <property name="text">
-    <string>Bioswale</string>
+    <string>R_Bioswale</string>
    </property>
   </action>
   <action name="actionVN_Drywell">

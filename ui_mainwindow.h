@@ -85,9 +85,9 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", nullptr));
-        actionDrwWell->setText(QApplication::translate("MainWindow", "DryWell", nullptr));
+        actionDrwWell->setText(QApplication::translate("MainWindow", "HQ_Drywell", nullptr));
         actionVN_Drywell->setText(QApplication::translate("MainWindow", "VN_Drywell", nullptr));
-        actionBioswale->setText(QApplication::translate("MainWindow", "Bioswale", nullptr));
+        actionBioswale->setText(QApplication::translate("MainWindow", "R_Bioswale", nullptr));
         actionImport_Moisture_Data->setText(QApplication::translate("MainWindow", "Import Moisture Data", nullptr));
         actionImport_Moisture_Data_VN->setText(QApplication::translate("MainWindow", "Import Moisture Data (VN)", nullptr));
         actionImport_Moisture_Data_Rosemead->setText(QApplication::translate("MainWindow", "Import Moisture Data (Rosemead)", nullptr));
