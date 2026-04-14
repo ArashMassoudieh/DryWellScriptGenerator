@@ -6,6 +6,9 @@
 #include "starter_script_builder.h"
 #include "structure_registry.h"
 #include "scripteditordialog.h"
+#include "hq_drywell_builder.h"
+#include "r_bioswale_builder.h"
+#include "vn_drywell_builder.h"
 
 #include <QComboBox>
 #include <QCheckBox>
@@ -270,24 +273,184 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
     return QString();
 }
 
-QString DetectSuggestedInflowFile(const QString &modelType)
+QStringList CandidateProjectRootsFromTemplateDirectoryUi(const QString &templateDirectory)
 {
+    QStringList roots = {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+    const QFileInfo templateInfo(templateDirectory);
+    if (templateInfo.exists()) {
+        QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
+                                        : templateInfo.absoluteDir();
+        if (dir.dirName().compare(QStringLiteral("resources"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+        }
+        if (dir.dirName().compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+            const QString inferredRoot = dir.absolutePath();
+            if (!inferredRoot.trimmed().isEmpty()) {
+                roots.prepend(inferredRoot);
+            }
+        }
+    }
+    roots.removeDuplicates();
+    return roots;
+}
+
+bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QString &targetModel)
+{
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
+    const QString p = inflowPath.trimmed();
+    if (p.isEmpty()) {
+        return false;
+    }
+    const QString vnRef = embeddedInflow(QStringLiteral("VN_Drywell"));
+    const QString hqRef = embeddedInflow(QStringLiteral("HQ_Drywell"));
+    const QString rRef = embeddedInflow(QStringLiteral("R_Bioswale"));
+    const QString pName = QFileInfo(p).fileName();
+    const QString vnName = vnRef.isEmpty() ? QStringLiteral("LA_Precipitaion (5 yr new).csv") : QFileInfo(vnRef).fileName();
+    const QString vnLegacyName = QStringLiteral("Synthetic_rain_flow.csv");
+    const QString hqName = hqRef.isEmpty() ? QStringLiteral("Inflow_Corrected_New_Khiem.csv") : QFileInfo(hqRef).fileName();
+    const QString rName = rRef.isEmpty() ? QStringLiteral("Inflow_Rosemead_August.txt") : QFileInfo(rRef).fileName();
+    const bool isVnRef = (!vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(vnName, Qt::CaseInsensitive) == 0
+        || pName.compare(vnLegacyName, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = (!hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(hqName, Qt::CaseInsensitive) == 0;
+    const bool isRRef = (!rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(rName, Qt::CaseInsensitive) == 0;
+    if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isHqRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isHqRef;
+    }
+    return false;
+}
+
+QString DetectSuggestedInflowFile(const QString &modelType, const QString &templateDirectory = QString())
+{
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
     const QString normalizedModel = modelType.trimmed();
     QStringList candidates;
+    const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectoryUi(templateDirectory);
+    const QString embeddedDefault = embeddedInflow(normalizedModel);
+    if (!embeddedDefault.trimmed().isEmpty()) {
+        return embeddedDefault.trimmed();
+    }
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
     } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
     } else {
-        const QString relativeInflow = QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
-        const QStringList projectRoots = {
-            QStringLiteral("/mnt/3rd900/Projects"),
-            QStringLiteral("/home/arash/Projects"),
-            QStringLiteral("/home/hoomanmoradpour/Projects"),
-            QStringLiteral("/media/arash/E/Projects")
-        };
         for (const QString &root : projectRoots) {
-            candidates << QDir(root).filePath(relativeInflow);
+            candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
         }
         candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
     }
@@ -871,10 +1034,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("VN Ref defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("Reference defaults"), QStringLiteral("VnReferenceDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
+    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     {
         auto *container = new QWidget(this);
@@ -961,7 +1125,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft soil")));
+        row->addWidget(new QLabel(tr("Soft soil params")));
         row->addWidget(new QLabel(tr("mode")));
         row->addWidget(vnSoftSoilParamModeCombo);
         row->addWidget(new QLabel(tr("Ksat")));
@@ -1106,6 +1270,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, &ModelCreatorWindow::syncEnrichmentPresetForModel);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
+        const QString currentInflow = inflowFileEdit->text().trimmed();
+        if (currentInflow.isEmpty() || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
+            const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
+            if (!suggested.isEmpty()) {
+                inflowFileEdit->setText(suggested);
+                appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
+            }
+        }
+    });
     connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
@@ -1332,9 +1506,15 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
         ? vnBuildModeCombo->currentData().toString().trimmed()
         : QStringLiteral("SoftReference");
     const QString vnBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
+    const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
+    const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+    const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
+        && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
+    const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
+        && (rBuildMode.isEmpty() || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
     const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
@@ -1360,7 +1540,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
-    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -1496,7 +1676,8 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
-    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText());
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText(),
+                                                                  templateDirEdit->text().trimmed());
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
@@ -2146,10 +2327,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
     if (options.inflowFile.isEmpty()) {
         if (vnModel) {
-            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"));
+            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"),
+                                                           options.templateDirectory);
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
         } else {
-            options.inflowFile = DetectSuggestedInflowFile(options.modelType);
+            options.inflowFile = DetectSuggestedInflowFile(options.modelType,
+                                                           options.templateDirectory);
             appendLog(stamp(tr("%1 inflow was empty; using default inflow file: %2")
                                 .arg(options.modelType, options.inflowFile)));
         }
