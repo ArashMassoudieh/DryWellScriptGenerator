@@ -270,6 +270,29 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
     return QString();
 }
 
+QString DetectSuggestedInflowFile()
+{
+    const QString relativeInflow = QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+    const QStringList projectRoots = {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+
+    QStringList candidates;
+    for (const QString &root : projectRoots) {
+        candidates << QDir(root).filePath(relativeInflow);
+    }
+    candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+
+    const QString detected = FirstExistingFile(candidates);
+    if (!detected.isEmpty()) {
+        return detected;
+    }
+    return candidates.front();
+}
+
 QString DetectExecutablePathFromContext(const QString &repoRoot,
                                         const QString &workingDirectory,
                                         const QString &scriptPath,
@@ -1467,6 +1490,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
+    const QString suggestedInflowPath = DetectSuggestedInflowFile();
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
@@ -1496,6 +1520,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
     applyIfEmpty(templateDirEdit, suggestedTemplateDirectory);
     applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
+    applyIfEmpty(inflowFileEdit, suggestedInflowPath);
     applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
     applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
     applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
