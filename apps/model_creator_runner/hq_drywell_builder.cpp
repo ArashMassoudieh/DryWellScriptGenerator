@@ -2765,6 +2765,27 @@ QString HqDrywellBuilder::InflowTargetObject()
     return QStringLiteral("Infiltration_Pond");
 }
 
+QString HqDrywellBuilder::BuildSoilBlockCommand(const SoilBlockSpec &spec)
+{
+    return QStringLiteral(
+               "create block;type=Soil,theta_sat=%1,theta_res=%2,specific_storage=0.01,x=%3,"
+               "Evapotranspiration=,n=%4,y=%5,area=%6,theta=0.1343,K_sat_original=%7,_width=200,"
+               "alpha=%8,name=%9,_height=100,bottom_elevation=%10,depth=%11,actual_x=%12,actual_y=%13\n")
+        .arg(spec.thetaSat)
+        .arg(spec.thetaRes)
+        .arg(spec.x)
+        .arg(spec.n)
+        .arg(spec.y)
+        .arg(spec.area)
+        .arg(spec.kSatOriginal)
+        .arg(spec.alpha)
+        .arg(spec.name)
+        .arg(spec.bottomElevation)
+        .arg(spec.depth)
+        .arg(spec.actualX)
+        .arg(spec.actualY);
+}
+
 bool HqDrywellBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
                                              const QString &inflow,
                                              QString *scriptText,
