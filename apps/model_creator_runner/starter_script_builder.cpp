@@ -219,19 +219,62 @@ QString DefaultVnInflowFile()
     return QStringLiteral("Synthetic_rain_flow.csv");
 }
 
-QString DefaultVnFullReferenceInflowFile()
+QStringList CandidateProjectRootsFromTemplateDirectory(const QString &templateDirectory)
 {
-    return QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+    QStringList roots {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+    const QFileInfo templateInfo(templateDirectory);
+    if (templateInfo.exists()) {
+        QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
+                                        : templateInfo.absoluteDir();
+        // Typical template dir: <Projects>/OpenHydroQual/resources
+        if (dir.dirName().compare(QStringLiteral("resources"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+        }
+        if (dir.dirName().compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+            const QString inferredRoot = dir.absolutePath();
+            if (!inferredRoot.trimmed().isEmpty()) {
+                roots.prepend(inferredRoot);
+            }
+        }
+    }
+    roots.removeDuplicates();
+    return roots;
 }
 
-QString DefaultHqInflowFile()
+QString DetectStructureDefaultInflowFile(const QString &modelType,
+                                         const QString &templateDirectory)
 {
-    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
-}
-
-QString DefaultRBioswaleInflowFile()
-{
-    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+    const QString normalizedModel = modelType.trimmed();
+    QStringList candidates;
+    const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectory(templateDirectory);
+    if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
+    } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+    } else {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+    }
+    for (const QString &candidate : candidates) {
+        if (QFileInfo::exists(candidate)) {
+            return candidate;
+        }
+    }
+    return candidates.isEmpty() ? QString() : candidates.front();
 }
 
 QString NormalizeVnBuildMode(const QString &mode)
@@ -1441,14 +1484,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (inflow.isEmpty()) {
         if (vnModelType) {
             inflow = (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))
-                         ? DefaultVnFullReferenceInflowFile()
+                         ? DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory)
                          : DefaultVnInflowFile();
         } else if (hqModelType && (hqMode == QStringLiteral("FullReference")
                                    || hqMode == QStringLiteral("SoftReference"))) {
-            inflow = DefaultHqInflowFile();
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("HQ_Drywell"), options.templateDirectory);
         } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
                                           || rBioswaleMode == QStringLiteral("SoftReference"))) {
-            inflow = DefaultRBioswaleInflowFile();
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
         }
     }
     const bool inflowRequired = vnModelType
