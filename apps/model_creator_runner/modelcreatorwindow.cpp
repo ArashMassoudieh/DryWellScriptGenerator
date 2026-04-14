@@ -871,10 +871,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("VN Ref defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("Reference defaults"), QStringLiteral("VnReferenceDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
+    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     {
         auto *container = new QWidget(this);
@@ -961,7 +962,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft soil")));
+        row->addWidget(new QLabel(tr("Soft soil params")));
         row->addWidget(new QLabel(tr("mode")));
         row->addWidget(vnSoftSoilParamModeCombo);
         row->addWidget(new QLabel(tr("Ksat")));
@@ -1332,9 +1333,15 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
         ? vnBuildModeCombo->currentData().toString().trimmed()
         : QStringLiteral("SoftReference");
     const QString vnBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
+    const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
+    const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+    const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
+        && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
+    const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
+        && (rBuildMode.isEmpty() || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
     const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
@@ -1360,7 +1367,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
-    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
