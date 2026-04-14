@@ -1271,11 +1271,14 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     QString inflow = options.inflowFile.trimmed();
     if (inflow.isEmpty()) {
         if (vnModelType) {
-            inflow = (vnMode == QStringLiteral("FullReference")) ? DefaultVnFullReferenceInflowFile()
-                                                                 : DefaultVnInflowFile();
-        } else if (hqModelType && hqMode == QStringLiteral("FullReference")) {
+            inflow = (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))
+                         ? DefaultVnFullReferenceInflowFile()
+                         : DefaultVnInflowFile();
+        } else if (hqModelType && (hqMode == QStringLiteral("FullReference")
+                                   || hqMode == QStringLiteral("SoftReference"))) {
             inflow = DefaultHqInflowFile();
-        } else if (rBioswaleModelType && rBioswaleMode == QStringLiteral("FullReference")) {
+        } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
+                                          || rBioswaleMode == QStringLiteral("SoftReference"))) {
             inflow = DefaultRBioswaleInflowFile();
         }
     }
