@@ -871,11 +871,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("VN Ref defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("Reference defaults"), QStringLiteral("VnReferenceDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
-    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and also to HQ/R SoftReference soil blocks when those models are selected."));
+    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     {
         auto *container = new QWidget(this);

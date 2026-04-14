@@ -566,7 +566,8 @@ QString ReplaceCommandValue(QString line, const QString &key, const QString &val
 }
 
 VnSoftSoilProps ResolveSoftReferenceSoilOverrides(const StarterScriptOptions &options,
-                                                  const VnSoftSoilProps &referenceDefaults)
+                                                  const VnSoftSoilProps &referenceDefaults,
+                                                  bool allowModelCreatorDefaults = true)
 {
     const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
     if (mode == QStringLiteral("Manual")) {
@@ -578,7 +579,7 @@ VnSoftSoilProps ResolveSoftReferenceSoilOverrides(const StarterScriptOptions &op
             options.vnSoftSoilThetaRes
         };
     }
-    if (mode == QStringLiteral("ModelCreatorDefaults")) {
+    if (allowModelCreatorDefaults && mode == QStringLiteral("ModelCreatorDefaults")) {
         return VnSoftSoilProps { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
     }
     return referenceDefaults;
@@ -1574,7 +1575,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         ts.seek(out.size());
         ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
         const VnSoftSoilProps hqReferenceDefaults { 1.0, 1.0, 1.41, 0.4, 0.05 };
-        const VnSoftSoilProps hqResolvedProps = ResolveSoftReferenceSoilOverrides(options, hqReferenceDefaults);
+        const VnSoftSoilProps hqResolvedProps = ResolveSoftReferenceSoilOverrides(options, hqReferenceDefaults, false);
         AppendEmbeddedStructureSoftReferenceSoils(
             embedded,
             IsHqSoftReferenceSoilLine,
@@ -1618,7 +1619,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         ts.seek(out.size());
         ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
         const VnSoftSoilProps rReferenceDefaults { 0.25, 3.6, 1.56, 0.43, 0.078 };
-        const VnSoftSoilProps rResolvedProps = ResolveSoftReferenceSoilOverrides(options, rReferenceDefaults);
+        const VnSoftSoilProps rResolvedProps = ResolveSoftReferenceSoilOverrides(options, rReferenceDefaults, false);
         AppendEmbeddedStructureSoftReferenceSoils(
             embedded,
             IsRBioswaleSoftReferenceSoilLine,
