@@ -357,9 +357,16 @@ bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QStr
     const QString vnRef = embeddedInflow(QStringLiteral("VN_Drywell"));
     const QString hqRef = embeddedInflow(QStringLiteral("HQ_Drywell"));
     const QString rRef = embeddedInflow(QStringLiteral("R_Bioswale"));
-    const bool isVnRef = !vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0;
-    const bool isHqRef = !hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0;
-    const bool isRRef = !rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0;
+    const QString pName = QFileInfo(p).fileName();
+    const QString vnName = vnRef.isEmpty() ? QStringLiteral("LA_Precipitaion (5 yr new).csv") : QFileInfo(vnRef).fileName();
+    const QString hqName = hqRef.isEmpty() ? QStringLiteral("Inflow_Corrected_New_Khiem.csv") : QFileInfo(hqRef).fileName();
+    const QString rName = rRef.isEmpty() ? QStringLiteral("Inflow_Rosemead_August.txt") : QFileInfo(rRef).fileName();
+    const bool isVnRef = (!vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(vnName, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = (!hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(hqName, Qt::CaseInsensitive) == 0;
+    const bool isRRef = (!rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(rName, Qt::CaseInsensitive) == 0;
     if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         return isHqRef || isRRef;
     }
