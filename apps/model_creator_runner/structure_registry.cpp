@@ -84,33 +84,33 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
     if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         return {
             {QStringLiteral("SoftReference"), QStringLiteral("HQ_MODE:SoftReference")},
-            {QStringLiteral("FullReference"), QStringLiteral("HQ_MODE:FullReference")},
             {QStringLiteral("LoadFromOhq"), QStringLiteral("HQ_MODE:LoadFromOhq")},
-            {QStringLiteral("HQ_Drywell_SuiteStyle"), QStringLiteral("HQ_Drywell_SuiteStyle")},
-            {QStringLiteral("HQ_Drywell_LegacyStyle"), QStringLiteral("HQ_Drywell_LegacyStyle")},
-            {QStringLiteral("HQ_Drywell_MonitoringWell"), QStringLiteral("HQ_Drywell_MonitoringWell")},
-            {QStringLiteral("HQ_Drywell_GroundwaterBoundary"), QStringLiteral("HQ_Drywell_GroundwaterBoundary")},
-            {QStringLiteral("HQ_Drywell_PretreatmentChambers"), QStringLiteral("HQ_Drywell_PretreatmentChambers")}
+            {QStringLiteral("FullReference"), QStringLiteral("HQ_MODE:FullReference")}
+            // {QStringLiteral("HQ_Drywell_SuiteStyle"), QStringLiteral("HQ_Drywell_SuiteStyle")},
+            // {QStringLiteral("HQ_Drywell_LegacyStyle"), QStringLiteral("HQ_Drywell_LegacyStyle")},
+            // {QStringLiteral("HQ_Drywell_MonitoringWell"), QStringLiteral("HQ_Drywell_MonitoringWell")},
+            // {QStringLiteral("HQ_Drywell_GroundwaterBoundary"), QStringLiteral("HQ_Drywell_GroundwaterBoundary")},
+            // {QStringLiteral("HQ_Drywell_PretreatmentChambers"), QStringLiteral("HQ_Drywell_PretreatmentChambers")}
         };
     }
 
     if (IsVnModel(modelType)) {
         return {
             {QStringLiteral("SoftReference"), QStringLiteral("VN_MODE:SoftReference")},
-            {QStringLiteral("FullReference"), QStringLiteral("VN_MODE:FullReference")},
             {QStringLiteral("LoadFromOhq"), QStringLiteral("VN_MODE:LoadFromOhq")},
-            {QStringLiteral("VN_Drywell_Pro"), QStringLiteral("VN_Drywell_Pro")},
-            {QStringLiteral("VN_Drywell"), QStringLiteral("VN_Drywell")}
+            {QStringLiteral("FullReference"), QStringLiteral("VN_MODE:FullReference")}
+            // {QStringLiteral("VN_Drywell_Pro"), QStringLiteral("VN_Drywell_Pro")},
+            // {QStringLiteral("VN_Drywell"), QStringLiteral("VN_Drywell")}
         };
     }
 
     return {
         {QStringLiteral("SoftReference"), QStringLiteral("R_MODE:SoftReference")},
-        {QStringLiteral("FullReference"), QStringLiteral("R_MODE:FullReference")},
         {QStringLiteral("LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
-        {QStringLiteral("R_Bioswale_SuiteStyle"), QStringLiteral("R_Bioswale_SuiteStyle")},
-        {QStringLiteral("R_Bioswale_LegacyStyle"), QStringLiteral("R_Bioswale_LegacyStyle")},
-        {QStringLiteral("R_Bioswale_Underdrain"), QStringLiteral("R_Bioswale_Underdrain")},
-        {QStringLiteral("R_Bioswale_Underdrain_GW"), QStringLiteral("R_Bioswale_Underdrain_GW")}
+        {QStringLiteral("FullReference"), QStringLiteral("R_MODE:FullReference")}
+        // {QStringLiteral("R_Bioswale_SuiteStyle"), QStringLiteral("R_Bioswale_SuiteStyle")},
+        // {QStringLiteral("R_Bioswale_LegacyStyle"), QStringLiteral("R_Bioswale_LegacyStyle")},
+        // {QStringLiteral("R_Bioswale_Underdrain"), QStringLiteral("R_Bioswale_Underdrain")},
+        // {QStringLiteral("R_Bioswale_Underdrain_GW"), QStringLiteral("R_Bioswale_Underdrain_GW")}
     };
 }
