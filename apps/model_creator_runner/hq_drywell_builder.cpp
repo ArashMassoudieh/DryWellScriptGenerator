@@ -1,12 +1,6 @@
-#include "drywell_builder.h"
+#include "hq_drywell_builder.h"
 
-#include <QFile>
-#include <QRegularExpression>
-#include <QTextStream>
-
-// ==============================
-// DRYWELL FULL REF (REPLACE)
-// ==============================
+namespace {
 
 static const char *kDrywellFullRef = R"DRY(
 loadtemplate; filename=/mnt/3rd900/Projects/OpenHydroQual/resources/main_components.json
@@ -2759,56 +2753,33 @@ setasparameter;object=SoilDeep (37$0),parametername=alpha,quantity=MC_to_EC_coef
 setasparameter;object=SoilDeep (37$0),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture
 )DRY";
 
-static QString D(double v)
+} // namespace
+
+QString HqDrywellBuilder::FullReferenceScript()
 {
-    return QString::number(v, 'g', 10);
+    return QString::fromUtf8(kDrywellFullRef);
 }
 
-static void ReplaceAll(QString *text, const QString &pattern, const QString &rep)
+QString HqDrywellBuilder::InflowTargetObject()
 {
-    text->replace(QRegularExpression(pattern), rep);
+    return QStringLiteral("Infiltration_Pond");
 }
 
-static bool LoadFile(const QString &path, QString *out)
+bool HqDrywellBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
+                                             const QString &inflow,
+                                             QString *scriptText,
+                                             QString *errorMessage)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
-    QTextStream ts(&f);
-    *out = ts.readAll();
-    return true;
-}
-
-static void ApplySoft(QString *text, const StarterScriptOptions &o)
-{
-    ReplaceAll(text, R"(K_sat_original=[^,\n]+)",
-               "K_sat_original=" + D(o.ksatScaleAll.isEmpty() ? 1.0 : o.ksatScaleAll.toDouble()));
-}
-
-bool DrywellBuilder::Build(const StarterScriptOptions &options,
-                           QString *scriptText,
-                           QString *errorMessage)
-{
-    if (!scriptText) return false;
-
-    QString mode = options.vnBuildMode; // reuse or adapt
-    if (mode.isEmpty()) mode = "SoftReference";
-
-    if (mode == "LoadFromOhq") {
-        if (options.vnBaseOhqFile.isEmpty()) return false;
-        return LoadFile(options.vnBaseOhqFile, scriptText);
+    if (scriptText == nullptr) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Internal error: output script buffer is null.");
+        }
+        return false;
     }
 
-    if (mode == "FullReference") {
-        *scriptText = QString::fromUtf8(kDrywellFullRef);
-        return true;
-    }
-
-    if (mode == "SoftReference") {
-        *scriptText = QString::fromUtf8(kDrywellFullRef);
-        ApplySoft(scriptText, options);
-        return true;
-    }
-
-    *scriptText = QString::fromUtf8(kDrywellFullRef);
+    *scriptText += QStringLiteral(
+        "create block;type=Pond,inflow=%1,_width=200,Evapotranspiration=,Precipitation=,"
+        "bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=0,y=0,_height=200\n")
+                      .arg(inflow);
     return true;
 }
