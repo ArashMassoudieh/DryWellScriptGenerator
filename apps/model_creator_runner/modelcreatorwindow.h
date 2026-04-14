@@ -67,7 +67,7 @@ private slots:
     void clearComparisonHistory();
 
 private:
-    void suggestSimulationWindowFromInflow(const QString &path);
+    void suggestSimulationWindowFromInflow(const QString &path, bool forceApply = false);
     /// Shared starter-generation implementation used by Generate and Generate + Run.
     bool generateStarterScriptInternal();
     /// Parse a numeric series from text/csv-like file formats into points.
@@ -225,6 +225,7 @@ private:
     QString pendingGuiRetryScript;
     QString pendingGuiRetryWorkingDirectory;
     QString pendingGuiRetryExecutable;
+    bool simulationWindowAutoSuggested = true;
 };
 
 #endif // MODELCREATORWINDOW_H
