@@ -1496,7 +1496,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
-    const QString suggestedInflowPath = DetectSuggestedInflowFile(selectedModelType());
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText());
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
