@@ -1213,7 +1213,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (inflow.isEmpty() && vnModelType) {
         inflow = DefaultVnInflowFile();
     }
-    if (inflow.isEmpty()) {
+    const bool inflowRequired = vnModelType
+        || (hqModelType && hqMode == QStringLiteral("SoftReference"))
+        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference"));
+    if (inflowRequired && inflow.isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Inflow file is required.");
         }
@@ -1247,7 +1250,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
-        if (!hqInflowTarget.trimmed().isEmpty()) {
+        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             hqText += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
         }
         ApplyCommonScriptFixups(&hqText, inflow);
@@ -1273,7 +1276,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
-        if (!rInflowTarget.trimmed().isEmpty()) {
+        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             rText += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
         }
         ApplyCommonScriptFixups(&rText, inflow);
@@ -1290,7 +1293,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
-        if (!hqInflowTarget.trimmed().isEmpty()) {
+        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
         }
         ApplyCommonScriptFixups(&out, inflow);
@@ -1307,7 +1310,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
-        if (!rInflowTarget.trimmed().isEmpty()) {
+        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
         }
         ApplyCommonScriptFixups(&out, inflow);
@@ -1324,7 +1327,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
-        if (!hqInflowTarget.trimmed().isEmpty()) {
+        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
         }
         const QString extra = options.additionalCommands.trimmed();
@@ -1348,7 +1351,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
-        if (!rInflowTarget.trimmed().isEmpty()) {
+        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
         }
         const QString extra = options.additionalCommands.trimmed();

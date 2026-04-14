@@ -2118,8 +2118,16 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.inflowFile = QStringLiteral("Synthetic_rain_flow.csv");
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
         } else {
-            QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
-            return false;
+            const bool hqModel = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
+            const bool rModel = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+            const bool hqSoftReference = hqModel && options.hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
+            const bool rSoftReference = rModel && options.rBioswaleBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
+            if (hqSoftReference || rSoftReference) {
+                QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
+                return false;
+            }
+            appendLog(stamp(tr("%1 inflow was empty; keeping inflow configured in the reference script.")
+                                .arg(options.modelType)));
         }
     }
 
