@@ -1202,30 +1202,37 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         vnSoftSummaryLabel->setText(summary);
     };
     connect(applyVnTemplateButton, &QPushButton::clicked, this, [this, updateVnSoftSummary]() {
+        QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
+        const auto templateValue = [&settings](const QString &templateKey, const QString &field, const QString &fallback) {
+            return settings.value(QStringLiteral("vnTemplate/%1/%2").arg(templateKey, field), fallback).toString();
+        };
         const QString key = vnSoftTemplateCombo->currentData().toString();
         if (key == QStringLiteral("UrbanBaseline")) {
             vnSoftUiModeCombo->setCurrentIndex(vnSoftUiModeCombo->findData(QStringLiteral("Quick")));
-            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(QStringLiteral("VnReferenceDefaults")));
-            vnSoftGridXEdit->setText(QStringLiteral("16"));
-            vnSoftGridYEdit->setText(QStringLiteral("15"));
-            vnSoftUwGridXEdit->setText(QStringLiteral("16"));
-            vnSoftUwGridYEdit->setText(QStringLiteral("12"));
+            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(
+                templateValue(QStringLiteral("UrbanBaseline"), QStringLiteral("soilMode"), QStringLiteral("VnReferenceDefaults"))));
+            vnSoftGridXEdit->setText(templateValue(QStringLiteral("UrbanBaseline"), QStringLiteral("gNx"), QStringLiteral("16")));
+            vnSoftGridYEdit->setText(templateValue(QStringLiteral("UrbanBaseline"), QStringLiteral("gNy"), QStringLiteral("15")));
+            vnSoftUwGridXEdit->setText(templateValue(QStringLiteral("UrbanBaseline"), QStringLiteral("uwNx"), QStringLiteral("16")));
+            vnSoftUwGridYEdit->setText(templateValue(QStringLiteral("UrbanBaseline"), QStringLiteral("uwNy"), QStringLiteral("12")));
         } else if (key == QStringLiteral("FastDrainage")) {
             vnSoftUiModeCombo->setCurrentIndex(vnSoftUiModeCombo->findData(QStringLiteral("Calibrated")));
-            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(QStringLiteral("Manual")));
-            vnSoftSoilKsatOriginalEdit->setText(QStringLiteral("2.250"));
-            vnSoftSoilAlphaEdit->setText(QStringLiteral("3.8"));
-            vnSoftSoilNEdit->setText(QStringLiteral("1.65"));
-            vnSoftSoilThetaSatEdit->setText(QStringLiteral("0.36"));
-            vnSoftSoilThetaResEdit->setText(QStringLiteral("0.045"));
+            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(
+                templateValue(QStringLiteral("FastDrainage"), QStringLiteral("soilMode"), QStringLiteral("Manual"))));
+            vnSoftSoilKsatOriginalEdit->setText(templateValue(QStringLiteral("FastDrainage"), QStringLiteral("ksat"), QStringLiteral("2.250")));
+            vnSoftSoilAlphaEdit->setText(templateValue(QStringLiteral("FastDrainage"), QStringLiteral("alpha"), QStringLiteral("3.8")));
+            vnSoftSoilNEdit->setText(templateValue(QStringLiteral("FastDrainage"), QStringLiteral("n"), QStringLiteral("1.65")));
+            vnSoftSoilThetaSatEdit->setText(templateValue(QStringLiteral("FastDrainage"), QStringLiteral("thetaSat"), QStringLiteral("0.36")));
+            vnSoftSoilThetaResEdit->setText(templateValue(QStringLiteral("FastDrainage"), QStringLiteral("thetaRes"), QStringLiteral("0.045")));
         } else if (key == QStringLiteral("FineSoil")) {
             vnSoftUiModeCombo->setCurrentIndex(vnSoftUiModeCombo->findData(QStringLiteral("Calibrated")));
-            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(QStringLiteral("Manual")));
-            vnSoftSoilKsatOriginalEdit->setText(QStringLiteral("0.550"));
-            vnSoftSoilAlphaEdit->setText(QStringLiteral("2.85"));
-            vnSoftSoilNEdit->setText(QStringLiteral("1.82"));
-            vnSoftSoilThetaSatEdit->setText(QStringLiteral("0.41"));
-            vnSoftSoilThetaResEdit->setText(QStringLiteral("0.060"));
+            vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeCombo->findData(
+                templateValue(QStringLiteral("FineSoil"), QStringLiteral("soilMode"), QStringLiteral("Manual"))));
+            vnSoftSoilKsatOriginalEdit->setText(templateValue(QStringLiteral("FineSoil"), QStringLiteral("ksat"), QStringLiteral("0.550")));
+            vnSoftSoilAlphaEdit->setText(templateValue(QStringLiteral("FineSoil"), QStringLiteral("alpha"), QStringLiteral("2.85")));
+            vnSoftSoilNEdit->setText(templateValue(QStringLiteral("FineSoil"), QStringLiteral("n"), QStringLiteral("1.82")));
+            vnSoftSoilThetaSatEdit->setText(templateValue(QStringLiteral("FineSoil"), QStringLiteral("thetaSat"), QStringLiteral("0.41")));
+            vnSoftSoilThetaResEdit->setText(templateValue(QStringLiteral("FineSoil"), QStringLiteral("thetaRes"), QStringLiteral("0.060")));
         }
         updateVnSoftSummary();
         updateFieldVisibilityForContext();
