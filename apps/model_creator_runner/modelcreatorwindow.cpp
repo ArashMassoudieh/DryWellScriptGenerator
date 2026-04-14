@@ -436,7 +436,7 @@ QString DetectSuggestedInflowFile(const QString &modelType, const QString &templ
     const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectoryUi(templateDirectory);
     const QString embeddedDefault = embeddedInflow(normalizedModel);
     if (!embeddedDefault.trimmed().isEmpty()) {
-        candidates << embeddedDefault.trimmed();
+        return embeddedDefault.trimmed();
     }
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {

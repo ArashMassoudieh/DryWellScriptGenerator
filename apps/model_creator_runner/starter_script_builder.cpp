@@ -302,11 +302,11 @@ QString DetectStructureDefaultInflowFile(const QString &modelType,
                                          const QString &templateDirectory)
 {
     const QString normalizedModel = modelType.trimmed();
-    QStringList candidates;
     const QString embeddedDefault = ExtractEmbeddedReferenceInflowForModel(normalizedModel);
     if (!embeddedDefault.trimmed().isEmpty()) {
-        candidates << embeddedDefault.trimmed();
+        return embeddedDefault.trimmed();
     }
+    QStringList candidates;
     const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectory(templateDirectory);
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {
