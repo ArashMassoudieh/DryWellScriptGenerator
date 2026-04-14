@@ -8,6 +8,7 @@
 namespace VnDrywellBuilder
 {
     QString VnFullReferenceScript();
+    QString InflowTargetObject();
 
     bool Build(const StarterScriptOptions &options,
                QString *scriptText,

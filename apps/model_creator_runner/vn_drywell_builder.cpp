@@ -1390,6 +1390,11 @@ QString VnDrywellBuilder::VnFullReferenceScript()
     return QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
 }
 
+QString VnDrywellBuilder::InflowTargetObject()
+{
+    return QStringLiteral("Well_c");
+}
+
 bool VnDrywellBuilder::Build(const StarterScriptOptions &options,
                              QString *scriptText,
                              QString *errorMessage)

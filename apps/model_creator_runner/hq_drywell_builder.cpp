@@ -2760,6 +2760,11 @@ QString HqDrywellBuilder::FullReferenceScript()
     return QString::fromUtf8(kDrywellFullRef);
 }
 
+QString HqDrywellBuilder::InflowTargetObject()
+{
+    return QStringLiteral("Infiltration_Pond");
+}
+
 bool HqDrywellBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
                                              const QString &inflow,
                                              QString *scriptText,

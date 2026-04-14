@@ -3651,6 +3651,11 @@ QString RBioswaleBuilder::FullReferenceScript()
     return QString::fromUtf8(kBioswaleFullRef);
 }
 
+QString RBioswaleBuilder::InflowTargetObject()
+{
+    return QStringLiteral("Catchment (1)");
+}
+
 bool RBioswaleBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
                                              const QString &inflow,
                                              QString *scriptText,

@@ -667,7 +667,7 @@ void AppendEmbeddedVnSoftReferenceScaffold(const StarterScriptOptions &options, 
             || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)
-            || trimmed.contains(QStringLiteral("setvalue; object=Well_c, quantity=inflow"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("setvalue; object=%1, quantity=inflow").arg(VnDrywellBuilder::InflowTargetObject()), Qt::CaseInsensitive)
             || IsSoftReferenceGridLine(trimmed)) {
             continue;
         }
@@ -1242,6 +1242,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         hqText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         hqText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
+        if (!hqInflowTarget.trimmed().isEmpty()) {
+            hqText += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
+        }
         ApplyCommonScriptFixups(&hqText, inflow);
         *scriptText = hqText;
         return true;
@@ -1264,6 +1268,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         rText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         rText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
+        if (!rInflowTarget.trimmed().isEmpty()) {
+            rText += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
         ApplyCommonScriptFixups(&rText, inflow);
         *scriptText = rText;
         return true;
@@ -1277,6 +1285,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
+        if (!hqInflowTarget.trimmed().isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
+        }
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
@@ -1290,6 +1302,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
+        if (!rInflowTarget.trimmed().isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
         return true;
@@ -1319,8 +1335,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         vnBaseText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
                           .arg(options.outputSeriesFile);
         if (!inflow.isEmpty()) {
-            vnBaseText += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
-                              .arg(inflow);
+            vnBaseText += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
+                              .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
         }
 
         if (!AppendSnippetFile(options.vnSoilLayersFile,
@@ -1375,8 +1391,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                    .arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
                    .arg(options.outputSeriesFile);
-        out += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
-                   .arg(inflow);
+        out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
+                   .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
 
         if (!options.observationFile.trimmed().isEmpty()) {
             out += QStringLiteral(
@@ -1427,8 +1443,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                        .arg(options.simulationEnd);
             out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
                        .arg(options.outputSeriesFile);
-            out += QStringLiteral("setvalue; object=Well_c, quantity=inflow, value=%1\n")
-                       .arg(inflow);
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
+                       .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
         } else {
             AppendEmbeddedVnSoftReferenceScaffold(options, &out);
             QTextStream ts(&out);
@@ -1436,7 +1452,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
             ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
             ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
-            ts << "setvalue; object=Well_c, quantity=inflow, value=" << inflow << "\n";
+            ts << "setvalue; object=" << VnDrywellBuilder::InflowTargetObject() << ", quantity=inflow, value=" << inflow << "\n";
             ts << "# VN_Drywell soft reference scaffold generated from embedded VN reference + controllable Soil-uw grid\n";
             AppendVnSoftReferenceGrid(ts, options);
         }

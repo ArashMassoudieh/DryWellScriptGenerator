@@ -9,6 +9,7 @@ namespace RBioswaleBuilder
 {
 
 QString FullReferenceScript();
+QString InflowTargetObject();
 
 bool AppendBaseInflowBlock(const StarterScriptOptions &options,
                            const QString &inflow,
