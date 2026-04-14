@@ -2149,14 +2149,6 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"));
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
         } else {
-            const bool hqModel = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
-            const bool rModel = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
-            const bool hqSoftReference = hqModel && options.hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
-            const bool rSoftReference = rModel && options.rBioswaleBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0;
-            if (hqSoftReference || rSoftReference) {
-                QMessageBox::warning(this, tr("Missing inflow file"), tr("Please select an inflow file (.csv/.txt)."));
-                return false;
-            }
             options.inflowFile = DetectSuggestedInflowFile(options.modelType);
             appendLog(stamp(tr("%1 inflow was empty; using default inflow file: %2")
                                 .arg(options.modelType, options.inflowFile)));
