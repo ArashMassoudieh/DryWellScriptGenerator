@@ -1567,10 +1567,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
-        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
-            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
-        }
         QTextStream ts(&out);
         ts.seek(out.size());
         ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
@@ -1611,10 +1607,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
         out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
-        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
-            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
-        }
         QTextStream ts(&out);
         ts.seek(out.size());
         ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
