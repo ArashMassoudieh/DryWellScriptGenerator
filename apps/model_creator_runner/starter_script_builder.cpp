@@ -502,6 +502,7 @@ void AppendEmbeddedStructureSoftReferenceScaffold(const QString &embeddedScript,
 
 void AppendEmbeddedStructureSoftReferenceSoils(const QString &embeddedScript,
                                                const std::function<bool(const QString &)> &isSoilLine,
+                                               const std::function<QString(const QString &)> &lineTransformer,
                                                QTextStream *ts)
 {
     if (ts == nullptr) {
@@ -513,7 +514,7 @@ void AppendEmbeddedStructureSoftReferenceSoils(const QString &embeddedScript,
         if (trimmed.isEmpty() || !isSoilLine(trimmed)) {
             continue;
         }
-        *ts << line << '\n';
+        *ts << (lineTransformer ? lineTransformer(line) : line) << '\n';
     }
 }
 
@@ -546,6 +547,53 @@ QString ExtractCommandValue(const QString &line, const QString &key)
         end = line.size();
     }
     return line.mid(valueStart, end - valueStart).trimmed();
+}
+
+QString ReplaceCommandValue(QString line, const QString &key, const QString &value)
+{
+    const QString token = key + QStringLiteral("=");
+    const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+    if (start < 0) {
+        return line;
+    }
+    const int valueStart = start + token.size();
+    int end = line.indexOf(',', valueStart);
+    if (end < 0) {
+        end = line.size();
+    }
+    line.replace(valueStart, end - valueStart, value);
+    return line;
+}
+
+VnSoftSoilProps ResolveSoftReferenceSoilOverrides(const StarterScriptOptions &options,
+                                                  const VnSoftSoilProps &referenceDefaults)
+{
+    const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+    if (mode == QStringLiteral("Manual")) {
+        return VnSoftSoilProps {
+            options.vnSoftSoilKsatOriginal,
+            options.vnSoftSoilAlpha,
+            options.vnSoftSoilN,
+            options.vnSoftSoilThetaSat,
+            options.vnSoftSoilThetaRes
+        };
+    }
+    if (mode == QStringLiteral("ModelCreatorDefaults")) {
+        return VnSoftSoilProps { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
+    }
+    return referenceDefaults;
+}
+
+QString ApplySoilOverridesToLine(const QString &line,
+                                 const VnSoftSoilProps &props)
+{
+    QString updated = line;
+    updated = ReplaceCommandValue(updated, QStringLiteral("theta_sat"), QString::number(props.thetaSat, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("theta_res"), QString::number(props.thetaRes, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("n"), QString::number(props.n, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("K_sat_original"), QString::number(props.ksat, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("alpha"), QString::number(props.alpha, 'g', 12));
+    return updated;
 }
 
 bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
@@ -1525,7 +1573,19 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         QTextStream ts(&out);
         ts.seek(out.size());
         ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
-        AppendEmbeddedStructureSoftReferenceSoils(embedded, IsHqSoftReferenceSoilLine, &ts);
+        const VnSoftSoilProps hqReferenceDefaults { 1.0, 1.0, 1.41, 0.4, 0.05 };
+        const VnSoftSoilProps hqResolvedProps = ResolveSoftReferenceSoilOverrides(options, hqReferenceDefaults);
+        AppendEmbeddedStructureSoftReferenceSoils(
+            embedded,
+            IsHqSoftReferenceSoilLine,
+            [&](const QString &rawLine) -> QString {
+                const QString trimmed = rawLine.trimmed();
+                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+                    return ApplySoilOverridesToLine(rawLine, hqResolvedProps);
+                }
+                return rawLine;
+            },
+            &ts);
 
         const QString extra = options.additionalCommands.trimmed();
         if (!extra.isEmpty()) {
@@ -1557,7 +1617,19 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         QTextStream ts(&out);
         ts.seek(out.size());
         ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
-        AppendEmbeddedStructureSoftReferenceSoils(embedded, IsRBioswaleSoftReferenceSoilLine, &ts);
+        const VnSoftSoilProps rReferenceDefaults { 0.25, 3.6, 1.56, 0.43, 0.078 };
+        const VnSoftSoilProps rResolvedProps = ResolveSoftReferenceSoilOverrides(options, rReferenceDefaults);
+        AppendEmbeddedStructureSoftReferenceSoils(
+            embedded,
+            IsRBioswaleSoftReferenceSoilLine,
+            [&](const QString &rawLine) -> QString {
+                const QString trimmed = rawLine.trimmed();
+                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+                    return ApplySoilOverridesToLine(rawLine, rResolvedProps);
+                }
+                return rawLine;
+            },
+            &ts);
 
         const QString extra = options.additionalCommands.trimmed();
         if (!extra.isEmpty()) {
