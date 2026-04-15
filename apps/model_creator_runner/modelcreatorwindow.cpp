@@ -1307,10 +1307,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
         const QString currentInflow = inflowFileEdit->text().trimmed();
-        if (currentInflow.isEmpty() || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
+        if (currentInflow.isEmpty() || inflowAutoSuggested || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
             const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
             if (!suggested.isEmpty()) {
                 inflowFileEdit->setText(suggested);
+                inflowAutoSuggested = true;
                 suggestSimulationWindowFromInflow(suggested, true);
                 appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
             }
@@ -1335,6 +1336,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(templateDirEdit);
     saveOnEdit(generatedScriptEdit);
     saveOnEdit(inflowFileEdit);
+    connect(inflowFileEdit, &QLineEdit::textEdited, this, [this]() { inflowAutoSuggested = false; });
     saveOnEdit(simulationStartEdit);
     saveOnEdit(simulationEndEdit);
     connect(simulationStartEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationStartEdit); });
@@ -1750,6 +1752,10 @@ void ModelCreatorWindow::applySuggestedDefaults()
     applyIfEmpty(templateDirEdit, suggestedTemplateDirectory);
     applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
     applyIfEmpty(inflowFileEdit, suggestedInflowPath);
+    if (!suggestedInflowPath.trimmed().isEmpty()
+        && inflowFileEdit->text().trimmed().compare(suggestedInflowPath.trimmed(), Qt::CaseInsensitive) == 0) {
+        inflowAutoSuggested = true;
+    }
     applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
     if (!inflowFileEdit->text().trimmed().isEmpty()) {
         suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed(), true);
@@ -1810,6 +1816,7 @@ void ModelCreatorWindow::chooseInflowFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         inflowFileEdit->setText(fileName);
+        inflowAutoSuggested = false;
         suggestSimulationWindowFromInflow(fileName, true);
         saveSettings();
         refreshPlots();

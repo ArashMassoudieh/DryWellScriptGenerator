@@ -226,6 +226,7 @@ private:
     QString pendingGuiRetryWorkingDirectory;
     QString pendingGuiRetryExecutable;
     bool simulationWindowAutoSuggested = true;
+    bool inflowAutoSuggested = true;
 };
 
 #endif // MODELCREATORWINDOW_H
