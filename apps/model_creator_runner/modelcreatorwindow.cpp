@@ -930,10 +930,15 @@ bool HasSimulationProgressOutput(const QString &runOutput)
         return false;
     }
     static const QStringList kProgressMarkers = {
+        QStringLiteral("Creating model"),
+        QStringLiteral("Model build complete"),
+        QStringLiteral("Saving model files"),
+        QStringLiteral("CalcAllInitialValues"),
         QStringLiteral("Solving daily period"),
         QStringLiteral("Running from time"),
         QStringLiteral("Simulation complete"),
         QStringLiteral("Simulation finished"),
+        QStringLiteral("Writing VTP"),
         QStringLiteral("Writing output"),
         QStringLiteral("Saved output")
     };
@@ -951,10 +956,15 @@ QString FirstSimulationProgressMarker(const QString &runOutput)
         return QString();
     }
     static const QStringList kProgressMarkers = {
+        QStringLiteral("Creating model"),
+        QStringLiteral("Model build complete"),
+        QStringLiteral("Saving model files"),
+        QStringLiteral("CalcAllInitialValues"),
         QStringLiteral("Solving daily period"),
         QStringLiteral("Running from time"),
         QStringLiteral("Simulation complete"),
         QStringLiteral("Simulation finished"),
+        QStringLiteral("Writing VTP"),
         QStringLiteral("Writing output"),
         QStringLiteral("Saved output")
     };
@@ -965,6 +975,41 @@ QString FirstSimulationProgressMarker(const QString &runOutput)
     }
     return QString();
 }
+
+QStringList RuntimeHighlightMarkers()
+{
+    return {
+        QStringLiteral("Creating model"),
+        QStringLiteral("Model build complete"),
+        QStringLiteral("Saving model files"),
+        QStringLiteral("CalcAllInitialValues"),
+        QStringLiteral("Solving daily period"),
+        QStringLiteral("Running from time"),
+        QStringLiteral("Simulation complete"),
+        QStringLiteral("Simulation finished"),
+        QStringLiteral("Writing VTP"),
+        QStringLiteral("Writing output"),
+        QStringLiteral("Saved output")
+    };
+}
+
+QStringList NewlySeenRuntimeHighlights(const QString &previousOutput, const QString &newOutputChunk)
+{
+    QStringList hits;
+    if (newOutputChunk.trimmed().isEmpty()) {
+        return hits;
+    }
+    const QString combined = previousOutput + newOutputChunk;
+    for (const QString &marker : RuntimeHighlightMarkers()) {
+        const bool alreadySeen = previousOutput.contains(marker, Qt::CaseInsensitive);
+        const bool seenNow = combined.contains(marker, Qt::CaseInsensitive);
+        if (!alreadySeen && seenNow) {
+            hits << marker;
+        }
+    }
+    return hits;
+}
+
 
 bool BuildDefaultGuiConfig(const QString &scriptPath,
                            const QString &workingDirectory,
@@ -1623,13 +1668,21 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(runner, &OHQProcessRunner::outputReady, this, [this](const QString &text) {
         int suppressed = 0;
         const QString filtered = FilterRuntimeNoise(text, &suppressed);
+        const QString previousRunOutput = currentRunOutput;
         suppressedRuntimeNoiseLines += suppressed;
         currentRunOutput += filtered;
+
+        const QStringList newHighlights = NewlySeenRuntimeHighlights(previousRunOutput, filtered);
+        for (const QString &marker : newHighlights) {
+            appendLog(stamp(tr("Runtime status: %1").arg(marker)));
+        }
+
         if (!solveProgressObserved && HasSimulationProgressOutput(currentRunOutput)) {
             solveProgressObserved = true;
             const QString marker = FirstSimulationProgressMarker(currentRunOutput);
             appendLog(stamp(tr("Solve progress detected (%1).").arg(marker.isEmpty() ? tr("runtime marker") : marker)));
         }
+
         if (!filtered.trimmed().isEmpty()) {
             appendLog(filtered);
         }
@@ -1681,10 +1734,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             appendLog(stamp(tr("Solve phase completed; proceeding to plot/artifact refresh.")));
         }
         if (exitCode != 0) {
-            const bool sharedLibError =
-                currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive);
-
-            if (sharedLibError) {
+            if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
                 QMessageBox::warning(this,
                                      tr("Runtime dependency error"),
                                      tr("OHQ failed to start due to missing shared libraries.\n\n"
@@ -1694,12 +1744,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                 appendLog(stamp(tr("Detected shared-library runtime error; artifact scan skipped.")));
                 return;
             }
-
             if (!solveProgressObserved) {
                 appendLog(stamp(tr("Run exited with non-zero code before solve progress; artifact scan skipped.")));
                 return;
             }
-
             appendLog(stamp(tr("Run exited with non-zero code after solve progress; continuing to artifact scan.")));
         }
 
