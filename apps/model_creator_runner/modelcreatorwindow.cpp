@@ -1067,8 +1067,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     exePathEdit->setPlaceholderText(tr("Optional: auto-detected from OpenHydroQual roots when empty"));
     exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
-    exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
-    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; custom executables get no implicit args."));
+    exeArgsEdit->setPlaceholderText(tr("Default: {script} (or e.g. --script {script} --run)"));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. "
+                               "Default is {script}; for OpenHydroQual GUI this is normalized to {script} --run. "
+                               "If left empty: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; "
+                               "custom executables get no implicit args."));
     guiConfigTemplateRowWidget = addFileRow(layout, tr("GUI config template (optional)"), guiConfigTemplateEdit, tr("Browse"), [this]() { chooseGuiConfigTemplate(); });
     guiConfigTemplateEdit->setPlaceholderText(tr("Optional JSON template for OpenHydroQual GUI (supports {script}, {working_dir})"));
     allowGuiExecutionCheck = new QCheckBox(tr("Allow OpenHydroQual GUI execution fallback"), this);
@@ -1388,6 +1391,13 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
+        const QString suggestedExecutable = DetectExecutablePathFromContext(FindRepoRoot(),
+                                                                            workingDirEdit->text().trimmed(),
+                                                                            scriptPathEdit->text().trimmed(),
+                                                                            templateDirEdit->text().trimmed(),
+                                                                            exePathEdit->text().trimmed());
+        ApplySuggestedFieldValue(exePathEdit, suggestedExecutable);
+        ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
         const QString currentInflow = inflowFileEdit->text().trimmed();
         if (currentInflow.isEmpty() || inflowAutoSuggested || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
             const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
@@ -1827,6 +1837,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     });
 
     ApplySuggestedFieldValue(exePathEdit, suggestedExecutablePath);
+    ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
     if (!suggestedExecutablePath.isEmpty()) {
         const QFileInfo currentExe(exePathEdit->text().trimmed());
         if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe) || !currentExe.isExecutable()) {
@@ -3672,7 +3683,7 @@ void ModelCreatorWindow::loadSettings()
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
-    exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
+    exeArgsEdit->setText(settings.value("ohqExecutableArgs", QStringLiteral("{script}")).toString());
     guiConfigTemplateEdit->setText(settings.value("guiConfigTemplate").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
@@ -3772,6 +3783,7 @@ void ModelCreatorWindow::loadSettings()
         SetAutoSuggestedField(edit, isAuto);
     };
     markAutoSuggestedFromValue(exePathEdit, defaultExecutablePath);
+    markAutoSuggestedFromValue(exeArgsEdit, QStringLiteral("{script}"));
     markAutoSuggestedFromValue(scriptPathEdit, defaultScriptPath);
     markAutoSuggestedFromValue(workingDirEdit, defaultWorkingDirectory);
     markAutoSuggestedFromValue(artifactsDirEdit, defaultArtifactsDirectory);
