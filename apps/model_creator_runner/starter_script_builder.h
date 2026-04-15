@@ -74,7 +74,7 @@ struct StarterScriptOptions
     //   "Preset"        -> existing starter generation path (default)
     //   "FullReference" -> use embedded HQ full-reference payload from builder
     //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
-    QString hqBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString hqBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
     QString hqBaseOhqFile;
 
     // ---------------------------------------------------------------------
@@ -83,7 +83,7 @@ struct StarterScriptOptions
     //   "Preset"        -> existing starter generation path (default)
     //   "FullReference" -> use embedded R_Bioswale full-reference payload
     //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
-    QString rBioswaleBuildMode = "Preset"; // Preset | FullReference | LoadFromOhq
+    QString rBioswaleBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
     QString rBioswaleBaseOhqFile;
 
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
