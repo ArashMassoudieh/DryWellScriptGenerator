@@ -1179,11 +1179,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/hq_drywell.ohq or <repo>/r_bioswale.ohq"));
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
-    workingDirEdit->setPlaceholderText(tr("Suggested: this repository root"));
+    workingDirEdit->setPlaceholderText(tr("Suggested: <repo>/Models"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
     templateDirRowWidget = addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    templateDirEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/resources"));
+    templateDirEdit->setPlaceholderText(tr("Suggested: auto-detected from OpenHydroQual roots"));
     generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
@@ -1219,18 +1219,17 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     depthProfileRowWidget = addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
-    vnBaseRowWidget = addFileRow(layout, tr("VN base .ohq (optional)"), vnBaseOhqFileEdit, tr("Browse"), [this]() { chooseVnBaseOhqFile(); });
-    vnBaseOhqFileEdit->setPlaceholderText(tr("Optional: load whole VN OHQ script as generation baseline"));
-    vnSoilRowWidget = addFileRow(layout, tr("VN soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
-    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
-    vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
-    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
+    vnBaseRowWidget = nullptr;
+    vnSoilRowWidget = addFileRow(layout, tr("Soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
+    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with soil-layer commands"));
+    vnMoistureRowWidget = addFileRow(layout, tr("Moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
+    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with moisture-layer commands"));
     vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
     vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
     vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
     vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
     vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
-    vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
+    vnBuildModeRowWidget = addTextRow(layout, tr("Build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
     setupCompactNumericEdit(vnSoftUwGridXEdit, tr("16"));
@@ -1261,7 +1260,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft Soil-g")));
+        row->addWidget(new QLabel(tr("Soft Soil-g")));
         row->addWidget(new QLabel(tr("nr_g")));
         row->addWidget(vnSoftGridXEdit);
         row->addWidget(new QLabel(tr("nz_g")));
@@ -1278,7 +1277,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft Soil-uw")));
+        row->addWidget(new QLabel(tr("Soft Soil-uw")));
         row->addWidget(new QLabel(tr("nr_uw")));
         row->addWidget(vnSoftUwGridXEdit);
         row->addWidget(new QLabel(tr("nz_uw")));
@@ -1298,7 +1297,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft radii [m]")));
+        row->addWidget(new QLabel(tr("Soft radii [m]")));
         row->addWidget(new QLabel(tr("rw_g")));
         row->addWidget(vnSoftRwGEdit);
         row->addWidget(new QLabel(tr("rw_uw")));
@@ -1313,7 +1312,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft depths [m]")));
+        row->addWidget(new QLabel(tr("Soft depths [m]")));
         row->addWidget(new QLabel(tr("well_c")));
         row->addWidget(vnSoftDepthWellCEdit);
         row->addWidget(new QLabel(tr("well_g")));
@@ -1328,7 +1327,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft z")));
+        row->addWidget(new QLabel(tr("Soft z")));
         row->addWidget(new QLabel(tr("top[m]")));
         row->addWidget(vnSoftTopElevationEdit);
         row->addWidget(new QLabel(tr("dz[m]")));
@@ -1944,7 +1943,8 @@ void ModelCreatorWindow::chooseGeneratedScriptPath()
 void ModelCreatorWindow::applySuggestedDefaults()
 {
     const QString repoRoot = FindRepoRoot();
-    const QString suggestedWorkingDirectory = repoRoot;
+    const QString suggestedWorkingDirectory = QDir(repoRoot).filePath("Models");
+    QDir().mkpath(suggestedWorkingDirectory);
     const QString suggestedArtifactsDirectory = QDir(suggestedWorkingDirectory).filePath("artifacts");
     const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot, {
         workingDirEdit->text().trimmed(),
@@ -2117,7 +2117,7 @@ void ModelCreatorWindow::chooseDepthProfileFile()
 void ModelCreatorWindow::chooseVnBaseOhqFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN base OHQ script"),
+                                                          tr("Select base OHQ script"),
                                                           vnBaseOhqFileEdit->text(),
                                                           tr("OHQ/Text files (*.ohq *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
@@ -2130,7 +2130,7 @@ void ModelCreatorWindow::chooseVnBaseOhqFile()
 void ModelCreatorWindow::chooseVnSoilLayersFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN soil layers snippet"),
+                                                          tr("Select soil layers snippet"),
                                                           vnSoilLayersFileEdit->text(),
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
@@ -2143,7 +2143,7 @@ void ModelCreatorWindow::chooseVnSoilLayersFile()
 void ModelCreatorWindow::chooseVnMoistureLayersFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN moisture layers snippet"),
+                                                          tr("Select moisture layers snippet"),
                                                           vnMoistureLayersFileEdit->text(),
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
@@ -2156,7 +2156,7 @@ void ModelCreatorWindow::chooseVnMoistureLayersFile()
 void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN soft soil parameter profile CSV"),
+                                                          tr("Select soft soil parameter profile CSV"),
                                                           vnSoftSoilParameterFileEdit->text(),
                                                           tr("CSV files (*.csv);;Text files (*.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
@@ -3790,7 +3790,8 @@ void ModelCreatorWindow::loadSettings()
         return value.isEmpty() ? fallback : value;
     };
     const QString repoRoot = FindRepoRoot();
-    const QString defaultWorkingDirectory = repoRoot;
+    const QString defaultWorkingDirectory = QDir(repoRoot).filePath("Models");
+    QDir().mkpath(defaultWorkingDirectory);
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
     const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot);
     const QString defaultTemplateDirectory = DetectTemplateDirectory(rootCandidates, defaultWorkingDirectory);
@@ -3830,7 +3831,7 @@ void ModelCreatorWindow::loadSettings()
     outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
-    vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
+    vnBaseOhqFileEdit->clear();
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     if (vnBuildModeCombo) {
@@ -3953,7 +3954,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("outputSeriesFile", outputSeriesFileEdit->text());
     settings.setValue("observationFile", observationFileEdit->text());
     settings.setValue("depthProfileFile", depthProfileFileEdit->text());
-    settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
+    settings.setValue("vnBaseOhqFile", QString());
     settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     if (vnBuildModeCombo) {
