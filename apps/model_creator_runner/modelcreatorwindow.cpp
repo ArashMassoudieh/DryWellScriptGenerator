@@ -1182,8 +1182,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     workingDirEdit->setPlaceholderText(tr("Suggested: <repo>/Models"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
-    templateDirRowWidget = addFileRow(layout, tr("Template dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    templateDirEdit->setPlaceholderText(tr("Suggested: auto-detected from OpenHydroQual roots"));
+    templateDirRowWidget = nullptr;
+    templateDirEdit->setPlaceholderText(tr("Auto-detected from OpenHydroQual roots"));
     generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
@@ -2608,7 +2608,23 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
     if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
-        QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template directory first."));
+        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {
+            options.workingDirectory,
+            options.executablePath
+        });
+        const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, options.workingDirectory);
+        if (!detectedTemplate.trimmed().isEmpty()) {
+            options.templateDirectory = detectedTemplate;
+            templateDirEdit->setText(detectedTemplate);
+            SetAutoSuggestedField(templateDirEdit, true);
+            appendLog(stamp(tr("Auto-detected template directory for generation: %1").arg(detectedTemplate)));
+            saveSettings();
+        }
+    }
+
+    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
+        QMessageBox::warning(this, tr("Missing template directory"),
+                             tr("Could not auto-detect an OHQ template directory for this machine/context."));
         return false;
     }
 
