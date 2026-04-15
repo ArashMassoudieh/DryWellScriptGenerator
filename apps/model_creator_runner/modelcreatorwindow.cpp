@@ -924,6 +924,26 @@ bool BuildGuiConfigFromTemplate(const QString &templatePath,
     return true;
 }
 
+bool HasSimulationProgressOutput(const QString &runOutput)
+{
+    if (runOutput.trimmed().isEmpty()) {
+        return false;
+    }
+    static const QStringList kProgressMarkers = {
+        QStringLiteral("Solving daily period"),
+        QStringLiteral("Running from time"),
+        QStringLiteral("Simulation complete"),
+        QStringLiteral("Writing output"),
+        QStringLiteral("Saved output")
+    };
+    for (const QString &marker : kProgressMarkers) {
+        if (runOutput.contains(marker, Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool BuildDefaultGuiConfig(const QString &scriptPath,
                            const QString &workingDirectory,
                            QString *generatedConfigPath,
@@ -1582,7 +1602,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
         const bool parseConfigError = currentRunOutput.contains(QStringLiteral("Failed to parse configuration"), Qt::CaseInsensitive);
-        if (parseConfigError && !pendingGuiRetryArgs.isEmpty()) {
+        const bool parseConfigLooksFatal = parseConfigError && !HasSimulationProgressOutput(currentRunOutput);
+        if (parseConfigError && !parseConfigLooksFatal) {
+            appendLog(stamp(tr("Configuration parse warning was detected, but simulation progress output was also detected; continuing.")));
+        }
+        if (parseConfigLooksFatal && !pendingGuiRetryArgs.isEmpty()) {
             const QStringList retryArgs = pendingGuiRetryArgs.takeFirst();
             appendLog(stamp(tr("Detected configuration-parse error. Retrying GUI launch with args: %1")
                             .arg(retryArgs.join(' '))));
@@ -1590,7 +1614,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             runner->runScript(pendingGuiRetryScript, pendingGuiRetryWorkingDirectory, retryArgs);
             return;
         }
-        if (parseConfigError) {
+        if (parseConfigLooksFatal) {
             pendingGuiRetryArgs.clear();
             QMessageBox::warning(this,
                                  tr("Simulation did not start"),
