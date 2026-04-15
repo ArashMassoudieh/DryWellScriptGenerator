@@ -933,6 +933,7 @@ bool HasSimulationProgressOutput(const QString &runOutput)
         QStringLiteral("Solving daily period"),
         QStringLiteral("Running from time"),
         QStringLiteral("Simulation complete"),
+        QStringLiteral("Simulation finished"),
         QStringLiteral("Writing output"),
         QStringLiteral("Saved output")
     };
@@ -953,6 +954,7 @@ QString FirstSimulationProgressMarker(const QString &runOutput)
         QStringLiteral("Solving daily period"),
         QStringLiteral("Running from time"),
         QStringLiteral("Simulation complete"),
+        QStringLiteral("Simulation finished"),
         QStringLiteral("Writing output"),
         QStringLiteral("Saved output")
     };
@@ -1679,7 +1681,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             appendLog(stamp(tr("Solve phase completed; proceeding to plot/artifact refresh.")));
         }
         if (exitCode != 0) {
-            if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
+            const bool sharedLibError =
+                currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive);
+
+            if (sharedLibError) {
                 QMessageBox::warning(this,
                                      tr("Runtime dependency error"),
                                      tr("OHQ failed to start due to missing shared libraries.\n\n"
@@ -1687,10 +1692,15 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                         "Please ensure required runtime libraries (e.g., VTK) are available via LD_LIBRARY_PATH or system linker paths.")
                                          .arg(currentRunOutput.trimmed()));
                 appendLog(stamp(tr("Detected shared-library runtime error; artifact scan skipped.")));
-            } else {
-                appendLog(stamp(tr("Run exited with non-zero code; artifact scan skipped.")));
+                return;
             }
-            return;
+
+            if (!solveProgressObserved) {
+                appendLog(stamp(tr("Run exited with non-zero code before solve progress; artifact scan skipped.")));
+                return;
+            }
+
+            appendLog(stamp(tr("Run exited with non-zero code after solve progress; continuing to artifact scan.")));
         }
 
         refreshPlots();
