@@ -2608,11 +2608,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
     if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
-        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {
-            options.workingDirectory,
-            options.executablePath
-        });
-        const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, options.workingDirectory);
+        QStringList hintRoots;
+        hintRoots << workingDirEdit->text().trimmed()
+                  << exePathEdit->text().trimmed();
+        const QString workingDirectory = workingDirEdit->text().trimmed();
+        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), hintRoots);
+        const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, workingDirectory);
         if (!detectedTemplate.trimmed().isEmpty()) {
             options.templateDirectory = detectedTemplate;
             templateDirEdit->setText(detectedTemplate);
