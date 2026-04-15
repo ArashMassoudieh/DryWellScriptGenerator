@@ -416,6 +416,31 @@ bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QStr
     return false;
 }
 
+bool IsAutoSuggestedField(const QLineEdit *edit)
+{
+    return edit && edit->property("autoSuggested").toBool();
+}
+
+void SetAutoSuggestedField(QLineEdit *edit, bool autoSuggested)
+{
+    if (edit) {
+        edit->setProperty("autoSuggested", autoSuggested);
+    }
+}
+
+bool ApplySuggestedFieldValue(QLineEdit *edit, const QString &value)
+{
+    if (!edit || value.trimmed().isEmpty()) {
+        return false;
+    }
+    if (edit->text().trimmed().isEmpty() || IsAutoSuggestedField(edit)) {
+        edit->setText(value);
+        SetAutoSuggestedField(edit, true);
+        return true;
+    }
+    return false;
+}
+
 QString DetectSuggestedInflowFile(const QString &modelType, const QString &templateDirectory = QString())
 {
     const auto extractValue = [](const QString &line, const QString &key) -> QString {
@@ -1325,6 +1350,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
     const auto saveOnEdit = [this](QLineEdit *edit) {
+        connect(edit, &QLineEdit::textEdited, this, [edit]() { SetAutoSuggestedField(edit, false); });
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
     saveOnEdit(exePathEdit);
@@ -1623,14 +1649,17 @@ void ModelCreatorWindow::chooseExecutable()
     }
 
     exePathEdit->setText(cliPath);
+    SetAutoSuggestedField(exePathEdit, false);
     if (workingDirEdit->text().trimmed().isEmpty()) {
         workingDirEdit->setText(FindRepoRoot());
+        SetAutoSuggestedField(workingDirEdit, true);
     }
     if (templateDirEdit->text().trimmed().isEmpty()) {
         const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, cliPath});
         const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, workingDirEdit->text().trimmed());
         if (!detectedTemplate.isEmpty()) {
             templateDirEdit->setText(detectedTemplate);
+            SetAutoSuggestedField(templateDirEdit, true);
             appendLog(stamp(tr("Auto-detected template resources directory: %1").arg(detectedTemplate)));
         }
     }
@@ -1643,9 +1672,11 @@ void ModelCreatorWindow::chooseScript()
     const QString fileName = QFileDialog::getOpenFileName(this, tr("Select OHQ script"), {}, tr("OHQ files (*.ohq);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         scriptPathEdit->setText(fileName);
+        SetAutoSuggestedField(scriptPathEdit, false);
         const QFileInfo info(fileName);
         if (workingDirEdit->text().isEmpty()) {
             workingDirEdit->setText(info.absolutePath());
+            SetAutoSuggestedField(workingDirEdit, true);
         }
         saveSettings();
     }
@@ -1656,11 +1687,13 @@ void ModelCreatorWindow::chooseWorkingDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select working directory"));
     if (!dir.isEmpty()) {
         workingDirEdit->setText(dir);
+        SetAutoSuggestedField(workingDirEdit, false);
         const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, exePathEdit->text().trimmed()});
         if (exePathEdit->text().trimmed().isEmpty()) {
             const QString detectedExecutable = DetectExecutablePath(rootCandidates);
             if (!detectedExecutable.isEmpty()) {
                 exePathEdit->setText(detectedExecutable);
+                SetAutoSuggestedField(exePathEdit, true);
                 appendLog(stamp(tr("Auto-detected OHQ executable from selected working directory: %1")
                                 .arg(detectedExecutable)));
             }
@@ -1669,6 +1702,7 @@ void ModelCreatorWindow::chooseWorkingDirectory()
             const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, dir);
             if (!detectedTemplate.isEmpty()) {
                 templateDirEdit->setText(detectedTemplate);
+                SetAutoSuggestedField(templateDirEdit, true);
                 appendLog(stamp(tr("Auto-detected template resources from selected working directory: %1")
                                 .arg(detectedTemplate)));
             }
@@ -1682,6 +1716,7 @@ void ModelCreatorWindow::chooseArtifactsDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select artifacts directory"));
     if (!dir.isEmpty()) {
         artifactsDirEdit->setText(dir);
+        SetAutoSuggestedField(artifactsDirEdit, false);
         saveSettings();
     }
 }
@@ -1691,6 +1726,7 @@ void ModelCreatorWindow::chooseTemplateDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select OHQ template resources directory"));
     if (!dir.isEmpty()) {
         templateDirEdit->setText(dir);
+        SetAutoSuggestedField(templateDirEdit, false);
         saveSettings();
     }
 }
@@ -1703,6 +1739,7 @@ void ModelCreatorWindow::chooseGeneratedScriptPath()
                                                           tr("OHQ files (*.ohq);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         generatedScriptEdit->setText(fileName);
+        SetAutoSuggestedField(generatedScriptEdit, false);
         saveSettings();
     }
 }
@@ -1731,40 +1768,36 @@ void ModelCreatorWindow::applySuggestedDefaults()
         QDir(suggestedWorkingDirectory).filePath("examples/r_bioswale.ohq")
     });
 
-    auto applyIfEmpty = [](QLineEdit *edit, const QString &value) {
-        if (edit->text().trimmed().isEmpty() && !value.trimmed().isEmpty()) {
-            edit->setText(value);
-        }
-    };
-
-    applyIfEmpty(exePathEdit, suggestedExecutablePath);
+    ApplySuggestedFieldValue(exePathEdit, suggestedExecutablePath);
     if (!suggestedExecutablePath.isEmpty()) {
         const QFileInfo currentExe(exePathEdit->text().trimmed());
         if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe) || !currentExe.isExecutable()) {
             exePathEdit->setText(suggestedExecutablePath);
+            SetAutoSuggestedField(exePathEdit, true);
             appendLog(stamp(tr("Replaced invalid executable path with suggested OHQ binary: %1")
                             .arg(suggestedExecutablePath)));
         }
     }
-    applyIfEmpty(scriptPathEdit, suggestedScriptPath);
-    applyIfEmpty(workingDirEdit, suggestedWorkingDirectory);
-    applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
-    applyIfEmpty(templateDirEdit, suggestedTemplateDirectory);
-    applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
-    applyIfEmpty(inflowFileEdit, suggestedInflowPath);
-    if (!suggestedInflowPath.trimmed().isEmpty()
-        && inflowFileEdit->text().trimmed().compare(suggestedInflowPath.trimmed(), Qt::CaseInsensitive) == 0) {
+    ApplySuggestedFieldValue(scriptPathEdit, suggestedScriptPath);
+    ApplySuggestedFieldValue(workingDirEdit, suggestedWorkingDirectory);
+    ApplySuggestedFieldValue(artifactsDirEdit, suggestedArtifactsDirectory);
+    ApplySuggestedFieldValue(templateDirEdit, suggestedTemplateDirectory);
+    ApplySuggestedFieldValue(generatedScriptEdit, suggestedGeneratedScriptPath);
+    const bool inflowUpdated = ApplySuggestedFieldValue(inflowFileEdit, suggestedInflowPath);
+    if (inflowUpdated
+        || (!suggestedInflowPath.trimmed().isEmpty()
+            && inflowFileEdit->text().trimmed().compare(suggestedInflowPath.trimmed(), Qt::CaseInsensitive) == 0)) {
         inflowAutoSuggested = true;
     }
-    applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    ApplySuggestedFieldValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
     if (!inflowFileEdit->text().trimmed().isEmpty()) {
         suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed(), true);
     }
-    applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
-    applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
+    ApplySuggestedFieldValue(simulationStartEdit, QStringLiteral("44435"));
+    ApplySuggestedFieldValue(simulationEndEdit, QStringLiteral("44438"));
 
     saveSettings();
-    appendLog(stamp(tr("Applied suggested defaults to empty setup fields.")));
+    appendLog(stamp(tr("Applied suggested defaults to empty or auto-suggested setup fields.")));
 }
 
 void ModelCreatorWindow::quickGenerateRunAndSave()
@@ -1804,6 +1837,7 @@ void ModelCreatorWindow::chooseGuiConfigTemplate()
                                                           tr("JSON files (*.json);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         guiConfigTemplateEdit->setText(fileName);
+        SetAutoSuggestedField(guiConfigTemplateEdit, false);
         saveSettings();
     }
 }
@@ -1816,6 +1850,7 @@ void ModelCreatorWindow::chooseInflowFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         inflowFileEdit->setText(fileName);
+        SetAutoSuggestedField(inflowFileEdit, false);
         inflowAutoSuggested = false;
         suggestSimulationWindowFromInflow(fileName, true);
         saveSettings();
@@ -1861,6 +1896,7 @@ void ModelCreatorWindow::chooseObservationFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         observationFileEdit->setText(fileName);
+        SetAutoSuggestedField(observationFileEdit, false);
         saveSettings();
         refreshPlots();
     }
@@ -1874,6 +1910,7 @@ void ModelCreatorWindow::chooseDepthProfileFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         depthProfileFileEdit->setText(fileName);
+        SetAutoSuggestedField(depthProfileFileEdit, false);
         saveSettings();
         refreshPlots();
     }
@@ -1887,6 +1924,7 @@ void ModelCreatorWindow::chooseVnBaseOhqFile()
                                                           tr("OHQ/Text files (*.ohq *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnBaseOhqFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnBaseOhqFileEdit, false);
         saveSettings();
     }
 }
@@ -1899,6 +1937,7 @@ void ModelCreatorWindow::chooseVnSoilLayersFile()
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnSoilLayersFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnSoilLayersFileEdit, false);
         saveSettings();
     }
 }
@@ -1911,6 +1950,7 @@ void ModelCreatorWindow::chooseVnMoistureLayersFile()
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnMoistureLayersFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnMoistureLayersFileEdit, false);
         saveSettings();
     }
 }
@@ -1923,6 +1963,7 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
                                                           tr("CSV files (*.csv);;Text files (*.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnSoftSoilParameterFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnSoftSoilParameterFileEdit, false);
         saveSettings();
     }
 }
@@ -3647,6 +3688,32 @@ void ModelCreatorWindow::loadSettings()
     observationExpressionEdit->setText(settings.value("observationExpression", "theta").toString());
     observationNameEdit->setText(settings.value("observationName", "Obs_1").toString());
     additionalCommandsEdit->setPlainText(settings.value("additionalCommands").toString());
+
+    const QString modelType = modelTypeCombo->currentText().trimmed();
+    const QString templateDirectory = templateDirEdit->text().trimmed();
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelType, templateDirectory);
+    const auto markAutoSuggestedFromValue = [](QLineEdit *edit, const QString &suggested) {
+        const QString current = edit->text().trimmed();
+        const bool isAuto = !current.isEmpty()
+            && !suggested.trimmed().isEmpty()
+            && current.compare(suggested.trimmed(), Qt::CaseInsensitive) == 0;
+        SetAutoSuggestedField(edit, isAuto);
+    };
+    markAutoSuggestedFromValue(exePathEdit, defaultExecutablePath);
+    markAutoSuggestedFromValue(scriptPathEdit, defaultScriptPath);
+    markAutoSuggestedFromValue(workingDirEdit, defaultWorkingDirectory);
+    markAutoSuggestedFromValue(artifactsDirEdit, defaultArtifactsDirectory);
+    markAutoSuggestedFromValue(templateDirEdit, defaultTemplateDirectory.isEmpty()
+                                                   ? QDir(defaultWorkingDirectory).filePath("templates")
+                                                   : defaultTemplateDirectory);
+    markAutoSuggestedFromValue(generatedScriptEdit, defaultGeneratedScriptPath);
+    markAutoSuggestedFromValue(inflowFileEdit, suggestedInflowPath);
+    markAutoSuggestedFromValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    inflowAutoSuggested = IsAutoSuggestedField(inflowFileEdit);
+
+    const QString currentStart = simulationStartEdit->text().trimmed();
+    const QString currentEnd = simulationEndEdit->text().trimmed();
+    simulationWindowAutoSuggested = (currentStart == QStringLiteral("44435") && currentEnd == QStringLiteral("44438"));
 }
 
 void ModelCreatorWindow::saveSettings() const
