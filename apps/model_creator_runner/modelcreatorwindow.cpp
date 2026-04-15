@@ -6,6 +6,9 @@
 #include "starter_script_builder.h"
 #include "structure_registry.h"
 #include "scripteditordialog.h"
+#include "hq_drywell_builder.h"
+#include "r_bioswale_builder.h"
+#include "vn_drywell_builder.h"
 
 #include <QComboBox>
 #include <QCheckBox>
@@ -48,6 +51,41 @@ QString stamp(const QString &message)
 {
     return QString("[%1] %2")
         .arg(QDateTime::currentDateTime().toString(Qt::ISODate), message);
+}
+
+QString SpreadsheetSerialToIsoString(double serialDay)
+{
+    if (!std::isfinite(serialDay)) {
+        return QString();
+    }
+    const int wholeDays = static_cast<int>(std::floor(serialDay));
+    const double frac = serialDay - static_cast<double>(wholeDays);
+    const int secs = qBound(0, static_cast<int>(std::round(frac * 86400.0)), 86399);
+    const QDate base(1899, 12, 30);
+    const QDate date = base.addDays(wholeDays);
+    if (!date.isValid()) {
+        return QString();
+    }
+    return QDateTime(date, QTime(0, 0).addSecs(secs), Qt::UTC).toString(Qt::ISODate);
+}
+
+void UpdateSimulationDateTooltip(QLineEdit *edit)
+{
+    if (edit == nullptr) {
+        return;
+    }
+    bool ok = false;
+    const double serial = edit->text().trimmed().toDouble(&ok);
+    if (!ok) {
+        edit->setToolTip(QString());
+        return;
+    }
+    const QString iso = SpreadsheetSerialToIsoString(serial);
+    if (iso.isEmpty()) {
+        edit->setToolTip(QString());
+        return;
+    }
+    edit->setToolTip(QObject::tr("Approx. UTC date-time: %1").arg(iso));
 }
 
 QString VnBuildModeFromPresetSelection(const QString &selection)
@@ -259,8 +297,65 @@ QString DetectTemplateDirectory(const QStringList &rootCandidates, const QString
 
 QString FindCliExecutableUnderRoot(const QString &rootPath);
 
+QString DetectLatestTerminalBuildExecutable(const QString &rootPath)
+{
+    const QDir root(rootPath);
+    if (!root.exists()) {
+        return QString();
+    }
+
+    const QDir terminalDir(root.filePath("terminal"));
+    if (!terminalDir.exists()) {
+        return QString();
+    }
+
+    QFileInfo newestMatch;
+    QDirIterator it(terminalDir.absolutePath(),
+                    QDir::Files | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QFileInfo info = it.fileInfo();
+        if (!info.isExecutable()) {
+            continue;
+        }
+        const QString fileName = info.fileName();
+        if (fileName.compare(QStringLiteral("OpenHydroQual-Console"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OpenHydroQual-Console.exe"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+        const QString absPath = info.absoluteFilePath();
+        if (!absPath.contains(QStringLiteral("/build"), Qt::CaseInsensitive)) {
+            continue;
+        }
+        if (!newestMatch.exists() || info.lastModified() > newestMatch.lastModified()) {
+            newestMatch = info;
+        }
+    }
+
+    return newestMatch.exists() ? newestMatch.absoluteFilePath() : QString();
+}
+
 QString DetectExecutablePath(const QStringList &rootCandidates)
 {
+    QFileInfo newestTerminalBuildExecutable;
+    for (const QString &rootPath : rootCandidates) {
+        const QString terminalCandidate = DetectLatestTerminalBuildExecutable(rootPath);
+        if (terminalCandidate.isEmpty()) {
+            continue;
+        }
+        const QFileInfo info(terminalCandidate);
+        if (!newestTerminalBuildExecutable.exists()
+            || info.lastModified() > newestTerminalBuildExecutable.lastModified()) {
+            newestTerminalBuildExecutable = info;
+        }
+    }
+    if (newestTerminalBuildExecutable.exists()) {
+        return newestTerminalBuildExecutable.absoluteFilePath();
+    }
+
     for (const QString &rootPath : rootCandidates) {
         const QString candidate = FindCliExecutableUnderRoot(rootPath);
         if (!candidate.isEmpty()) {
@@ -270,24 +365,209 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
     return QString();
 }
 
-QString DetectSuggestedInflowFile(const QString &modelType)
+QStringList CandidateProjectRootsFromTemplateDirectoryUi(const QString &templateDirectory)
 {
+    QStringList roots = {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+    const QFileInfo templateInfo(templateDirectory);
+    if (templateInfo.exists()) {
+        QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
+                                        : templateInfo.absoluteDir();
+        if (dir.dirName().compare(QStringLiteral("resources"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+        }
+        if (dir.dirName().compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+            const QString inferredRoot = dir.absolutePath();
+            if (!inferredRoot.trimmed().isEmpty()) {
+                roots.prepend(inferredRoot);
+            }
+        }
+    }
+    roots.removeDuplicates();
+    return roots;
+}
+
+bool IsKnownReferenceInflowForOtherModelUi(const QString &inflowPath, const QString &targetModel)
+{
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
+    const QString p = inflowPath.trimmed();
+    if (p.isEmpty()) {
+        return false;
+    }
+    const QString vnRef = embeddedInflow(QStringLiteral("VN_Drywell"));
+    const QString hqRef = embeddedInflow(QStringLiteral("HQ_Drywell"));
+    const QString rRef = embeddedInflow(QStringLiteral("R_Bioswale"));
+    const QString pName = QFileInfo(p).fileName();
+    const QString vnName = vnRef.isEmpty() ? QStringLiteral("LA_Precipitaion (5 yr new).csv") : QFileInfo(vnRef).fileName();
+    const QString vnLegacyName = QStringLiteral("Synthetic_rain_flow.csv");
+    const QString hqName = hqRef.isEmpty() ? QStringLiteral("Inflow_Corrected_New_Khiem.csv") : QFileInfo(hqRef).fileName();
+    const QString rName = rRef.isEmpty() ? QStringLiteral("Inflow_Rosemead_August.txt") : QFileInfo(rRef).fileName();
+    const bool isVnRef = (!vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(vnName, Qt::CaseInsensitive) == 0
+        || pName.compare(vnLegacyName, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = (!hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(hqName, Qt::CaseInsensitive) == 0;
+    const bool isRRef = (!rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(rName, Qt::CaseInsensitive) == 0;
+    if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isHqRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isHqRef;
+    }
+    return false;
+}
+
+bool IsAutoSuggestedField(const QLineEdit *edit)
+{
+    return edit && edit->property("autoSuggested").toBool();
+}
+
+void SetAutoSuggestedField(QLineEdit *edit, bool autoSuggested)
+{
+    if (edit) {
+        edit->setProperty("autoSuggested", autoSuggested);
+    }
+}
+
+bool ApplySuggestedFieldValue(QLineEdit *edit, const QString &value)
+{
+    if (!edit || value.trimmed().isEmpty()) {
+        return false;
+    }
+    if (edit->text().trimmed().isEmpty() || IsAutoSuggestedField(edit)) {
+        edit->setText(value);
+        SetAutoSuggestedField(edit, true);
+        return true;
+    }
+    return false;
+}
+
+QString DetectSuggestedInflowFile(const QString &modelType, const QString &templateDirectory = QString())
+{
+    const auto extractValue = [](const QString &line, const QString &key) -> QString {
+        const QString token = key + QStringLiteral("=");
+        const int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+        if (start < 0) {
+            return {};
+        }
+        const int valueStart = start + token.size();
+        int end = line.indexOf(',', valueStart);
+        if (end < 0) {
+            end = line.size();
+        }
+        return line.mid(valueStart, end - valueStart).trimmed();
+    };
+    const auto embeddedInflow = [&](const QString &model) -> QString {
+        QString script;
+        QString target;
+        if (model.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+            script = HqDrywellBuilder::FullReferenceScript();
+            target = HqDrywellBuilder::InflowTargetObject();
+        } else if (model.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+            script = RBioswaleBuilder::FullReferenceScript();
+            target = RBioswaleBuilder::InflowTargetObject();
+        } else {
+            script = VnDrywellBuilder::VnFullReferenceScript();
+            target = VnDrywellBuilder::InflowTargetObject();
+        }
+        const QStringList lines = script.split('\n', Qt::SkipEmptyParts);
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
+            if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("value"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+            if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+                && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+                const QString value = extractValue(line, QStringLiteral("inflow"));
+                if (!value.trimmed().isEmpty()) {
+                    return value.trimmed();
+                }
+            }
+        }
+        return QString();
+    };
+
     const QString normalizedModel = modelType.trimmed();
     QStringList candidates;
+    const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectoryUi(templateDirectory);
+    const QString embeddedDefault = embeddedInflow(normalizedModel);
+    if (!embeddedDefault.trimmed().isEmpty()) {
+        return embeddedDefault.trimmed();
+    }
     if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
     } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
+        }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
     } else {
-        const QString relativeInflow = QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
-        const QStringList projectRoots = {
-            QStringLiteral("/mnt/3rd900/Projects"),
-            QStringLiteral("/home/arash/Projects"),
-            QStringLiteral("/home/hoomanmoradpour/Projects"),
-            QStringLiteral("/media/arash/E/Projects")
-        };
         for (const QString &root : projectRoots) {
-            candidates << QDir(root).filePath(relativeInflow);
+            candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
         }
         candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
     }
@@ -434,6 +714,22 @@ bool LooksLikeCliOhqBinaryName(const QString &fileName)
         || fileName.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
 }
 
+bool LooksLikeInternalSolverBinaryName(const QString &fileName)
+{
+    const QString base = QFileInfo(fileName).completeBaseName().trimmed();
+    if (base.isEmpty()) {
+        return false;
+    }
+    if (base.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+        return false;
+    }
+    return base.contains(QStringLiteral("solver"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("solve"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("internal"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("ohq"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("hydroqual"), Qt::CaseInsensitive);
+}
+
 QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
 {
     // Heuristic search anchored around the selected GUI binary path.
@@ -467,6 +763,28 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         return nearby;
     }
 
+    // Search near GUI roots for custom internal solver executables.
+    // This catches non-standard names in local build trees.
+    for (const QString &root : roots) {
+        QDirIterator it(root,
+                        QDir::Files | QDir::NoSymLinks,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            const QFileInfo fileInfo = it.fileInfo();
+            if (!fileInfo.isExecutable()) {
+                continue;
+            }
+            if (IsGuiExecutableOrAlias(fileInfo)) {
+                continue;
+            }
+            if (LooksLikeCliOhqBinaryName(fileInfo.fileName())
+                || LooksLikeInternalSolverBinaryName(fileInfo.fileName())) {
+                return fileInfo.absoluteFilePath();
+            }
+        }
+    }
+
     const QStringList fallbackRoots = {
         // Environment-specific fallback roots used in this project.
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
@@ -483,7 +801,14 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         while (it.hasNext()) {
             it.next();
             const QFileInfo fileInfo = it.fileInfo();
-            if (LooksLikeCliOhqBinaryName(fileInfo.fileName()) && fileInfo.isExecutable()) {
+            if (!fileInfo.isExecutable()) {
+                continue;
+            }
+            if (IsGuiExecutableOrAlias(fileInfo)) {
+                continue;
+            }
+            if (LooksLikeCliOhqBinaryName(fileInfo.fileName())
+                || LooksLikeInternalSolverBinaryName(fileInfo.fileName())) {
                 return fileInfo.absoluteFilePath();
             }
         }
@@ -523,7 +848,14 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
     while (it.hasNext()) {
         it.next();
         const QFileInfo info = it.fileInfo();
-        if (LooksLikeCliOhqBinaryName(info.fileName()) && info.isExecutable()) {
+        if (!info.isExecutable()) {
+            continue;
+        }
+        if (IsGuiExecutableOrAlias(info)) {
+            continue;
+        }
+        if (LooksLikeCliOhqBinaryName(info.fileName())
+            || LooksLikeInternalSolverBinaryName(info.fileName())) {
             return info.absoluteFilePath();
         }
     }
@@ -539,6 +871,11 @@ QStringList BuildExecutableArguments(const QString &argumentTemplate, const QStr
 
     QStringList args = QProcess::splitCommand(argumentTemplate);
     for (QString &arg : args) {
+        if (arg.compare(QStringLiteral("script"), Qt::CaseInsensitive) == 0
+            || arg.compare(QStringLiteral("%script%"), Qt::CaseInsensitive) == 0
+            || arg.compare(QStringLiteral("$script"), Qt::CaseInsensitive) == 0) {
+            arg = QStringLiteral("{script}");
+        }
         if (arg.contains(QStringLiteral("{script}"))) {
             arg.replace(QStringLiteral("{script}"), scriptPath);
         }
@@ -585,6 +922,46 @@ bool BuildGuiConfigFromTemplate(const QString &templatePath,
         *generatedConfigPath = outPath;
     }
     return true;
+}
+
+bool HasSimulationProgressOutput(const QString &runOutput)
+{
+    if (runOutput.trimmed().isEmpty()) {
+        return false;
+    }
+    static const QStringList kProgressMarkers = {
+        QStringLiteral("Solving daily period"),
+        QStringLiteral("Running from time"),
+        QStringLiteral("Simulation complete"),
+        QStringLiteral("Writing output"),
+        QStringLiteral("Saved output")
+    };
+    for (const QString &marker : kProgressMarkers) {
+        if (runOutput.contains(marker, Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QString FirstSimulationProgressMarker(const QString &runOutput)
+{
+    if (runOutput.trimmed().isEmpty()) {
+        return QString();
+    }
+    static const QStringList kProgressMarkers = {
+        QStringLiteral("Solving daily period"),
+        QStringLiteral("Running from time"),
+        QStringLiteral("Simulation complete"),
+        QStringLiteral("Writing output"),
+        QStringLiteral("Saved output")
+    };
+    for (const QString &marker : kProgressMarkers) {
+        if (runOutput.contains(marker, Qt::CaseInsensitive)) {
+            return marker;
+        }
+    }
+    return QString();
 }
 
 bool BuildDefaultGuiConfig(const QString &scriptPath,
@@ -787,8 +1164,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     exePathEdit->setPlaceholderText(tr("Optional: auto-detected from OpenHydroQual roots when empty"));
     exePathEdit->setToolTip(tr("Optional override. Leave blank to auto-detect OHQ from working/script/template locations."));
     addTextRow(layout, tr("Executable args"), exeArgsEdit);
-    exeArgsEdit->setPlaceholderText(tr("Optional, e.g. --script {script} --run"));
-    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. If omitted: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; custom executables get no implicit args."));
+    exeArgsEdit->setPlaceholderText(tr("Default: {script} (or e.g. --script {script} --run)"));
+    exeArgsEdit->setToolTip(tr("Command-line arguments passed to the executable. Use {script} placeholder for the selected .ohq path. "
+                               "Default is {script}; for OpenHydroQual GUI this is normalized to {script} --run. "
+                               "If left empty: OHQ CLI gets positional script; OpenHydroQual GUI gets <script> --run; "
+                               "custom executables get no implicit args."));
     guiConfigTemplateRowWidget = addFileRow(layout, tr("GUI config template (optional)"), guiConfigTemplateEdit, tr("Browse"), [this]() { chooseGuiConfigTemplate(); });
     guiConfigTemplateEdit->setPlaceholderText(tr("Optional JSON template for OpenHydroQual GUI (supports {script}, {working_dir})"));
     allowGuiExecutionCheck = new QCheckBox(tr("Allow OpenHydroQual GUI execution fallback"), this);
@@ -799,11 +1179,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     scriptPathEdit->setToolTip(tr("Select an existing .ohq file if you want to run without generating a new starter script."));
     scriptPathEdit->setPlaceholderText(tr("Suggested: <repo>/hq_drywell.ohq or <repo>/r_bioswale.ohq"));
     addFileRow(layout, tr("Working directory"), workingDirEdit, tr("Browse"), [this]() { chooseWorkingDirectory(); });
-    workingDirEdit->setPlaceholderText(tr("Suggested: this repository root"));
+    workingDirEdit->setPlaceholderText(tr("Suggested: <repo>/Models"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
-    templateDirRowWidget = addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
-    templateDirEdit->setPlaceholderText(tr("Suggested: /mnt/3rd900/Projects/OpenHydroQual/resources"));
+    templateDirRowWidget = nullptr;
+    templateDirEdit->setPlaceholderText(tr("Auto-detected from OpenHydroQual roots"));
     generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
     inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
@@ -839,18 +1219,17 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     depthProfileRowWidget = addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
-    vnBaseRowWidget = addFileRow(layout, tr("VN base .ohq (optional)"), vnBaseOhqFileEdit, tr("Browse"), [this]() { chooseVnBaseOhqFile(); });
-    vnBaseOhqFileEdit->setPlaceholderText(tr("Optional: load whole VN OHQ script as generation baseline"));
-    vnSoilRowWidget = addFileRow(layout, tr("VN soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
-    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN soil-layer commands"));
-    vnMoistureRowWidget = addFileRow(layout, tr("VN moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
-    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with VN moisture-layer commands"));
+    vnBaseRowWidget = nullptr;
+    vnSoilRowWidget = addFileRow(layout, tr("Soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
+    vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with soil-layer commands"));
+    vnMoistureRowWidget = addFileRow(layout, tr("Moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
+    vnMoistureLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with moisture-layer commands"));
     vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
     vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
     vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
     vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
     vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
-    vnBuildModeRowWidget = addTextRow(layout, tr("VN build mode"), vnBuildModeCombo);
+    vnBuildModeRowWidget = addTextRow(layout, tr("Build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
     setupCompactNumericEdit(vnSoftUwGridXEdit, tr("16"));
@@ -871,16 +1250,17 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("VN Ref defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("Reference defaults"), QStringLiteral("VnReferenceDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
+    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft Soil-g")));
+        row->addWidget(new QLabel(tr("Soil-g")));
         row->addWidget(new QLabel(tr("nr_g")));
         row->addWidget(vnSoftGridXEdit);
         row->addWidget(new QLabel(tr("nz_g")));
@@ -897,7 +1277,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft Soil-uw")));
+        row->addWidget(new QLabel(tr("Soil-uw")));
         row->addWidget(new QLabel(tr("nr_uw")));
         row->addWidget(vnSoftUwGridXEdit);
         row->addWidget(new QLabel(tr("nz_uw")));
@@ -917,7 +1297,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft radii [m]")));
+        row->addWidget(new QLabel(tr("Radii [m]")));
         row->addWidget(new QLabel(tr("rw_g")));
         row->addWidget(vnSoftRwGEdit);
         row->addWidget(new QLabel(tr("rw_uw")));
@@ -932,7 +1312,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft depths [m]")));
+        row->addWidget(new QLabel(tr("Depths [m]")));
         row->addWidget(new QLabel(tr("well_c")));
         row->addWidget(vnSoftDepthWellCEdit);
         row->addWidget(new QLabel(tr("well_g")));
@@ -947,7 +1327,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft z")));
+        row->addWidget(new QLabel(tr("z")));
         row->addWidget(new QLabel(tr("top[m]")));
         row->addWidget(vnSoftTopElevationEdit);
         row->addWidget(new QLabel(tr("dz[m]")));
@@ -961,7 +1341,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("VN soft soil")));
+        row->addWidget(new QLabel(tr("Soft soil params")));
         row->addWidget(new QLabel(tr("mode")));
         row->addWidget(vnSoftSoilParamModeCombo);
         row->addWidget(new QLabel(tr("Ksat")));
@@ -1106,6 +1486,44 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, &ModelCreatorWindow::syncEnrichmentPresetForModel);
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
+    connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
+        const QString previousModelType = lastSelectedModelType.trimmed();
+        bool executableUpdated = false;
+        bool argsUpdated = false;
+        bool inflowUpdated = false;
+        bool simulationWindowUpdated = false;
+        const QString suggestedExecutable = DetectExecutablePathFromContext(FindRepoRoot(),
+                                                                            workingDirEdit->text().trimmed(),
+                                                                            scriptPathEdit->text().trimmed(),
+                                                                            templateDirEdit->text().trimmed(),
+                                                                            exePathEdit->text().trimmed());
+        executableUpdated = ApplySuggestedFieldValue(exePathEdit, suggestedExecutable);
+        argsUpdated = ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
+        const QString currentInflow = inflowFileEdit->text().trimmed();
+        if (currentInflow.isEmpty() || inflowAutoSuggested || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
+            const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
+            if (!suggested.isEmpty()) {
+                inflowFileEdit->setText(suggested);
+                inflowAutoSuggested = true;
+                suggestSimulationWindowFromInflow(suggested, true);
+                simulationWindowUpdated = true;
+                inflowUpdated = true;
+                appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
+            }
+        }
+        if (!previousModelType.isEmpty() && previousModelType.compare(newModelType, Qt::CaseInsensitive) != 0) {
+            QStringList updatedFields;
+            if (executableUpdated) updatedFields << tr("executable");
+            if (argsUpdated) updatedFields << tr("args");
+            if (inflowUpdated) updatedFields << tr("inflow");
+            if (simulationWindowUpdated) updatedFields << tr("simulation window");
+            appendLog(stamp(tr("Structure switched: %1 → %2. Auto-updated: %3.")
+                            .arg(previousModelType,
+                                 newModelType,
+                                 updatedFields.isEmpty() ? tr("none") : updatedFields.join(tr(", ")))));
+        }
+        lastSelectedModelType = newModelType;
+    });
     connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
@@ -1114,6 +1532,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
     const auto saveOnEdit = [this](QLineEdit *edit) {
+        connect(edit, &QLineEdit::textEdited, this, [edit]() { SetAutoSuggestedField(edit, false); });
         connect(edit, &QLineEdit::editingFinished, this, [this]() { saveSettings(); });
     };
     saveOnEdit(exePathEdit);
@@ -1125,8 +1544,15 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(templateDirEdit);
     saveOnEdit(generatedScriptEdit);
     saveOnEdit(inflowFileEdit);
+    connect(inflowFileEdit, &QLineEdit::textEdited, this, [this]() { inflowAutoSuggested = false; });
     saveOnEdit(simulationStartEdit);
     saveOnEdit(simulationEndEdit);
+    connect(simulationStartEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationStartEdit); });
+    connect(simulationEndEdit, &QLineEdit::textChanged, this, [this]() { UpdateSimulationDateTooltip(simulationEndEdit); });
+    connect(simulationStartEdit, &QLineEdit::textEdited, this, [this]() { simulationWindowAutoSuggested = false; });
+    connect(simulationEndEdit, &QLineEdit::textEdited, this, [this]() { simulationWindowAutoSuggested = false; });
+    UpdateSimulationDateTooltip(simulationStartEdit);
+    UpdateSimulationDateTooltip(simulationEndEdit);
     saveOnEdit(ksatScaleEdit);
     saveOnEdit(ksatScaleGEdit);
     saveOnEdit(ksatScaleUwEdit);
@@ -1181,6 +1607,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
         suppressedRuntimeNoiseLines = 0;
+        solveProgressObserved = false;
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -1196,6 +1623,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         const QString filtered = FilterRuntimeNoise(text, &suppressed);
         suppressedRuntimeNoiseLines += suppressed;
         currentRunOutput += filtered;
+        if (!solveProgressObserved && HasSimulationProgressOutput(currentRunOutput)) {
+            solveProgressObserved = true;
+            const QString marker = FirstSimulationProgressMarker(currentRunOutput);
+            appendLog(stamp(tr("Solve progress detected (%1).").arg(marker.isEmpty() ? tr("runtime marker") : marker)));
+        }
         if (!filtered.trimmed().isEmpty()) {
             appendLog(filtered);
         }
@@ -1214,7 +1646,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         }
         appendLog(stamp(tr("Run finished with exit code %1").arg(exitCode)));
         const bool parseConfigError = currentRunOutput.contains(QStringLiteral("Failed to parse configuration"), Qt::CaseInsensitive);
-        if (parseConfigError && !pendingGuiRetryArgs.isEmpty()) {
+        const bool parseConfigLooksFatal = parseConfigError && !HasSimulationProgressOutput(currentRunOutput);
+        if (parseConfigError && !parseConfigLooksFatal) {
+            appendLog(stamp(tr("Configuration parse warning was detected, but simulation progress output was also detected; continuing.")));
+        }
+        if (parseConfigLooksFatal && !pendingGuiRetryArgs.isEmpty()) {
             const QStringList retryArgs = pendingGuiRetryArgs.takeFirst();
             appendLog(stamp(tr("Detected configuration-parse error. Retrying GUI launch with args: %1")
                             .arg(retryArgs.join(' '))));
@@ -1222,7 +1658,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             runner->runScript(pendingGuiRetryScript, pendingGuiRetryWorkingDirectory, retryArgs);
             return;
         }
-        if (parseConfigError) {
+        if (parseConfigLooksFatal) {
             pendingGuiRetryArgs.clear();
             QMessageBox::warning(this,
                                  tr("Simulation did not start"),
@@ -1231,12 +1667,16 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                     "Try one of the following:\n"
                                     "1) Select an OHQ CLI solver binary if available.\n"
                                     "2) Provide explicit executable args required by your OpenHydroQual build.\n"
-                                    "3) Use your server/worker runner flow (e.g., HQ_DrywellDT) for this build.\n"
+                                    "3) Use an external runner flow aligned with one of this repo's structures "
+                                    "(HQ_Drywell, R_Bioswale, or VN_Drywell).\n"
                                     "4) Or select a custom internal solver executable (System/Solve main) and leave args empty."));
             appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
             return;
         } else {
             pendingGuiRetryArgs.clear();
+        }
+        if (solveProgressObserved && exitCode == 0) {
+            appendLog(stamp(tr("Solve phase completed; proceeding to plot/artifact refresh.")));
         }
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
@@ -1332,9 +1772,15 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
         ? vnBuildModeCombo->currentData().toString().trimmed()
         : QStringLiteral("SoftReference");
     const QString vnBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
+    const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
+    const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+    const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
+        && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
+    const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
+        && (rBuildMode.isEmpty() || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
     const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
@@ -1360,7 +1806,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
-    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -1399,15 +1845,18 @@ void ModelCreatorWindow::chooseExecutable()
     }
 
     exePathEdit->setText(cliPath);
+    SetAutoSuggestedField(exePathEdit, false);
     if (workingDirEdit->text().trimmed().isEmpty()) {
         workingDirEdit->setText(FindRepoRoot());
+        SetAutoSuggestedField(workingDirEdit, true);
     }
     if (templateDirEdit->text().trimmed().isEmpty()) {
         const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, cliPath});
         const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, workingDirEdit->text().trimmed());
         if (!detectedTemplate.isEmpty()) {
             templateDirEdit->setText(detectedTemplate);
-            appendLog(stamp(tr("Auto-detected template resources directory: %1").arg(detectedTemplate)));
+            SetAutoSuggestedField(templateDirEdit, true);
+            appendLog(stamp(tr("Auto-detected template directory: %1").arg(detectedTemplate)));
         }
     }
     saveSettings();
@@ -1419,9 +1868,11 @@ void ModelCreatorWindow::chooseScript()
     const QString fileName = QFileDialog::getOpenFileName(this, tr("Select OHQ script"), {}, tr("OHQ files (*.ohq);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         scriptPathEdit->setText(fileName);
+        SetAutoSuggestedField(scriptPathEdit, false);
         const QFileInfo info(fileName);
         if (workingDirEdit->text().isEmpty()) {
             workingDirEdit->setText(info.absolutePath());
+            SetAutoSuggestedField(workingDirEdit, true);
         }
         saveSettings();
     }
@@ -1432,11 +1883,13 @@ void ModelCreatorWindow::chooseWorkingDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select working directory"));
     if (!dir.isEmpty()) {
         workingDirEdit->setText(dir);
+        SetAutoSuggestedField(workingDirEdit, false);
         const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {dir, exePathEdit->text().trimmed()});
         if (exePathEdit->text().trimmed().isEmpty()) {
             const QString detectedExecutable = DetectExecutablePath(rootCandidates);
             if (!detectedExecutable.isEmpty()) {
                 exePathEdit->setText(detectedExecutable);
+                SetAutoSuggestedField(exePathEdit, true);
                 appendLog(stamp(tr("Auto-detected OHQ executable from selected working directory: %1")
                                 .arg(detectedExecutable)));
             }
@@ -1445,7 +1898,8 @@ void ModelCreatorWindow::chooseWorkingDirectory()
             const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, dir);
             if (!detectedTemplate.isEmpty()) {
                 templateDirEdit->setText(detectedTemplate);
-                appendLog(stamp(tr("Auto-detected template resources from selected working directory: %1")
+                SetAutoSuggestedField(templateDirEdit, true);
+                appendLog(stamp(tr("Auto-detected template directory from selected working directory: %1")
                                 .arg(detectedTemplate)));
             }
         }
@@ -1458,15 +1912,17 @@ void ModelCreatorWindow::chooseArtifactsDirectory()
     const QString dir = QFileDialog::getExistingDirectory(this, tr("Select artifacts directory"));
     if (!dir.isEmpty()) {
         artifactsDirEdit->setText(dir);
+        SetAutoSuggestedField(artifactsDirEdit, false);
         saveSettings();
     }
 }
 
 void ModelCreatorWindow::chooseTemplateDirectory()
 {
-    const QString dir = QFileDialog::getExistingDirectory(this, tr("Select OHQ template resources directory"));
+    const QString dir = QFileDialog::getExistingDirectory(this, tr("Select OHQ template directory"));
     if (!dir.isEmpty()) {
         templateDirEdit->setText(dir);
+        SetAutoSuggestedField(templateDirEdit, false);
         saveSettings();
     }
 }
@@ -1479,6 +1935,7 @@ void ModelCreatorWindow::chooseGeneratedScriptPath()
                                                           tr("OHQ files (*.ohq);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         generatedScriptEdit->setText(fileName);
+        SetAutoSuggestedField(generatedScriptEdit, false);
         saveSettings();
     }
 }
@@ -1486,7 +1943,8 @@ void ModelCreatorWindow::chooseGeneratedScriptPath()
 void ModelCreatorWindow::applySuggestedDefaults()
 {
     const QString repoRoot = FindRepoRoot();
-    const QString suggestedWorkingDirectory = repoRoot;
+    const QString suggestedWorkingDirectory = QDir(repoRoot).filePath("Models");
+    QDir().mkpath(suggestedWorkingDirectory);
     const QString suggestedArtifactsDirectory = QDir(suggestedWorkingDirectory).filePath("artifacts");
     const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot, {
         workingDirEdit->text().trimmed(),
@@ -1496,7 +1954,8 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedTemplateDirectory = DetectTemplateDirectory(rootCandidates, suggestedWorkingDirectory);
     const QString suggestedGeneratedScriptPath = QDir(suggestedWorkingDirectory).filePath("starter_generated.ohq");
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
-    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText());
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText(),
+                                                                  templateDirEdit->text().trimmed());
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
@@ -1506,33 +1965,37 @@ void ModelCreatorWindow::applySuggestedDefaults()
         QDir(suggestedWorkingDirectory).filePath("examples/r_bioswale.ohq")
     });
 
-    auto applyIfEmpty = [](QLineEdit *edit, const QString &value) {
-        if (edit->text().trimmed().isEmpty() && !value.trimmed().isEmpty()) {
-            edit->setText(value);
-        }
-    };
-
-    applyIfEmpty(exePathEdit, suggestedExecutablePath);
+    ApplySuggestedFieldValue(exePathEdit, suggestedExecutablePath);
+    ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
     if (!suggestedExecutablePath.isEmpty()) {
         const QFileInfo currentExe(exePathEdit->text().trimmed());
         if (LooksLikeScriptFilePath(currentExe) || LooksLikeStaticLibraryPath(currentExe) || !currentExe.isExecutable()) {
             exePathEdit->setText(suggestedExecutablePath);
+            SetAutoSuggestedField(exePathEdit, true);
             appendLog(stamp(tr("Replaced invalid executable path with suggested OHQ binary: %1")
                             .arg(suggestedExecutablePath)));
         }
     }
-    applyIfEmpty(scriptPathEdit, suggestedScriptPath);
-    applyIfEmpty(workingDirEdit, suggestedWorkingDirectory);
-    applyIfEmpty(artifactsDirEdit, suggestedArtifactsDirectory);
-    applyIfEmpty(templateDirEdit, suggestedTemplateDirectory);
-    applyIfEmpty(generatedScriptEdit, suggestedGeneratedScriptPath);
-    applyIfEmpty(inflowFileEdit, suggestedInflowPath);
-    applyIfEmpty(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
-    applyIfEmpty(simulationStartEdit, QStringLiteral("44435"));
-    applyIfEmpty(simulationEndEdit, QStringLiteral("44438"));
+    ApplySuggestedFieldValue(scriptPathEdit, suggestedScriptPath);
+    ApplySuggestedFieldValue(workingDirEdit, suggestedWorkingDirectory);
+    ApplySuggestedFieldValue(artifactsDirEdit, suggestedArtifactsDirectory);
+    ApplySuggestedFieldValue(templateDirEdit, suggestedTemplateDirectory);
+    ApplySuggestedFieldValue(generatedScriptEdit, suggestedGeneratedScriptPath);
+    const bool inflowUpdated = ApplySuggestedFieldValue(inflowFileEdit, suggestedInflowPath);
+    if (inflowUpdated
+        || (!suggestedInflowPath.trimmed().isEmpty()
+            && inflowFileEdit->text().trimmed().compare(suggestedInflowPath.trimmed(), Qt::CaseInsensitive) == 0)) {
+        inflowAutoSuggested = true;
+    }
+    ApplySuggestedFieldValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    if (!inflowFileEdit->text().trimmed().isEmpty()) {
+        suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed(), true);
+    }
+    ApplySuggestedFieldValue(simulationStartEdit, QStringLiteral("44435"));
+    ApplySuggestedFieldValue(simulationEndEdit, QStringLiteral("44438"));
 
     saveSettings();
-    appendLog(stamp(tr("Applied suggested defaults to empty setup fields.")));
+    appendLog(stamp(tr("Applied suggested defaults to empty or auto-suggested setup fields.")));
 }
 
 void ModelCreatorWindow::quickGenerateRunAndSave()
@@ -1572,6 +2035,7 @@ void ModelCreatorWindow::chooseGuiConfigTemplate()
                                                           tr("JSON files (*.json);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         guiConfigTemplateEdit->setText(fileName);
+        SetAutoSuggestedField(guiConfigTemplateEdit, false);
         saveSettings();
     }
 }
@@ -1584,13 +2048,15 @@ void ModelCreatorWindow::chooseInflowFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         inflowFileEdit->setText(fileName);
-        suggestSimulationWindowFromInflow(fileName);
+        SetAutoSuggestedField(inflowFileEdit, false);
+        inflowAutoSuggested = false;
+        suggestSimulationWindowFromInflow(fileName, true);
         saveSettings();
         refreshPlots();
     }
 }
 
-void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path)
+void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path, bool forceApply)
 {
     QString error;
     const QVector<QPointF> points = loadSeriesFromFile(path, &error);
@@ -1609,12 +2075,13 @@ void ModelCreatorWindow::suggestSimulationWindowFromInflow(const QString &path)
     const QString currentEnd = simulationEndEdit->text().trimmed();
     const bool usingDefaults = (currentStart.isEmpty() && currentEnd.isEmpty())
         || (currentStart == "44435" && currentEnd == "44438");
-    if (!usingDefaults) {
+    if (!forceApply && !usingDefaults && !simulationWindowAutoSuggested) {
         return;
     }
 
     simulationStartEdit->setText(QString::number(minX, 'g', 12));
     simulationEndEdit->setText(QString::number(maxX, 'g', 12));
+    simulationWindowAutoSuggested = true;
     appendLog(stamp(tr("Suggested simulation window from inflow file: start=%1, end=%2")
                     .arg(simulationStartEdit->text(), simulationEndEdit->text())));
 }
@@ -1627,6 +2094,7 @@ void ModelCreatorWindow::chooseObservationFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         observationFileEdit->setText(fileName);
+        SetAutoSuggestedField(observationFileEdit, false);
         saveSettings();
         refreshPlots();
     }
@@ -1640,6 +2108,7 @@ void ModelCreatorWindow::chooseDepthProfileFile()
                                                           tr("Data files (*.csv *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         depthProfileFileEdit->setText(fileName);
+        SetAutoSuggestedField(depthProfileFileEdit, false);
         saveSettings();
         refreshPlots();
     }
@@ -1648,11 +2117,12 @@ void ModelCreatorWindow::chooseDepthProfileFile()
 void ModelCreatorWindow::chooseVnBaseOhqFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN base OHQ script"),
+                                                          tr("Select base OHQ script"),
                                                           vnBaseOhqFileEdit->text(),
                                                           tr("OHQ/Text files (*.ohq *.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnBaseOhqFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnBaseOhqFileEdit, false);
         saveSettings();
     }
 }
@@ -1660,11 +2130,12 @@ void ModelCreatorWindow::chooseVnBaseOhqFile()
 void ModelCreatorWindow::chooseVnSoilLayersFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN soil layers snippet"),
+                                                          tr("Select soil layers snippet"),
                                                           vnSoilLayersFileEdit->text(),
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnSoilLayersFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnSoilLayersFileEdit, false);
         saveSettings();
     }
 }
@@ -1672,11 +2143,12 @@ void ModelCreatorWindow::chooseVnSoilLayersFile()
 void ModelCreatorWindow::chooseVnMoistureLayersFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN moisture layers snippet"),
+                                                          tr("Select moisture layers snippet"),
                                                           vnMoistureLayersFileEdit->text(),
                                                           tr("Supported files (*.ohq *.txt *.csv);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnMoistureLayersFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnMoistureLayersFileEdit, false);
         saveSettings();
     }
 }
@@ -1684,11 +2156,12 @@ void ModelCreatorWindow::chooseVnMoistureLayersFile()
 void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
 {
     const QString fileName = QFileDialog::getOpenFileName(this,
-                                                          tr("Select VN soft soil parameter profile CSV"),
+                                                          tr("Select soft soil parameter profile CSV"),
                                                           vnSoftSoilParameterFileEdit->text(),
                                                           tr("CSV files (*.csv);;Text files (*.txt);;All files (*.*)"));
     if (!fileName.isEmpty()) {
         vnSoftSoilParameterFileEdit->setText(fileName);
+        SetAutoSuggestedField(vnSoftSoilParameterFileEdit, false);
         saveSettings();
     }
 }
@@ -2135,7 +2608,23 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
     if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
-        QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template resources directory first."));
+        const QStringList rootCandidates = CandidateOpenHydroQualRoots(FindRepoRoot(), {
+            options.workingDirectory,
+            options.executablePath
+        });
+        const QString detectedTemplate = DetectTemplateDirectory(rootCandidates, options.workingDirectory);
+        if (!detectedTemplate.trimmed().isEmpty()) {
+            options.templateDirectory = detectedTemplate;
+            templateDirEdit->setText(detectedTemplate);
+            SetAutoSuggestedField(templateDirEdit, true);
+            appendLog(stamp(tr("Auto-detected template directory for generation: %1").arg(detectedTemplate)));
+            saveSettings();
+        }
+    }
+
+    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
+        QMessageBox::warning(this, tr("Missing template directory"),
+                             tr("Could not auto-detect an OHQ template directory for this machine/context."));
         return false;
     }
 
@@ -2146,10 +2635,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
     if (options.inflowFile.isEmpty()) {
         if (vnModel) {
-            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"));
+            options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"),
+                                                           options.templateDirectory);
             appendLog(stamp(tr("VN inflow was empty; using default inflow file: %1").arg(options.inflowFile)));
         } else {
-            options.inflowFile = DetectSuggestedInflowFile(options.modelType);
+            options.inflowFile = DetectSuggestedInflowFile(options.modelType,
+                                                           options.templateDirectory);
             appendLog(stamp(tr("%1 inflow was empty; using default inflow file: %2")
                                 .arg(options.modelType, options.inflowFile)));
         }
@@ -2279,25 +2770,35 @@ void ModelCreatorWindow::runScript()
             if (!allowGuiFallback) {
                 QMessageBox::warning(this,
                                      tr("GUI execution disabled"),
-                                     tr("No nearby OHQ CLI solver was found for:\n%1\n\n"
+                                     tr("No nearby OHQ CLI/internal solver executable was found for:\n%1\n\n"
                                         "GUI fallback is disabled.\n"
                                         "Please select an OHQ CLI/internal solver executable (recommended) "
                                         "or enable 'Allow OpenHydroQual GUI execution fallback'.")
                                         .arg(exeInfo.absoluteFilePath()));
-                appendLog(stamp(tr("Run cancelled: GUI executable selected and no CLI discovered. GUI fallback is disabled.")));
+                appendLog(stamp(tr("Run cancelled: GUI executable selected and no CLI/internal solver discovered. GUI fallback is disabled.")));
                 return;
             }
-            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; proceeding with GUI fallback because it is enabled.")
+            appendLog(stamp(tr("No nearby OHQ CLI/internal solver discovered for '%1'; proceeding with GUI fallback because it is enabled.")
                             .arg(exeInfo.absoluteFilePath())));
         }
     }
 
     const QString configuredArgsTemplate = exeArgsEdit->text().trimmed();
+    const QString normalizedConfiguredArgsTemplate =
+        configuredArgsTemplate.compare(QStringLiteral("script"), Qt::CaseInsensitive) == 0
+            ? QStringLiteral("{script}")
+            : configuredArgsTemplate;
     const QFileInfo executableToRunInfo(executablePathToRun);
     const bool executableLooksLikeCli = LooksLikeCliOhqBinaryName(executableToRunInfo.fileName());
     const bool executableLooksLikeGui = LooksLikeGuiOpenHydroQualExecutable(executableToRunInfo);
-    const bool templateReferencesScript = configuredArgsTemplate.contains(QStringLiteral("{script}"));
-    const bool noTemplateArgsProvided = configuredArgsTemplate.isEmpty();
+    const bool templateReferencesScript =
+        normalizedConfiguredArgsTemplate.contains(QStringLiteral("{script}"), Qt::CaseInsensitive)
+        || QRegularExpression(QStringLiteral("(^|\\s)script(\\s|$)"),
+                              QRegularExpression::CaseInsensitiveOption)
+               .match(normalizedConfiguredArgsTemplate)
+               .hasMatch();
+    const bool noTemplateArgsProvided = normalizedConfiguredArgsTemplate.isEmpty();
+    const bool legacyScriptOnlyTemplate = normalizedConfiguredArgsTemplate.compare(QStringLiteral("{script}"), Qt::CaseInsensitive) == 0;
     const bool passScriptAsPositionalDefault = noTemplateArgsProvided && executableLooksLikeCli;
     const bool passScriptWithRunFlagDefault = noTemplateArgsProvided && executableLooksLikeGui;
     const bool scriptRequired = templateReferencesScript || passScriptAsPositionalDefault || passScriptWithRunFlagDefault;
@@ -2385,8 +2886,12 @@ void ModelCreatorWindow::runScript()
     } else if (noTemplateArgsProvided) {
         executableArgs.clear();
     } else {
-        executableArgs = BuildExecutableArguments(configuredArgsTemplate,
+        executableArgs = BuildExecutableArguments(normalizedConfiguredArgsTemplate,
                                                   scriptInfo.absoluteFilePath());
+        if (executableLooksLikeGui && legacyScriptOnlyTemplate) {
+            executableArgs << QStringLiteral("--run");
+            appendLog(stamp(tr("Normalized legacy executable args 'script' to '{script} --run' for OpenHydroQual GUI.")));
+        }
     }
 
     auto appendFlagIfPresent = [&executableArgs](const QString &flag, const QString &value) {
@@ -3301,7 +3806,8 @@ void ModelCreatorWindow::loadSettings()
         return value.isEmpty() ? fallback : value;
     };
     const QString repoRoot = FindRepoRoot();
-    const QString defaultWorkingDirectory = repoRoot;
+    const QString defaultWorkingDirectory = QDir(repoRoot).filePath("Models");
+    QDir().mkpath(defaultWorkingDirectory);
     const QString defaultArtifactsDirectory = QDir(defaultWorkingDirectory).filePath("artifacts");
     const QStringList rootCandidates = CandidateOpenHydroQualRoots(repoRoot);
     const QString defaultTemplateDirectory = DetectTemplateDirectory(rootCandidates, defaultWorkingDirectory);
@@ -3323,7 +3829,7 @@ void ModelCreatorWindow::loadSettings()
     const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
-    exeArgsEdit->setText(settings.value("ohqExecutableArgs").toString());
+    exeArgsEdit->setText(settings.value("ohqExecutableArgs", QStringLiteral("{script}")).toString());
     guiConfigTemplateEdit->setText(settings.value("guiConfigTemplate").toString());
     scriptPathEdit->setText(settings.value("ohqScript", defaultScriptPath).toString());
     workingDirEdit->setText(settings.value("workingDirectory", defaultWorkingDirectory).toString());
@@ -3341,7 +3847,7 @@ void ModelCreatorWindow::loadSettings()
     outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
-    vnBaseOhqFileEdit->setText(settings.value("vnBaseOhqFile").toString());
+    vnBaseOhqFileEdit->clear();
     vnSoilLayersFileEdit->setText(settings.value("vnSoilLayersFile").toString());
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     if (vnBuildModeCombo) {
@@ -3411,6 +3917,34 @@ void ModelCreatorWindow::loadSettings()
     observationExpressionEdit->setText(settings.value("observationExpression", "theta").toString());
     observationNameEdit->setText(settings.value("observationName", "Obs_1").toString());
     additionalCommandsEdit->setPlainText(settings.value("additionalCommands").toString());
+
+    const QString modelType = modelTypeCombo->currentText().trimmed();
+    const QString templateDirectory = templateDirEdit->text().trimmed();
+    const QString suggestedInflowPath = DetectSuggestedInflowFile(modelType, templateDirectory);
+    const auto markAutoSuggestedFromValue = [](QLineEdit *edit, const QString &suggested) {
+        const QString current = edit->text().trimmed();
+        const bool isAuto = !current.isEmpty()
+            && !suggested.trimmed().isEmpty()
+            && current.compare(suggested.trimmed(), Qt::CaseInsensitive) == 0;
+        SetAutoSuggestedField(edit, isAuto);
+    };
+    markAutoSuggestedFromValue(exePathEdit, defaultExecutablePath);
+    markAutoSuggestedFromValue(exeArgsEdit, QStringLiteral("{script}"));
+    markAutoSuggestedFromValue(scriptPathEdit, defaultScriptPath);
+    markAutoSuggestedFromValue(workingDirEdit, defaultWorkingDirectory);
+    markAutoSuggestedFromValue(artifactsDirEdit, defaultArtifactsDirectory);
+    markAutoSuggestedFromValue(templateDirEdit, defaultTemplateDirectory.isEmpty()
+                                                   ? QDir(defaultWorkingDirectory).filePath("templates")
+                                                   : defaultTemplateDirectory);
+    markAutoSuggestedFromValue(generatedScriptEdit, defaultGeneratedScriptPath);
+    markAutoSuggestedFromValue(inflowFileEdit, suggestedInflowPath);
+    markAutoSuggestedFromValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    inflowAutoSuggested = IsAutoSuggestedField(inflowFileEdit);
+
+    const QString currentStart = simulationStartEdit->text().trimmed();
+    const QString currentEnd = simulationEndEdit->text().trimmed();
+    simulationWindowAutoSuggested = (currentStart == QStringLiteral("44435") && currentEnd == QStringLiteral("44438"));
+    lastSelectedModelType = modelTypeCombo->currentText().trimmed();
 }
 
 void ModelCreatorWindow::saveSettings() const
@@ -3436,7 +3970,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("outputSeriesFile", outputSeriesFileEdit->text());
     settings.setValue("observationFile", observationFileEdit->text());
     settings.setValue("depthProfileFile", depthProfileFileEdit->text());
-    settings.setValue("vnBaseOhqFile", vnBaseOhqFileEdit->text());
+    settings.setValue("vnBaseOhqFile", QString());
     settings.setValue("vnSoilLayersFile", vnSoilLayersFileEdit->text());
     settings.setValue("vnMoistureLayersFile", vnMoistureLayersFileEdit->text());
     if (vnBuildModeCombo) {
