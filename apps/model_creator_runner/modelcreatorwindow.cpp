@@ -814,6 +814,11 @@ QStringList BuildExecutableArguments(const QString &argumentTemplate, const QStr
 
     QStringList args = QProcess::splitCommand(argumentTemplate);
     for (QString &arg : args) {
+        if (arg.compare(QStringLiteral("script"), Qt::CaseInsensitive) == 0
+            || arg.compare(QStringLiteral("%script%"), Qt::CaseInsensitive) == 0
+            || arg.compare(QStringLiteral("$script"), Qt::CaseInsensitive) == 0) {
+            arg = QStringLiteral("{script}");
+        }
         if (arg.contains(QStringLiteral("{script}"))) {
             arg.replace(QStringLiteral("{script}"), scriptPath);
         }
@@ -1527,7 +1532,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                     "Try one of the following:\n"
                                     "1) Select an OHQ CLI solver binary if available.\n"
                                     "2) Provide explicit executable args required by your OpenHydroQual build.\n"
-                                    "3) Use your server/worker runner flow (e.g., HQ_DrywellDT) for this build.\n"
+                                    "3) Use an external runner flow aligned with one of this repo's structures "
+                                    "(HQ_Drywell, R_Bioswale, or VN_Drywell).\n"
                                     "4) Or select a custom internal solver executable (System/Solve main) and leave args empty."));
             appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
             return;
@@ -2622,11 +2628,21 @@ void ModelCreatorWindow::runScript()
     }
 
     const QString configuredArgsTemplate = exeArgsEdit->text().trimmed();
+    const QString normalizedConfiguredArgsTemplate =
+        configuredArgsTemplate.compare(QStringLiteral("script"), Qt::CaseInsensitive) == 0
+            ? QStringLiteral("{script}")
+            : configuredArgsTemplate;
     const QFileInfo executableToRunInfo(executablePathToRun);
     const bool executableLooksLikeCli = LooksLikeCliOhqBinaryName(executableToRunInfo.fileName());
     const bool executableLooksLikeGui = LooksLikeGuiOpenHydroQualExecutable(executableToRunInfo);
-    const bool templateReferencesScript = configuredArgsTemplate.contains(QStringLiteral("{script}"));
-    const bool noTemplateArgsProvided = configuredArgsTemplate.isEmpty();
+    const bool templateReferencesScript =
+        normalizedConfiguredArgsTemplate.contains(QStringLiteral("{script}"), Qt::CaseInsensitive)
+        || QRegularExpression(QStringLiteral("(^|\\s)script(\\s|$)"),
+                              QRegularExpression::CaseInsensitiveOption)
+               .match(normalizedConfiguredArgsTemplate)
+               .hasMatch();
+    const bool noTemplateArgsProvided = normalizedConfiguredArgsTemplate.isEmpty();
+    const bool legacyScriptOnlyTemplate = normalizedConfiguredArgsTemplate.compare(QStringLiteral("{script}"), Qt::CaseInsensitive) == 0;
     const bool passScriptAsPositionalDefault = noTemplateArgsProvided && executableLooksLikeCli;
     const bool passScriptWithRunFlagDefault = noTemplateArgsProvided && executableLooksLikeGui;
     const bool scriptRequired = templateReferencesScript || passScriptAsPositionalDefault || passScriptWithRunFlagDefault;
@@ -2714,8 +2730,12 @@ void ModelCreatorWindow::runScript()
     } else if (noTemplateArgsProvided) {
         executableArgs.clear();
     } else {
-        executableArgs = BuildExecutableArguments(configuredArgsTemplate,
+        executableArgs = BuildExecutableArguments(normalizedConfiguredArgsTemplate,
                                                   scriptInfo.absoluteFilePath());
+        if (executableLooksLikeGui && legacyScriptOnlyTemplate) {
+            executableArgs << QStringLiteral("--run");
+            appendLog(stamp(tr("Normalized legacy executable args 'script' to '{script} --run' for OpenHydroQual GUI.")));
+        }
     }
 
     auto appendFlagIfPresent = [&executableArgs](const QString &flag, const QString &value) {
