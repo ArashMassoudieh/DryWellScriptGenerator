@@ -657,6 +657,22 @@ bool LooksLikeCliOhqBinaryName(const QString &fileName)
         || fileName.startsWith(QStringLiteral("OHQ_"), Qt::CaseInsensitive);
 }
 
+bool LooksLikeInternalSolverBinaryName(const QString &fileName)
+{
+    const QString base = QFileInfo(fileName).completeBaseName().trimmed();
+    if (base.isEmpty()) {
+        return false;
+    }
+    if (base.compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+        return false;
+    }
+    return base.contains(QStringLiteral("solver"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("solve"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("internal"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("ohq"), Qt::CaseInsensitive)
+        || base.contains(QStringLiteral("hydroqual"), Qt::CaseInsensitive);
+}
+
 QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
 {
     // Heuristic search anchored around the selected GUI binary path.
@@ -690,6 +706,28 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         return nearby;
     }
 
+    // Search near GUI roots for custom internal solver executables.
+    // This catches non-standard names in local build trees.
+    for (const QString &root : roots) {
+        QDirIterator it(root,
+                        QDir::Files | QDir::NoSymLinks,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            const QFileInfo fileInfo = it.fileInfo();
+            if (!fileInfo.isExecutable()) {
+                continue;
+            }
+            if (IsGuiExecutableOrAlias(fileInfo)) {
+                continue;
+            }
+            if (LooksLikeCliOhqBinaryName(fileInfo.fileName())
+                || LooksLikeInternalSolverBinaryName(fileInfo.fileName())) {
+                return fileInfo.absoluteFilePath();
+            }
+        }
+    }
+
     const QStringList fallbackRoots = {
         // Environment-specific fallback roots used in this project.
         QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
@@ -706,7 +744,14 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         while (it.hasNext()) {
             it.next();
             const QFileInfo fileInfo = it.fileInfo();
-            if (LooksLikeCliOhqBinaryName(fileInfo.fileName()) && fileInfo.isExecutable()) {
+            if (!fileInfo.isExecutable()) {
+                continue;
+            }
+            if (IsGuiExecutableOrAlias(fileInfo)) {
+                continue;
+            }
+            if (LooksLikeCliOhqBinaryName(fileInfo.fileName())
+                || LooksLikeInternalSolverBinaryName(fileInfo.fileName())) {
                 return fileInfo.absoluteFilePath();
             }
         }
@@ -746,7 +791,14 @@ QString FindCliExecutableUnderRoot(const QString &rootPath)
     while (it.hasNext()) {
         it.next();
         const QFileInfo info = it.fileInfo();
-        if (LooksLikeCliOhqBinaryName(info.fileName()) && info.isExecutable()) {
+        if (!info.isExecutable()) {
+            continue;
+        }
+        if (IsGuiExecutableOrAlias(info)) {
+            continue;
+        }
+        if (LooksLikeCliOhqBinaryName(info.fileName())
+            || LooksLikeInternalSolverBinaryName(info.fileName())) {
             return info.absoluteFilePath();
         }
     }
@@ -2556,15 +2608,15 @@ void ModelCreatorWindow::runScript()
             if (!allowGuiFallback) {
                 QMessageBox::warning(this,
                                      tr("GUI execution disabled"),
-                                     tr("No nearby OHQ CLI solver was found for:\n%1\n\n"
+                                     tr("No nearby OHQ CLI/internal solver executable was found for:\n%1\n\n"
                                         "GUI fallback is disabled.\n"
                                         "Please select an OHQ CLI/internal solver executable (recommended) "
                                         "or enable 'Allow OpenHydroQual GUI execution fallback'.")
                                         .arg(exeInfo.absoluteFilePath()));
-                appendLog(stamp(tr("Run cancelled: GUI executable selected and no CLI discovered. GUI fallback is disabled.")));
+                appendLog(stamp(tr("Run cancelled: GUI executable selected and no CLI/internal solver discovered. GUI fallback is disabled.")));
                 return;
             }
-            appendLog(stamp(tr("No nearby OHQ CLI discovered for '%1'; proceeding with GUI fallback because it is enabled.")
+            appendLog(stamp(tr("No nearby OHQ CLI/internal solver discovered for '%1'; proceeding with GUI fallback because it is enabled.")
                             .arg(exeInfo.absoluteFilePath())));
         }
     }
