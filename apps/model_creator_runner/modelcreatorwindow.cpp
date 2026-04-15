@@ -1532,7 +1532,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                                     "Try one of the following:\n"
                                     "1) Select an OHQ CLI solver binary if available.\n"
                                     "2) Provide explicit executable args required by your OpenHydroQual build.\n"
-                                    "3) Use your server/worker runner flow (e.g., HQ_DrywellDT) for this build.\n"
+                                    "3) Use an external runner flow aligned with one of this repo's structures "
+                                    "(HQ_Drywell, R_Bioswale, or VN_Drywell).\n"
                                     "4) Or select a custom internal solver executable (System/Solve main) and leave args empty."));
             appendLog(stamp(tr("Run ended without simulation: OpenHydroQual parse-configuration error persisted after fallback retries.")));
             return;
