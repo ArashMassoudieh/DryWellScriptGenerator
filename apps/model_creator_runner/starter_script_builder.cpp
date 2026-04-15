@@ -219,19 +219,151 @@ QString DefaultVnInflowFile()
     return QStringLiteral("Synthetic_rain_flow.csv");
 }
 
-QString DefaultVnFullReferenceInflowFile()
+QString EmbeddedFullReferenceScriptForModel(const QString &modelType)
 {
-    return QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return HqDrywellBuilder::FullReferenceScript();
+    }
+    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return RBioswaleBuilder::FullReferenceScript();
+    }
+    return VnDrywellBuilder::VnFullReferenceScript();
 }
 
-QString DefaultHqInflowFile()
+QString EmbeddedInflowTargetForModel(const QString &modelType)
 {
-    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
+    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return HqDrywellBuilder::InflowTargetObject();
+    }
+    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return RBioswaleBuilder::InflowTargetObject();
+    }
+    return VnDrywellBuilder::InflowTargetObject();
 }
 
-QString DefaultRBioswaleInflowFile()
+QString ExtractEmbeddedReferenceInflowForModel(const QString &modelType)
 {
-    return QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+    const QString embedded = EmbeddedFullReferenceScriptForModel(modelType);
+    const QString target = EmbeddedInflowTargetForModel(modelType);
+    if (embedded.trimmed().isEmpty() || target.trimmed().isEmpty()) {
+        return QString();
+    }
+    const QStringList lines = embedded.split('\n', Qt::SkipEmptyParts);
+    for (const QString &rawLine : lines) {
+        const QString line = rawLine.trimmed();
+        if (line.contains(QStringLiteral("quantity=inflow"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("object=%1").arg(target), Qt::CaseInsensitive)) {
+            const QString value = ExtractCommandValue(line, QStringLiteral("value"));
+            if (!value.trimmed().isEmpty()) {
+                return value.trimmed();
+            }
+        }
+        if (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("name=%1").arg(target), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("inflow="), Qt::CaseInsensitive)) {
+            const QString value = ExtractCommandValue(line, QStringLiteral("inflow"));
+            if (!value.trimmed().isEmpty()) {
+                return value.trimmed();
+            }
+        }
+    }
+    return QString();
+}
+
+QStringList CandidateProjectRootsFromTemplateDirectory(const QString &templateDirectory)
+{
+    QStringList roots {
+        QStringLiteral("/mnt/3rd900/Projects"),
+        QStringLiteral("/home/arash/Projects"),
+        QStringLiteral("/home/hoomanmoradpour/Projects"),
+        QStringLiteral("/media/arash/E/Projects")
+    };
+    const QFileInfo templateInfo(templateDirectory);
+    if (templateInfo.exists()) {
+        QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
+                                        : templateInfo.absoluteDir();
+        // Typical template dir: <Projects>/OpenHydroQual/resources
+        if (dir.dirName().compare(QStringLiteral("resources"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+        }
+        if (dir.dirName().compare(QStringLiteral("OpenHydroQual"), Qt::CaseInsensitive) == 0) {
+            dir.cdUp();
+            const QString inferredRoot = dir.absolutePath();
+            if (!inferredRoot.trimmed().isEmpty()) {
+                roots.prepend(inferredRoot);
+            }
+        }
+    }
+    roots.removeDuplicates();
+    return roots;
+}
+
+QString DetectStructureDefaultInflowFile(const QString &modelType,
+                                         const QString &templateDirectory)
+{
+    const QString normalizedModel = modelType.trimmed();
+    const QString embeddedDefault = ExtractEmbeddedReferenceInflowForModel(normalizedModel);
+    if (!embeddedDefault.trimmed().isEmpty()) {
+        return embeddedDefault.trimmed();
+    }
+    QStringList candidates;
+    const QStringList projectRoots = CandidateProjectRootsFromTemplateDirectory(templateDirectory);
+    if (normalizedModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
+    } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+    } else {
+        for (const QString &root : projectRoots) {
+            candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
+        }
+        candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
+    }
+    for (const QString &candidate : candidates) {
+        if (QFileInfo::exists(candidate)) {
+            return candidate;
+        }
+    }
+    return candidates.isEmpty() ? QString() : candidates.front();
+}
+
+bool IsKnownReferenceInflowForOtherModel(const QString &inflowPath, const QString &targetModel)
+{
+    const QString p = inflowPath.trimmed();
+    if (p.isEmpty()) {
+        return false;
+    }
+    const QString vnRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("VN_Drywell"));
+    const QString hqRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("HQ_Drywell"));
+    const QString rRef = ExtractEmbeddedReferenceInflowForModel(QStringLiteral("R_Bioswale"));
+    const QString pName = QFileInfo(p).fileName();
+    const QString vnName = vnRef.isEmpty() ? QStringLiteral("LA_Precipitaion (5 yr new).csv") : QFileInfo(vnRef).fileName();
+    const QString vnLegacyName = QStringLiteral("Synthetic_rain_flow.csv");
+    const QString hqName = hqRef.isEmpty() ? QStringLiteral("Inflow_Corrected_New_Khiem.csv") : QFileInfo(hqRef).fileName();
+    const QString rName = rRef.isEmpty() ? QStringLiteral("Inflow_Rosemead_August.txt") : QFileInfo(rRef).fileName();
+    const bool isVnRef = (!vnRef.isEmpty() && p.compare(vnRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(vnName, Qt::CaseInsensitive) == 0
+        || pName.compare(vnLegacyName, Qt::CaseInsensitive) == 0;
+    const bool isHqRef = (!hqRef.isEmpty() && p.compare(hqRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(hqName, Qt::CaseInsensitive) == 0;
+    const bool isRRef = (!rRef.isEmpty() && p.compare(rRef, Qt::CaseInsensitive) == 0)
+        || pName.compare(rName, Qt::CaseInsensitive) == 0;
+
+    if (targetModel.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isHqRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isRRef;
+    }
+    if (targetModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        return isVnRef || isHqRef;
+    }
+    return false;
 }
 
 QString NormalizeVnBuildMode(const QString &mode)
@@ -256,7 +388,7 @@ QString NormalizeStructureBuildMode(const QString &mode)
 {
     const QString m = mode.trimmed();
     if (m.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("Preset");
+        return QStringLiteral("SoftReference");
     }
     if (m.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("FullReference");
@@ -425,6 +557,99 @@ bool IsSoftReferenceGridLine(const QString &line)
         || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
 }
 
+bool IsHqSoftReferenceSoilLine(const QString &line)
+{
+    return line.contains(QStringLiteral("name=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("name=Soil("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("name=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("name=SoilDeep("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=Soil("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=Soil("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("from=SoilDeep("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("to=SoilDeep("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=Soil ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=Soil("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=SoilDeep ("), Qt::CaseInsensitive)
+        || line.contains(QStringLiteral("object=SoilDeep("), Qt::CaseInsensitive);
+}
+
+bool IsRBioswaleSoftReferenceSoilLine(const QString &line)
+{
+    const QStringList tokens {
+        QStringLiteral("EngineeredSoil ("),
+        QStringLiteral("EngineeredSoil("),
+        QStringLiteral("UEngineered ("),
+        QStringLiteral("UEngineered("),
+        QStringLiteral("LeftTop ("),
+        QStringLiteral("LeftTop("),
+        QStringLiteral("RightTop ("),
+        QStringLiteral("RightTop("),
+        QStringLiteral("LeftBottom ("),
+        QStringLiteral("LeftBottom("),
+        QStringLiteral("RightBottom ("),
+        QStringLiteral("RightBottom(")
+    };
+    for (const QString &token : tokens) {
+        if (line.contains(token, Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void AppendEmbeddedStructureSoftReferenceScaffold(const QString &embeddedScript,
+                                                  const QString &inflowObject,
+                                                  const std::function<bool(const QString &)> &isSoilLine,
+                                                  QString *scriptText)
+{
+    if (scriptText == nullptr) {
+        return;
+    }
+
+    const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+            || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=numthreads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("quantity=number_of_threads"), Qt::CaseInsensitive)
+            || trimmed.contains(QStringLiteral("setvalue; object=%1, quantity=inflow").arg(inflowObject), Qt::CaseInsensitive)
+            || isSoilLine(trimmed)) {
+            continue;
+        }
+        *scriptText += line + '\n';
+    }
+
+    if (!scriptText->endsWith('\n')) {
+        *scriptText += '\n';
+    }
+}
+
+void AppendEmbeddedStructureSoftReferenceSoils(const QString &embeddedScript,
+                                               const std::function<bool(const QString &)> &isSoilLine,
+                                               const std::function<QString(const QString &)> &lineTransformer,
+                                               QTextStream *ts)
+{
+    if (ts == nullptr) {
+        return;
+    }
+    const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || !isSoilLine(trimmed)) {
+            continue;
+        }
+        *ts << (lineTransformer ? lineTransformer(line) : line) << '\n';
+    }
+}
+
 struct VnSoftSoilProps
 {
     double ksat = 1.05196;
@@ -454,6 +679,60 @@ QString ExtractCommandValue(const QString &line, const QString &key)
         end = line.size();
     }
     return line.mid(valueStart, end - valueStart).trimmed();
+}
+
+QString ReplaceCommandValue(QString line, const QString &key, const QString &value)
+{
+    const QString token = key + QStringLiteral("=");
+    int start = line.indexOf(token, 0, Qt::CaseInsensitive);
+    while (start >= 0) {
+        const bool validPrefix = (start == 0)
+            || line.at(start - 1) == QChar(',')
+            || line.at(start - 1) == QChar(';');
+        if (validPrefix) {
+            const int valueStart = start + token.size();
+            int end = line.indexOf(',', valueStart);
+            if (end < 0) {
+                end = line.size();
+            }
+            line.replace(valueStart, end - valueStart, value);
+            return line;
+        }
+        start = line.indexOf(token, start + token.size(), Qt::CaseInsensitive);
+    }
+    return line;
+}
+
+VnSoftSoilProps ResolveSoftReferenceSoilOverrides(const StarterScriptOptions &options,
+                                                  const VnSoftSoilProps &referenceDefaults,
+                                                  bool allowModelCreatorDefaults = true)
+{
+    const QString mode = NormalizeVnSoftSoilParamMode(options.vnSoftSoilParamMode);
+    if (mode == QStringLiteral("Manual")) {
+        return VnSoftSoilProps {
+            options.vnSoftSoilKsatOriginal,
+            options.vnSoftSoilAlpha,
+            options.vnSoftSoilN,
+            options.vnSoftSoilThetaSat,
+            options.vnSoftSoilThetaRes
+        };
+    }
+    if (allowModelCreatorDefaults && mode == QStringLiteral("ModelCreatorDefaults")) {
+        return VnSoftSoilProps { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
+    }
+    return referenceDefaults;
+}
+
+QString ApplySoilOverridesToLine(const QString &line,
+                                 const VnSoftSoilProps &props)
+{
+    QString updated = line;
+    updated = ReplaceCommandValue(updated, QStringLiteral("theta_sat"), QString::number(props.thetaSat, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("theta_res"), QString::number(props.thetaRes, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("n"), QString::number(props.n, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("K_sat_original"), QString::number(props.ksat, 'g', 12));
+    updated = ReplaceCommandValue(updated, QStringLiteral("alpha"), QString::number(props.alpha, 'g', 12));
+    return updated;
 }
 
 bool LoadVnReferenceProfileRows(QVector<VnSoftSoilProfileRow> *gRows,
@@ -1300,14 +1579,25 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     if (inflow.isEmpty()) {
         if (vnModelType) {
             inflow = (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))
-                         ? DefaultVnFullReferenceInflowFile()
+                         ? DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory)
                          : DefaultVnInflowFile();
         } else if (hqModelType && (hqMode == QStringLiteral("FullReference")
                                    || hqMode == QStringLiteral("SoftReference"))) {
-            inflow = DefaultHqInflowFile();
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("HQ_Drywell"), options.templateDirectory);
         } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
                                           || rBioswaleMode == QStringLiteral("SoftReference"))) {
-            inflow = DefaultRBioswaleInflowFile();
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
+        }
+    } else if ((vnModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("VN_Drywell")))
+               || (hqModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("HQ_Drywell")))
+               || (rBioswaleModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("R_Bioswale")))) {
+        // Guard against stale inflow defaults carried across model switches in UI state.
+        if (vnModelType && (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))) {
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory);
+        } else if (hqModelType && (hqMode == QStringLiteral("FullReference") || hqMode == QStringLiteral("SoftReference"))) {
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("HQ_Drywell"), options.templateDirectory);
+        } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference") || rBioswaleMode == QStringLiteral("SoftReference"))) {
+            inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
         }
     }
     const bool inflowRequired = vnModelType
@@ -1409,6 +1699,86 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
         if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
             out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (hqModelType && hqMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        const QString embedded = HqDrywellBuilder::FullReferenceScript();
+        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
+                                                     HqDrywellBuilder::InflowTargetObject(),
+                                                     IsHqSoftReferenceSoilLine,
+                                                     &out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
+        const VnSoftSoilProps hqReferenceDefaults { 1.0, 1.0, 1.41, 0.4, 0.05 };
+        const VnSoftSoilProps hqResolvedProps = ResolveSoftReferenceSoilOverrides(options, hqReferenceDefaults, false);
+        AppendEmbeddedStructureSoftReferenceSoils(
+            embedded,
+            IsHqSoftReferenceSoilLine,
+            [&](const QString &rawLine) -> QString {
+                const QString trimmed = rawLine.trimmed();
+                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+                    return ApplySoilOverridesToLine(rawLine, hqResolvedProps);
+                }
+                return rawLine;
+            },
+            &ts);
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference")) {
+        QString out;
+        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
+        const QString embedded = RBioswaleBuilder::FullReferenceScript();
+        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
+                                                     RBioswaleBuilder::InflowTargetObject(),
+                                                     IsRBioswaleSoftReferenceSoilLine,
+                                                     &out);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        QTextStream ts(&out);
+        ts.seek(out.size());
+        ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
+        const VnSoftSoilProps rReferenceDefaults { 0.25, 3.6, 1.56, 0.43, 0.078 };
+        const VnSoftSoilProps rResolvedProps = ResolveSoftReferenceSoilOverrides(options, rReferenceDefaults, false);
+        AppendEmbeddedStructureSoftReferenceSoils(
+            embedded,
+            IsRBioswaleSoftReferenceSoilLine,
+            [&](const QString &rawLine) -> QString {
+                const QString trimmed = rawLine.trimmed();
+                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+                    return ApplySoilOverridesToLine(rawLine, rResolvedProps);
+                }
+                return rawLine;
+            },
+            &ts);
+
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += "\n";
+            }
         }
         ApplyCommonScriptFixups(&out, inflow);
         *scriptText = out;
