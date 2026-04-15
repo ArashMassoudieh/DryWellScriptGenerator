@@ -225,6 +225,8 @@ private:
     QString pendingGuiRetryScript;
     QString pendingGuiRetryWorkingDirectory;
     QString pendingGuiRetryExecutable;
+    QString lastSelectedModelType;
+    bool solveProgressObserved = false;
     bool simulationWindowAutoSuggested = true;
     bool inflowAutoSuggested = true;
 };

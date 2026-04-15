@@ -944,6 +944,26 @@ bool HasSimulationProgressOutput(const QString &runOutput)
     return false;
 }
 
+QString FirstSimulationProgressMarker(const QString &runOutput)
+{
+    if (runOutput.trimmed().isEmpty()) {
+        return QString();
+    }
+    static const QStringList kProgressMarkers = {
+        QStringLiteral("Solving daily period"),
+        QStringLiteral("Running from time"),
+        QStringLiteral("Simulation complete"),
+        QStringLiteral("Writing output"),
+        QStringLiteral("Saved output")
+    };
+    for (const QString &marker : kProgressMarkers) {
+        if (runOutput.contains(marker, Qt::CaseInsensitive)) {
+            return marker;
+        }
+    }
+    return QString();
+}
+
 bool BuildDefaultGuiConfig(const QString &scriptPath,
                            const QString &workingDirectory,
                            QString *generatedConfigPath,
@@ -1468,13 +1488,18 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(modelTypeCombo, &QComboBox::currentTextChanged, this, [this](const QString &newModelType) {
+        const QString previousModelType = lastSelectedModelType.trimmed();
+        bool executableUpdated = false;
+        bool argsUpdated = false;
+        bool inflowUpdated = false;
+        bool simulationWindowUpdated = false;
         const QString suggestedExecutable = DetectExecutablePathFromContext(FindRepoRoot(),
                                                                             workingDirEdit->text().trimmed(),
                                                                             scriptPathEdit->text().trimmed(),
                                                                             templateDirEdit->text().trimmed(),
                                                                             exePathEdit->text().trimmed());
-        ApplySuggestedFieldValue(exePathEdit, suggestedExecutable);
-        ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
+        executableUpdated = ApplySuggestedFieldValue(exePathEdit, suggestedExecutable);
+        argsUpdated = ApplySuggestedFieldValue(exeArgsEdit, QStringLiteral("{script}"));
         const QString currentInflow = inflowFileEdit->text().trimmed();
         if (currentInflow.isEmpty() || inflowAutoSuggested || IsKnownReferenceInflowForOtherModelUi(currentInflow, newModelType)) {
             const QString suggested = DetectSuggestedInflowFile(newModelType, templateDirEdit->text().trimmed());
@@ -1482,9 +1507,23 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
                 inflowFileEdit->setText(suggested);
                 inflowAutoSuggested = true;
                 suggestSimulationWindowFromInflow(suggested, true);
+                simulationWindowUpdated = true;
+                inflowUpdated = true;
                 appendLog(stamp(tr("Updated inflow default for %1: %2").arg(newModelType, suggested)));
             }
         }
+        if (!previousModelType.isEmpty() && previousModelType.compare(newModelType, Qt::CaseInsensitive) != 0) {
+            QStringList updatedFields;
+            if (executableUpdated) updatedFields << tr("executable");
+            if (argsUpdated) updatedFields << tr("args");
+            if (inflowUpdated) updatedFields << tr("inflow");
+            if (simulationWindowUpdated) updatedFields << tr("simulation window");
+            appendLog(stamp(tr("Structure switched: %1 → %2. Auto-updated: %3.")
+                            .arg(previousModelType,
+                                 newModelType,
+                                 updatedFields.isEmpty() ? tr("none") : updatedFields.join(tr(", ")))));
+        }
+        lastSelectedModelType = newModelType;
     });
     connect(workflowModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
@@ -1569,6 +1608,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         runStartedAt = QDateTime::currentDateTime();
         currentRunOutput.clear();
         suppressedRuntimeNoiseLines = 0;
+        solveProgressObserved = false;
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -1584,6 +1624,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         const QString filtered = FilterRuntimeNoise(text, &suppressed);
         suppressedRuntimeNoiseLines += suppressed;
         currentRunOutput += filtered;
+        if (!solveProgressObserved && HasSimulationProgressOutput(currentRunOutput)) {
+            solveProgressObserved = true;
+            const QString marker = FirstSimulationProgressMarker(currentRunOutput);
+            appendLog(stamp(tr("Solve progress detected (%1).").arg(marker.isEmpty() ? tr("runtime marker") : marker)));
+        }
         if (!filtered.trimmed().isEmpty()) {
             appendLog(filtered);
         }
@@ -1630,6 +1675,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             return;
         } else {
             pendingGuiRetryArgs.clear();
+        }
+        if (solveProgressObserved && exitCode == 0) {
+            appendLog(stamp(tr("Solve phase completed; proceeding to plot/artifact refresh.")));
         }
         if (exitCode != 0) {
             if (currentRunOutput.contains("error while loading shared libraries", Qt::CaseInsensitive)) {
@@ -3879,6 +3927,7 @@ void ModelCreatorWindow::loadSettings()
     const QString currentStart = simulationStartEdit->text().trimmed();
     const QString currentEnd = simulationEndEdit->text().trimmed();
     simulationWindowAutoSuggested = (currentStart == QStringLiteral("44435") && currentEnd == QStringLiteral("44438"));
+    lastSelectedModelType = modelTypeCombo->currentText().trimmed();
 }
 
 void ModelCreatorWindow::saveSettings() const
