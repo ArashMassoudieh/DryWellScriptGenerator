@@ -1182,7 +1182,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     workingDirEdit->setPlaceholderText(tr("Suggested: <repo>/Models"));
     addFileRow(layout, tr("Artifacts directory"), artifactsDirEdit, tr("Browse"), [this]() { chooseArtifactsDirectory(); });
     artifactsDirEdit->setPlaceholderText(tr("Suggested: <working_dir>/artifacts"));
-    templateDirRowWidget = addFileRow(layout, tr("Template resources dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
+    templateDirRowWidget = addFileRow(layout, tr("Template dir"), templateDirEdit, tr("Browse"), [this]() { chooseTemplateDirectory(); });
     templateDirEdit->setPlaceholderText(tr("Suggested: auto-detected from OpenHydroQual roots"));
     generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
@@ -1260,7 +1260,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft Soil-g")));
+        row->addWidget(new QLabel(tr("Soil-g")));
         row->addWidget(new QLabel(tr("nr_g")));
         row->addWidget(vnSoftGridXEdit);
         row->addWidget(new QLabel(tr("nz_g")));
@@ -1277,7 +1277,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft Soil-uw")));
+        row->addWidget(new QLabel(tr("Soil-uw")));
         row->addWidget(new QLabel(tr("nr_uw")));
         row->addWidget(vnSoftUwGridXEdit);
         row->addWidget(new QLabel(tr("nz_uw")));
@@ -1297,7 +1297,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft radii [m]")));
+        row->addWidget(new QLabel(tr("Radii [m]")));
         row->addWidget(new QLabel(tr("rw_g")));
         row->addWidget(vnSoftRwGEdit);
         row->addWidget(new QLabel(tr("rw_uw")));
@@ -1312,7 +1312,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft depths [m]")));
+        row->addWidget(new QLabel(tr("Depths [m]")));
         row->addWidget(new QLabel(tr("well_c")));
         row->addWidget(vnSoftDepthWellCEdit);
         row->addWidget(new QLabel(tr("well_g")));
@@ -1327,7 +1327,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft z")));
+        row->addWidget(new QLabel(tr("z")));
         row->addWidget(new QLabel(tr("top[m]")));
         row->addWidget(vnSoftTopElevationEdit);
         row->addWidget(new QLabel(tr("dz[m]")));
@@ -1856,7 +1856,7 @@ void ModelCreatorWindow::chooseExecutable()
         if (!detectedTemplate.isEmpty()) {
             templateDirEdit->setText(detectedTemplate);
             SetAutoSuggestedField(templateDirEdit, true);
-            appendLog(stamp(tr("Auto-detected template resources directory: %1").arg(detectedTemplate)));
+            appendLog(stamp(tr("Auto-detected template directory: %1").arg(detectedTemplate)));
         }
     }
     saveSettings();
@@ -1899,7 +1899,7 @@ void ModelCreatorWindow::chooseWorkingDirectory()
             if (!detectedTemplate.isEmpty()) {
                 templateDirEdit->setText(detectedTemplate);
                 SetAutoSuggestedField(templateDirEdit, true);
-                appendLog(stamp(tr("Auto-detected template resources from selected working directory: %1")
+                appendLog(stamp(tr("Auto-detected template directory from selected working directory: %1")
                                 .arg(detectedTemplate)));
             }
         }
@@ -1919,7 +1919,7 @@ void ModelCreatorWindow::chooseArtifactsDirectory()
 
 void ModelCreatorWindow::chooseTemplateDirectory()
 {
-    const QString dir = QFileDialog::getExistingDirectory(this, tr("Select OHQ template resources directory"));
+    const QString dir = QFileDialog::getExistingDirectory(this, tr("Select OHQ template directory"));
     if (!dir.isEmpty()) {
         templateDirEdit->setText(dir);
         SetAutoSuggestedField(templateDirEdit, false);
@@ -2608,7 +2608,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
 
     if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
-        QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template resources directory first."));
+        QMessageBox::warning(this, tr("Missing template directory"), tr("Please select the OHQ template directory first."));
         return false;
     }
 
