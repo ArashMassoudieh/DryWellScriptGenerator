@@ -297,8 +297,65 @@ QString DetectTemplateDirectory(const QStringList &rootCandidates, const QString
 
 QString FindCliExecutableUnderRoot(const QString &rootPath);
 
+QString DetectLatestTerminalBuildExecutable(const QString &rootPath)
+{
+    const QDir root(rootPath);
+    if (!root.exists()) {
+        return QString();
+    }
+
+    const QDir terminalDir(root.filePath("terminal"));
+    if (!terminalDir.exists()) {
+        return QString();
+    }
+
+    QFileInfo newestMatch;
+    QDirIterator it(terminalDir.absolutePath(),
+                    QDir::Files | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QFileInfo info = it.fileInfo();
+        if (!info.isExecutable()) {
+            continue;
+        }
+        const QString fileName = info.fileName();
+        if (fileName.compare(QStringLiteral("OpenHydroQual-Console"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OpenHydroQual-Console.exe"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OHQ"), Qt::CaseInsensitive) != 0
+            && fileName.compare(QStringLiteral("OHQ.exe"), Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+        const QString absPath = info.absoluteFilePath();
+        if (!absPath.contains(QStringLiteral("/build"), Qt::CaseInsensitive)) {
+            continue;
+        }
+        if (!newestMatch.exists() || info.lastModified() > newestMatch.lastModified()) {
+            newestMatch = info;
+        }
+    }
+
+    return newestMatch.exists() ? newestMatch.absoluteFilePath() : QString();
+}
+
 QString DetectExecutablePath(const QStringList &rootCandidates)
 {
+    QFileInfo newestTerminalBuildExecutable;
+    for (const QString &rootPath : rootCandidates) {
+        const QString terminalCandidate = DetectLatestTerminalBuildExecutable(rootPath);
+        if (terminalCandidate.isEmpty()) {
+            continue;
+        }
+        const QFileInfo info(terminalCandidate);
+        if (!newestTerminalBuildExecutable.exists()
+            || info.lastModified() > newestTerminalBuildExecutable.lastModified()) {
+            newestTerminalBuildExecutable = info;
+        }
+    }
+    if (newestTerminalBuildExecutable.exists()) {
+        return newestTerminalBuildExecutable.absoluteFilePath();
+    }
+
     for (const QString &rootPath : rootCandidates) {
         const QString candidate = FindCliExecutableUnderRoot(rootPath);
         if (!candidate.isEmpty()) {
