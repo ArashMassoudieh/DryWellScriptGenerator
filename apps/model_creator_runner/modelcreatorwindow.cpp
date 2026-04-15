@@ -1214,7 +1214,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
     }
     outputSeriesRowWidget = addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
-    outputSeriesFileEdit->setPlaceholderText(tr("Suggested: OHQ_output.txt"));
+    outputSeriesFileEdit->setPlaceholderText(tr("Suggested: <working_dir>/OHQ_output.txt"));
     observationFileRowWidget = addFileRow(layout, tr("Observation file (optional)"), observationFileEdit, tr("Browse"), [this]() { chooseObservationFile(); });
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     depthProfileRowWidget = addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
@@ -1987,7 +1987,10 @@ void ModelCreatorWindow::applySuggestedDefaults()
             && inflowFileEdit->text().trimmed().compare(suggestedInflowPath.trimmed(), Qt::CaseInsensitive) == 0)) {
         inflowAutoSuggested = true;
     }
-    ApplySuggestedFieldValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    const QString suggestedOutputSeriesPath =
+        QDir(workingDirEdit->text().trimmed().isEmpty() ? suggestedWorkingDirectory : workingDirEdit->text().trimmed())
+            .filePath(QStringLiteral("OHQ_output.txt"));
+    ApplySuggestedFieldValue(outputSeriesFileEdit, suggestedOutputSeriesPath);
     if (!inflowFileEdit->text().trimmed().isEmpty()) {
         suggestSimulationWindowFromInflow(inflowFileEdit->text().trimmed(), true);
     }
@@ -2544,6 +2547,16 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.simulationStart = simulationStartEdit->text().trimmed();
     options.simulationEnd = simulationEndEdit->text().trimmed();
     options.outputSeriesFile = outputSeriesFileEdit->text().trimmed();
+    const QString workingDirectory = workingDirEdit->text().trimmed();
+    if (!options.outputSeriesFile.isEmpty()) {
+        const QFileInfo outputSeriesInfo(options.outputSeriesFile);
+        if (outputSeriesInfo.isRelative() && !workingDirectory.isEmpty()) {
+            options.outputSeriesFile = QDir(workingDirectory).filePath(options.outputSeriesFile);
+            outputSeriesFileEdit->setText(options.outputSeriesFile);
+            SetAutoSuggestedField(outputSeriesFileEdit, true);
+            appendLog(stamp(tr("Resolved output series path to working directory: %1").arg(options.outputSeriesFile)));
+        }
+    }
     options.observationFile = observationFileEdit->text().trimmed();
     options.observationObject = observationObjectEdit->text().trimmed();
     options.observationExpression = observationExpressionEdit->text().trimmed();
@@ -3845,7 +3858,8 @@ void ModelCreatorWindow::loadSettings()
     ksatScaleEdit->setText(settings.value("ksatScale").toString());
     ksatScaleGEdit->setText(settings.value("ksatScaleG").toString());
     ksatScaleUwEdit->setText(settings.value("ksatScaleUw").toString());
-    outputSeriesFileEdit->setText(settings.value("outputSeriesFile", "OHQ_output.txt").toString());
+    outputSeriesFileEdit->setText(settings.value("outputSeriesFile",
+                                                  QDir(defaultWorkingDirectory).filePath("OHQ_output.txt")).toString());
     observationFileEdit->setText(settings.value("observationFile").toString());
     depthProfileFileEdit->setText(settings.value("depthProfileFile").toString());
     vnBaseOhqFileEdit->clear();
@@ -3939,7 +3953,8 @@ void ModelCreatorWindow::loadSettings()
                                                    : defaultTemplateDirectory);
     markAutoSuggestedFromValue(generatedScriptEdit, defaultGeneratedScriptPath);
     markAutoSuggestedFromValue(inflowFileEdit, suggestedInflowPath);
-    markAutoSuggestedFromValue(outputSeriesFileEdit, QStringLiteral("OHQ_output.txt"));
+    markAutoSuggestedFromValue(outputSeriesFileEdit,
+                               QDir(defaultWorkingDirectory).filePath(QStringLiteral("OHQ_output.txt")));
     inflowAutoSuggested = IsAutoSuggestedField(inflowFileEdit);
 
     const QString currentStart = simulationStartEdit->text().trimmed();
