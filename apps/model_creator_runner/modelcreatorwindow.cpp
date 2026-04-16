@@ -1128,6 +1128,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftSoilThetaResEdit(new QLineEdit(this)),
       vnSoftSoilParamModeCombo(new QComboBox(this)),
       vnSoftSoilParameterFileEdit(new QLineEdit(this)),
+      vnInitThetaModeCombo(new QComboBox(this)),
+      vnFieldPointCountEdit(new QLineEdit(this)),
+      vnFieldSeedEdit(new QLineEdit(this)),
+      vnFieldDxEdit(new QLineEdit(this)),
+      vnFieldPdfModeCombo(new QComboBox(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -1259,6 +1264,45 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(ksatScaleUwEdit);
         row->addStretch(1);
         layout->addWidget(container);
+    }
+    setupCompactNumericEdit(vnFieldPointCountEdit, tr("200"));
+    setupCompactNumericEdit(vnFieldSeedEdit, tr("42"));
+    setupCompactNumericEdit(vnFieldDxEdit, tr("0.5"));
+    vnInitThetaModeCombo->addItem(tr("Default"), QStringLiteral("default"));
+    vnInitThetaModeCombo->addItem(tr("ERT-3 only"), QStringLiteral("ert3"));
+    vnInitThetaModeCombo->addItem(tr("ERT-5 only"), QStringLiteral("ert5"));
+    vnInitThetaModeCombo->addItem(tr("ERT IDW (r)"), QStringLiteral("idw"));
+    vnInitThetaModeCombo->addItem(tr("ERT radial average"), QStringLiteral("avg"));
+    vnInitThetaModeCombo->setToolTip(tr("VN-only option passed to ModelCreator-style executables via --init-theta. Other structures ignore this."));
+    vnFieldPdfModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
+    vnFieldPdfModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
+    vnFieldPdfModeCombo->setToolTip(tr("VN-only metadata for the intended FieldGenerator configuration. The current runner records this in generated scripts for traceability."));
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN init theta")));
+        row->addWidget(vnInitThetaModeCombo);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnInitThetaRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VN field generator")));
+        row->addWidget(new QLabel(tr("points")));
+        row->addWidget(vnFieldPointCountEdit);
+        row->addWidget(new QLabel(tr("seed")));
+        row->addWidget(vnFieldSeedEdit);
+        row->addWidget(new QLabel(tr("dx[m]")));
+        row->addWidget(vnFieldDxEdit);
+        row->addWidget(new QLabel(tr("pdf")));
+        row->addWidget(vnFieldPdfModeCombo);
+        row->addStretch(1);
+        layout->addWidget(container);
+        vnFieldGeneratorRowWidget = container;
     }
     outputSeriesRowWidget = addTextRow(layout, tr("Output series file"), outputSeriesFileEdit);
     outputSeriesFileEdit->setPlaceholderText(tr("Suggested: <working_dir>/OHQ_output.txt"));
@@ -1575,6 +1619,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(vnBuildModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
+    connect(vnInitThetaModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
+    connect(vnFieldPdfModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
@@ -1603,6 +1649,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(ksatScaleEdit);
     saveOnEdit(ksatScaleGEdit);
     saveOnEdit(ksatScaleUwEdit);
+    saveOnEdit(vnFieldPointCountEdit);
+    saveOnEdit(vnFieldSeedEdit);
+    saveOnEdit(vnFieldDxEdit);
     saveOnEdit(outputSeriesFileEdit);
     saveOnEdit(observationFileEdit);
     saveOnEdit(depthProfileFileEdit);
@@ -1865,6 +1914,8 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
+    if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
 
     if (observationFileRowWidget) observationFileRowWidget->setVisible(showOptional);
     if (depthProfileRowWidget) depthProfileRowWidget->setVisible(showOptional);
@@ -2479,6 +2530,23 @@ void ModelCreatorWindow::previewScript()
         options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
         options.vnSoftSoilParameterFile = vnSoftSoilParameterFileEdit->text().trimmed();
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+            QStringList vnMeta;
+            vnMeta << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString().trimmed())
+                   << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointCountEdit->text().trimmed())
+                   << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed())
+                   << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed())
+                   << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString().trimmed());
+            const QString vnMetaBlock = vnMeta.join(QStringLiteral("\n")).trimmed();
+            if (!vnMetaBlock.isEmpty()) {
+                QString extra = options.additionalCommands.trimmed();
+                if (!extra.isEmpty()) {
+                    extra += QStringLiteral("\n");
+                }
+                extra += vnMetaBlock + QStringLiteral("\n");
+                options.additionalCommands = extra;
+            }
+        }
+        if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedVnBuildMode = VnBuildModeFromPresetSelection(selectedPreset);
             if (!selectedVnBuildMode.isEmpty()) {
@@ -2648,6 +2716,23 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options.vnSoftSoilThetaRes);
     options.vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
     options.vnSoftSoilParameterFile = vnSoftSoilParameterFileEdit->text().trimmed();
+    if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        QStringList vnMeta;
+        vnMeta << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString().trimmed())
+               << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointCountEdit->text().trimmed())
+               << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed())
+               << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed())
+               << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString().trimmed());
+        const QString vnMetaBlock = vnMeta.join(QStringLiteral("\n")).trimmed();
+        if (!vnMetaBlock.isEmpty()) {
+            QString extra = options.additionalCommands.trimmed();
+            if (!extra.isEmpty()) {
+                extra += QStringLiteral("\n");
+            }
+            extra += vnMetaBlock + QStringLiteral("\n");
+            options.additionalCommands = extra;
+        }
+    }
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
         const QString selectedVnBuildMode = VnBuildModeFromPresetSelection(selectedPreset);
@@ -2982,6 +3067,9 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
+    if (modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        appendFlagIfPresent(QStringLiteral("--init-theta"), vnInitThetaModeCombo->currentData().toString());
+    }
     if (passScriptWithRunFlagDefault) {
         if (guiConfigTemplateEdit->text().trimmed().isEmpty()) {
             appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: <script> --run")));
@@ -3980,6 +4068,15 @@ void ModelCreatorWindow::loadSettings()
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
+    const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "default");
+    const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
+    vnInitThetaModeCombo->setCurrentIndex(vnInitThetaModeIndex >= 0 ? vnInitThetaModeIndex : 0);
+    vnFieldPointCountEdit->setText(settingTextOrDefault("vnFieldPointCount", "200"));
+    vnFieldSeedEdit->setText(settingTextOrDefault("vnFieldSeed", "42"));
+    vnFieldDxEdit->setText(settingTextOrDefault("vnFieldDx", "0.5"));
+    const QString vnFieldPdfMode = settingTextOrDefault("vnFieldPdfMode", "parametric");
+    const int vnFieldPdfModeIndex = vnFieldPdfModeCombo->findData(vnFieldPdfMode);
+    vnFieldPdfModeCombo->setCurrentIndex(vnFieldPdfModeIndex >= 0 ? vnFieldPdfModeIndex : 0);
     if (showOptionalFieldsCheck) {
         showOptionalFieldsCheck->setChecked(settings.value("showOptionalFields", false).toBool());
     }
@@ -4076,6 +4173,11 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilThetaRes", vnSoftSoilThetaResEdit->text());
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
+    settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
+    settings.setValue("vnFieldPointCount", vnFieldPointCountEdit->text());
+    settings.setValue("vnFieldSeed", vnFieldSeedEdit->text());
+    settings.setValue("vnFieldDx", vnFieldDxEdit->text());
+    settings.setValue("vnFieldPdfMode", vnFieldPdfModeCombo->currentData().toString());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
     }

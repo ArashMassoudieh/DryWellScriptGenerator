@@ -142,6 +142,11 @@ private:
     QLineEdit *vnSoftSoilThetaResEdit;
     QComboBox *vnSoftSoilParamModeCombo;
     QLineEdit *vnSoftSoilParameterFileEdit;
+    QComboBox *vnInitThetaModeCombo;
+    QLineEdit *vnFieldPointCountEdit;
+    QLineEdit *vnFieldSeedEdit;
+    QLineEdit *vnFieldDxEdit;
+    QComboBox *vnFieldPdfModeCombo;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
@@ -179,6 +184,8 @@ private:
     QWidget *vnSoftTopElevationRowWidget = nullptr;
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QWidget *vnSoftSoilParamsRowWidget = nullptr;
+    QWidget *vnInitThetaRowWidget = nullptr;
+    QWidget *vnFieldGeneratorRowWidget = nullptr;
     QTabWidget *tabs;
     QTextEdit *logView;
     SimpleLinePlotWidget *inflowPlot;
