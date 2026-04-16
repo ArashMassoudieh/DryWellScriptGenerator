@@ -91,10 +91,8 @@ void ApplyVnKsatScaleOverrides(QString *scriptText, const StarterScriptOptions &
     if (scriptText == nullptr) {
         return;
     }
-
-    const QString allScale = options.ksatScaleAll.trimmed();
-    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, allScale, QStringLiteral("2.5"));
-    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, allScale, QStringLiteral("35"));
+    const QString gScale = ResolveKsatScaleString(options.ksatScaleG, options.ksatScaleAll, QStringLiteral("2.5"));
+    const QString uwScale = ResolveKsatScaleString(options.ksatScaleUw, options.ksatScaleAll, QStringLiteral("35"));
     scriptText->replace(QStringLiteral("K_sat_scale_factor=2.5"),
                         QStringLiteral("K_sat_scale_factor=%1").arg(gScale));
     scriptText->replace(QStringLiteral("K_sat_scale_factor=35"),

@@ -143,7 +143,7 @@ private:
     QComboBox *vnSoftSoilParamModeCombo;
     QLineEdit *vnSoftSoilParameterFileEdit;
     QComboBox *vnInitThetaModeCombo;
-    QLineEdit *vnFieldPointCountEdit;
+    QLineEdit *vnFieldPointsEdit;
     QLineEdit *vnFieldSeedEdit;
     QLineEdit *vnFieldDxEdit;
     QComboBox *vnFieldPdfModeCombo;
