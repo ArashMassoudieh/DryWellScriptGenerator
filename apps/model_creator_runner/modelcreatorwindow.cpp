@@ -1078,6 +1078,49 @@ QString FilterRuntimeNoise(const QString &text, int *suppressedLineCount)
 
     return kept.join('\n');
 }
+
+bool IsPositiveDoubleText(const QString &text)
+{
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+    bool ok = false;
+    const double value = trimmed.toDouble(&ok);
+    return ok && std::isfinite(value) && value > 0.0;
+}
+
+bool IsNonNegativeIntegerText(const QString &text)
+{
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+    bool ok = false;
+    const int value = trimmed.toInt(&ok);
+    return ok && value >= 0;
+}
+
+bool IsPositiveIntegerText(const QString &text)
+{
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+    bool ok = false;
+    const int value = trimmed.toInt(&ok);
+    return ok && value > 0;
+}
+
+bool WriteJsonFile(const QString &path, const QJsonObject &object)
+{
+    QSaveFile out(path);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
+    out.write(QJsonDocument(object).toJson(QJsonDocument::Indented));
+    return out.commit();
+}
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -2624,6 +2667,30 @@ void ModelCreatorWindow::generateAndRunStarterScript()
 
 bool ModelCreatorWindow::generateStarterScriptInternal()
 {
+    const auto buildVnMetadataObject = [this](const QString &phase, const QString &scriptPath, const QString &workingDirectory) {
+        QJsonObject meta;
+        meta.insert(QStringLiteral("phase"), phase);
+        meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
+        meta.insert(QStringLiteral("build_mode"), vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed() : QString());
+        meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
+        meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
+        meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
+        meta.insert(QStringLiteral("script_path"), scriptPath);
+        meta.insert(QStringLiteral("working_directory"), workingDirectory);
+        meta.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
+        meta.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
+        meta.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
+        meta.insert(QStringLiteral("resultgrid_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        return meta;
+    };
+
     const bool loadExistingMode = workflowModeCombo->currentData().toString() == QStringLiteral("load");
     if (loadExistingMode) {
         QMessageBox::information(this,
@@ -2631,6 +2698,54 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
                                  tr("Workflow mode is set to 'Load/Edit existing .ohq'.\n\n"
                                     "Switch to 'Generate from scratch' to build a new starter script."));
         return false;
+    }
+
+    const bool vnGenerationContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    if (vnGenerationContext) {
+        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
+            appendLog(stamp(tr("Generation cancelled: VN field points must be a positive integer.")));
+            return false;
+        }
+        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
+            appendLog(stamp(tr("Generation cancelled: VN field seed must be a non-negative integer.")));
+            return false;
+        }
+        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
+            appendLog(stamp(tr("Generation cancelled: VN field dx must be a positive number.")));
+            return false;
+        }
+        if (!ksatScaleEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat all must be positive when provided."));
+            appendLog(stamp(tr("Generation cancelled: invalid Ksat all value.")));
+            return false;
+        }
+        if (!ksatScaleGEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleGEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat g must be positive when provided."));
+            appendLog(stamp(tr("Generation cancelled: invalid Ksat g value.")));
+            return false;
+        }
+        if (!ksatScaleUwEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleUwEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat uw must be positive when provided."));
+            appendLog(stamp(tr("Generation cancelled: invalid Ksat uw value.")));
+            return false;
+        }
+        const QString currentBuildMode = vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed() : QString();
+        if (currentBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
+            && vnBaseOhqFileEdit->text().trimmed().isEmpty()) {
+            QMessageBox::warning(this, tr("Missing VN base script"), tr("VN build mode is LoadFromOhq, but no VN base OHQ file is selected."));
+            appendLog(stamp(tr("Generation cancelled: VN build mode LoadFromOhq requires a base OHQ file.")));
+            return false;
+        }
+        const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+        if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+            && vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
+            QMessageBox::warning(this, tr("Missing VN soil parameter file"), tr("VN soft soil parameter mode is File, but no parameter file is selected."));
+            appendLog(stamp(tr("Generation cancelled: VN soil parameter File mode requires a parameter file.")));
+            return false;
+        }
     }
 
     StarterScriptOptions options;
@@ -2875,15 +2990,101 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     }
     saveSettings();
 
+    if (vnGenerationContext) {
+        const QString metadataDir = QFileInfo(options.outputFile).absolutePath().isEmpty()
+            ? workingDirEdit->text().trimmed()
+            : QFileInfo(options.outputFile).absolutePath();
+        if (!metadataDir.trimmed().isEmpty()) {
+            const QString metadataPath = QDir(metadataDir).filePath(QStringLiteral("vn_runner_metadata.json"));
+            const QJsonObject metadataObject = buildVnMetadataObject(QStringLiteral("generate"),
+                                                                    options.outputFile,
+                                                                    metadataDir);
+            if (WriteJsonFile(metadataPath, metadataObject)) {
+                appendLog(stamp(tr("Wrote VN sidecar metadata: %1").arg(metadataPath)));
+            } else {
+                appendLog(stamp(tr("Warning: failed to write VN sidecar metadata: %1").arg(metadataPath)));
+            }
+        }
+        appendLog(stamp(tr("VN field-generator settings are tracked as metadata/comments only in the current app workflow; no in-app FieldGenerator execution is performed.")));
+    }
+
     appendLog(stamp(tr("Generated %1 starter script: %2").arg(options.modelType, options.outputFile)));
     return true;
 }
 
 void ModelCreatorWindow::runScript()
 {
+    const auto buildVnRuntimeMetadataObject = [this](const QString &phase,
+                                                     const QString &scriptPath,
+                                                     const QString &workingDirectory,
+                                                     const QString &executablePath,
+                                                     const QStringList &args) {
+        QJsonObject meta;
+        meta.insert(QStringLiteral("phase"), phase);
+        meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
+        meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
+        meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
+        meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
+        meta.insert(QStringLiteral("script_path"), scriptPath);
+        meta.insert(QStringLiteral("working_directory"), workingDirectory);
+        meta.insert(QStringLiteral("executable_path"), executablePath);
+        meta.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
+        meta.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
+        meta.insert(QStringLiteral("resultgrid_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        QJsonArray argsArray;
+        for (const QString &arg : args) {
+            argsArray.append(arg);
+        }
+        meta.insert(QStringLiteral("executable_args"), argsArray);
+        return meta;
+    };
+
     if (runner->isRunning()) {
         QMessageBox::information(this, tr("Already running"), tr("A run is already in progress."));
         return;
+    }
+
+    const bool vnRunContext =
+        modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+
+    if (vnRunContext) {
+        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
+            appendLog(stamp(tr("Run cancelled: VN field points must be a positive integer.")));
+            return;
+        }
+        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
+            appendLog(stamp(tr("Run cancelled: VN field seed must be a non-negative integer.")));
+            return;
+        }
+        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
+            appendLog(stamp(tr("Run cancelled: VN field dx must be a positive number.")));
+            return;
+        }
+        if (!ksatScaleEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat all must be positive when provided."));
+            appendLog(stamp(tr("Run cancelled: invalid Ksat all value.")));
+            return;
+        }
+        if (!ksatScaleGEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleGEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat g must be positive when provided."));
+            appendLog(stamp(tr("Run cancelled: invalid Ksat g value.")));
+            return;
+        }
+        if (!ksatScaleUwEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(ksatScaleUwEdit->text())) {
+            QMessageBox::warning(this, tr("Invalid Ksat scale"), tr("Ksat uw must be positive when provided."));
+            appendLog(stamp(tr("Run cancelled: invalid Ksat uw value.")));
+            return;
+        }
     }
 
     const QString configuredExecutable = exePathEdit->text().trimmed();
@@ -3027,7 +3228,6 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
-    const bool vnRunContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
 
     if (vnRunContext) {
         auto validateOptionalPositiveKsat = [this](QLineEdit *edit, const QString &label) -> bool {
@@ -4332,22 +4532,85 @@ void ModelCreatorWindow::writeArtifactManifest(const QStringList &artifacts)
         return;
     }
 
+    const bool vnRunContext =
+        modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    const QString effectiveInitTheta = vnRunContext ? vnInitThetaModeCombo->currentData().toString() : QString();
+    const QString effectiveFieldPoints = vnRunContext ? (vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed()) : QString();
+    const QString effectiveFieldSeed = vnRunContext ? (vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed()) : QString();
+    const QString effectiveFieldDx = vnRunContext ? (vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed()) : QString();
+    const QString effectiveFieldPdf = vnRunContext ? vnFieldPdfModeCombo->currentData().toString() : QString();
+    const QString effectiveKsatAll = vnRunContext ? (ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed()) : QString();
+    const QString effectiveKsatG = vnRunContext ? (ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed()) : QString();
+    const QString effectiveKsatUw = vnRunContext ? (ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed()) : QString();
+
     QSaveFile manifest(QDir(targetDirPath).filePath("artifact_manifest.csv"));
     if (!manifest.open(QIODevice::WriteOnly | QIODevice::Text)) {
         return;
     }
 
     QTextStream ts(&manifest);
-    ts << "file_path,file_name,last_modified_utc\n";
+    ts << "file_path,file_name,last_modified_utc,model_type,vn_init_theta_mode,vn_field_points,vn_field_seed,vn_field_dx,vn_field_pdf_mode,ksat_all,ksat_g,ksat_uw\n";
     for (const QString &path : artifacts) {
         const QFileInfo fi(path);
-        ts << '"' << fi.absoluteFilePath().replace('"', "\"\"") << '"' << ','
-           << '"' << fi.fileName().replace('"', "\"\"") << '"' << ','
-           << fi.lastModified().toUTC().toString(Qt::ISODate) << "\n";
+
+        QString filePath = fi.absoluteFilePath();
+        filePath.replace('"', "\"\"");
+
+        QString fileName = fi.fileName();
+        fileName.replace('"', "\"\"");
+
+        QString modelType = modelTypeCombo->currentText().trimmed();
+        modelType.replace('"', "\"\"");
+
+        QString initTheta = effectiveInitTheta;
+        initTheta.replace('"', "\"\"");
+
+        QString fieldPoints = effectiveFieldPoints;
+        fieldPoints.replace('"', "\"\"");
+
+        QString fieldSeed = effectiveFieldSeed;
+        fieldSeed.replace('"', "\"\"");
+
+        QString fieldDx = effectiveFieldDx;
+        fieldDx.replace('"', "\"\"");
+
+        QString fieldPdf = effectiveFieldPdf;
+        fieldPdf.replace('"', "\"\"");
+
+        QString ksatAll = effectiveKsatAll;
+        ksatAll.replace('"', "\"\"");
+
+        QString ksatG = effectiveKsatG;
+        ksatG.replace('"', "\"\"");
+
+        QString ksatUw = effectiveKsatUw;
+        ksatUw.replace('"', "\"\"");
+
+        ts << '"' << filePath << '"' << ','
+           << '"' << fileName << '"' << ','
+           << fi.lastModified().toUTC().toString(Qt::ISODate) << ','
+           << '"' << modelType << '"' << ','
+           << '"' << initTheta << '"' << ','
+           << '"' << fieldPoints << '"' << ','
+           << '"' << fieldSeed << '"' << ','
+           << '"' << fieldDx << '"' << ','
+           << '"' << fieldPdf << '"' << ','
+           << '"' << ksatAll << '"' << ','
+           << '"' << ksatG << '"' << ','
+           << '"' << ksatUw << '"' << "\n";
     }
 
     if (manifest.commit()) {
         appendLog(stamp(tr("Wrote artifact manifest: %1").arg(QDir(targetDirPath).filePath("artifact_manifest.csv"))));
+    }
+
+    const QString workingMetadataPath = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_runner_metadata.json"));
+    if (vnRunContext && QFileInfo::exists(workingMetadataPath)) {
+        const QString copiedMetadataPath = QDir(targetDirPath).filePath(QStringLiteral("vn_runner_metadata.json"));
+        QFile::remove(copiedMetadataPath);
+        if (QFile::copy(workingMetadataPath, copiedMetadataPath)) {
+            appendLog(stamp(tr("Copied VN runtime metadata sidecar to artifacts: %1").arg(copiedMetadataPath)));
+        }
     }
 }
 
