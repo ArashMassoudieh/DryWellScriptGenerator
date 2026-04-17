@@ -1260,6 +1260,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnFieldPointsEdit(new QLineEdit(this)),
       vnFieldSeedEdit(new QLineEdit(this)),
       vnFieldDxEdit(new QLineEdit(this)),
+      vnFieldModeCombo(new QComboBox(this)),
       vnFieldPdfModeCombo(new QComboBox(this)),
       vnSoilProfileExportEdit(new QLineEdit(this)),
       vnDepthSliceExportEdit(new QLineEdit(this)),
@@ -1551,7 +1552,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
     }
-    vnInitThetaModeCombo->addItem(tr("Default"), QStringLiteral("Default"));
+    vnInitThetaModeCombo->addItem(tr("None / Default"), QStringLiteral("Default"));
     vnInitThetaModeCombo->addItem(tr("ERT-3 only"), QStringLiteral("ERT3_Only"));
     vnInitThetaModeCombo->addItem(tr("ERT-5 only"), QStringLiteral("ERT5_Only"));
     vnInitThetaModeCombo->addItem(tr("ERT IDW_R"), QStringLiteral("ERT_IDW_R"));
@@ -1561,6 +1562,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnFieldPointsEdit, tr("200"));
     setupCompactNumericEdit(vnFieldSeedEdit, tr("42"));
     setupCompactNumericEdit(vnFieldDxEdit, tr("0.5"));
+    vnFieldModeCombo->addItem(tr("None"), QStringLiteral("none"));
+    vnFieldModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
+    vnFieldModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
     vnFieldPdfModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
     vnFieldPdfModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
     vnFieldPdfModeCombo->setToolTip(tr("VN-only metadata/control for the separate FieldGenerator preprocessing workflow."));
@@ -1569,6 +1573,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(tr("VN field generator")));
+        row->addWidget(new QLabel(tr("mode")));
+        row->addWidget(vnFieldModeCombo);
         row->addWidget(new QLabel(tr("points")));
         row->addWidget(vnFieldPointsEdit);
         row->addWidget(new QLabel(tr("seed")));
@@ -1791,6 +1797,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(vnBuildModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
+    connect(vnInitThetaModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
+    connect(vnFieldModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
+    connect(vnFieldPdfModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
@@ -2083,6 +2092,11 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
+    const bool vnFieldGenEnabled = vnContext && currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
+    vnFieldPointsEdit->setEnabled(vnFieldGenEnabled);
+    vnFieldSeedEdit->setEnabled(vnFieldGenEnabled);
+    vnFieldDxEdit->setEnabled(vnFieldGenEnabled);
+    vnFieldPdfModeCombo->setEnabled(vnFieldGenEnabled);
     if (vnSoilToolRowWidget) vnSoilToolRowWidget->setVisible(vnContext);
     if (vnOutputToolRowWidget) vnOutputToolRowWidget->setVisible(vnContext);
 
@@ -2819,10 +2833,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
         meta.insert(QStringLiteral("build_mode"), vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed() : QString());
         meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
-        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("field_generator_mode"), currentEffectiveVnFieldMode());
+        meta.insert(QStringLiteral("field_points"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
+        meta.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
+        meta.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
+        meta.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
         meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
@@ -2848,17 +2863,18 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
     const bool vnGenerationContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     if (vnGenerationContext) {
-        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
+        if (vnFieldGenEnabled && !vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
             appendLog(stamp(tr("Generation cancelled: VN field points must be a positive integer.")));
             return false;
         }
-        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+        if (vnFieldGenEnabled && !vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
             appendLog(stamp(tr("Generation cancelled: VN field seed must be a non-negative integer.")));
             return false;
         }
-        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+        if (vnFieldGenEnabled && !vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
             appendLog(stamp(tr("Generation cancelled: VN field dx must be a positive number.")));
             return false;
@@ -2921,10 +2937,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         QStringList vnMetadata;
         vnMetadata << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_generator_mode=%1").arg(currentEffectiveVnFieldMode());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
         const QString vnMetadataBlock = vnMetadata.join('\n');
         if (options.additionalCommands.trimmed().isEmpty()) {
             options.additionalCommands = vnMetadataBlock;
@@ -3094,10 +3111,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
         int vnFieldPoints = 200;
         double vnFieldDx = 0.5;
-        if (!parsePositiveInt(vnFieldPointsEdit, tr("VN field points"), 200, &vnFieldPoints)) {
+        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
+        if (vnFieldGenEnabled && !parsePositiveInt(vnFieldPointsEdit, tr("VN field points"), 200, &vnFieldPoints)) {
             return false;
         }
-        if (!parsePositiveDouble(vnFieldDxEdit, tr("VN field dx"), 0.5, &vnFieldDx)) {
+        if (vnFieldGenEnabled && !parsePositiveDouble(vnFieldDxEdit, tr("VN field dx"), 0.5, &vnFieldDx)) {
             return false;
         }
         if (!validateOptionalPositiveKsat(ksatScaleEdit, tr("Ksat all"))
@@ -3178,10 +3196,11 @@ void ModelCreatorWindow::runScript()
         meta.insert(QStringLiteral("phase"), phase);
         meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
         meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
-        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
-        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
+        meta.insert(QStringLiteral("field_generator_mode"), currentEffectiveVnFieldMode());
+        meta.insert(QStringLiteral("field_points"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
+        meta.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
+        meta.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
+        meta.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
         meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
@@ -3216,17 +3235,18 @@ void ModelCreatorWindow::runScript()
         modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
 
     if (vnRunContext) {
-        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
+        if (vnFieldGenEnabled && !vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
             appendLog(stamp(tr("Run cancelled: VN field points must be a positive integer.")));
             return;
         }
-        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+        if (vnFieldGenEnabled && !vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
             appendLog(stamp(tr("Run cancelled: VN field seed must be a non-negative integer.")));
             return;
         }
-        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+        if (vnFieldGenEnabled && !vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
             appendLog(stamp(tr("Run cancelled: VN field dx must be a positive number.")));
             return;
@@ -3545,12 +3565,13 @@ void ModelCreatorWindow::runScript()
         const QString effectiveAll = ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed();
         const QString effectiveG = ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed();
         const QString effectiveUw = ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed();
-        appendLog(stamp(tr("VN runtime metadata: initTheta=%1, field(points=%2, seed=%3, dx=%4, pdf=%5), Ksat(all=%6, g=%7, uw=%8)")
+        appendLog(stamp(tr("VN runtime metadata: initTheta=%1, field(mode=%2, points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
                             .arg(vnInitThetaModeCombo->currentData().toString(),
-                                 vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
-                                 vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),
-                                 vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed(),
-                                 vnFieldPdfModeCombo->currentData().toString(),
+                                 currentEffectiveVnFieldMode(),
+                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints(),
+                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed(),
+                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx(),
+                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf(),
                                  effectiveAll,
                                  effectiveG,
                                  effectiveUw)));
@@ -4547,6 +4568,9 @@ void ModelCreatorWindow::loadSettings()
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
     vnInitThetaModeCombo->setCurrentIndex(vnInitThetaModeIndex >= 0 ? vnInitThetaModeIndex : 0);
+    const QString vnFieldMode = settingTextOrDefault("vnFieldMode", "none");
+    const int vnFieldModeIndex = vnFieldModeCombo->findData(vnFieldMode);
+    vnFieldModeCombo->setCurrentIndex(vnFieldModeIndex >= 0 ? vnFieldModeIndex : 0);
     vnFieldPointsEdit->setText(settingTextOrDefault("vnFieldPoints", "200"));
     vnFieldSeedEdit->setText(settingTextOrDefault("vnFieldSeed", "42"));
     vnFieldDxEdit->setText(settingTextOrDefault("vnFieldDx", "0.5"));
@@ -4652,6 +4676,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
+    settings.setValue("vnFieldMode", vnFieldModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
     settings.setValue("vnFieldSeed", vnFieldSeedEdit->text());
     settings.setValue("vnFieldDx", vnFieldDxEdit->text());
@@ -4676,6 +4701,13 @@ QString ModelCreatorWindow::currentEffectiveVnInitTheta() const
     return vnInitThetaModeCombo->currentData().toString().trimmed().isEmpty()
         ? QStringLiteral("Default")
         : vnInitThetaModeCombo->currentData().toString().trimmed();
+}
+
+QString ModelCreatorWindow::currentEffectiveVnFieldMode() const
+{
+    return vnFieldModeCombo->currentData().toString().trimmed().isEmpty()
+        ? QStringLiteral("none")
+        : vnFieldModeCombo->currentData().toString().trimmed();
 }
 
 QString ModelCreatorWindow::currentEffectiveVnFieldPoints() const
