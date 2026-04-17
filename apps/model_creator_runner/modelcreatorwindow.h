@@ -68,6 +68,8 @@ private slots:
     void exportVnSoilProfileCsv();
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
+    void saveVnGeneratedFieldFile();
+    void useVnGeneratedFieldFile();
 
 private:
     void suggestSimulationWindowFromInflow(const QString &path, bool forceApply = false);
@@ -100,6 +102,7 @@ private:
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
     QString currentEffectiveVnInitTheta() const;
+    QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;
     QString currentEffectiveVnFieldSeed() const;
     QString currentEffectiveVnFieldDx() const;
@@ -107,6 +110,8 @@ private:
     QString currentEffectiveKsatAll() const;
     QString currentEffectiveKsatG() const;
     QString currentEffectiveKsatUw() const;
+    QString defaultVnGeneratedFieldFilePath() const;
+    bool writeVnGeneratedFieldFile(const QString &targetPath, QString *errorMessage = nullptr) const;
 
     QComboBox *modelTypeCombo;
     QComboBox *workflowModeCombo;
@@ -231,6 +236,8 @@ private:
     QPushButton *exportVnSoilProfileButton;
     QPushButton *exportVnDepthSliceButton;
     QPushButton *exportVnMetadataButton;
+    QPushButton *saveVnGeneratedFieldButton;
+    QPushButton *useVnGeneratedFieldButton;
     OHQProcessRunner *runner;
     /// Timestamp captured when a run begins (used for artifact recency checks).
     QDateTime runStartedAt;
