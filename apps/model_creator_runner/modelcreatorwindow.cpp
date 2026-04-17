@@ -2774,6 +2774,78 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
+    if (vnModel) {
+        auto parsePositiveInt = [this](QLineEdit *edit, const QString &label, int fallback, int *out) -> bool {
+            if (out == nullptr) {
+                return false;
+            }
+            const QString text = edit ? edit->text().trimmed() : QString();
+            if (text.isEmpty()) {
+                *out = fallback;
+                return true;
+            }
+            bool ok = false;
+            const int value = text.toInt(&ok);
+            if (!ok || value <= 0) {
+                QMessageBox::warning(this,
+                                     tr("Invalid VN setting"),
+                                     tr("%1 must be a positive integer.").arg(label));
+                return false;
+            }
+            *out = value;
+            return true;
+        };
+        auto parsePositiveDouble = [this](QLineEdit *edit, const QString &label, double fallback, double *out) -> bool {
+            if (out == nullptr) {
+                return false;
+            }
+            const QString text = edit ? edit->text().trimmed() : QString();
+            if (text.isEmpty()) {
+                *out = fallback;
+                return true;
+            }
+            bool ok = false;
+            const double value = text.toDouble(&ok);
+            if (!ok || !std::isfinite(value) || value <= 0.0) {
+                QMessageBox::warning(this,
+                                     tr("Invalid VN setting"),
+                                     tr("%1 must be a positive number.").arg(label));
+                return false;
+            }
+            *out = value;
+            return true;
+        };
+        auto validateOptionalPositiveKsat = [this](QLineEdit *edit, const QString &label) -> bool {
+            const QString text = edit ? edit->text().trimmed() : QString();
+            if (text.isEmpty()) {
+                return true;
+            }
+            bool ok = false;
+            const double value = text.toDouble(&ok);
+            if (!ok || !std::isfinite(value) || value <= 0.0) {
+                QMessageBox::warning(this,
+                                     tr("Invalid VN Ksat scale"),
+                                     tr("%1 must be blank or a positive number.").arg(label));
+                return false;
+            }
+            return true;
+        };
+
+        int vnFieldPoints = 200;
+        double vnFieldDx = 0.5;
+        if (!parsePositiveInt(vnFieldPointsEdit, tr("VN field points"), 200, &vnFieldPoints)) {
+            return false;
+        }
+        if (!parsePositiveDouble(vnFieldDxEdit, tr("VN field dx"), 0.5, &vnFieldDx)) {
+            return false;
+        }
+        if (!validateOptionalPositiveKsat(ksatScaleEdit, tr("Ksat all"))
+            || !validateOptionalPositiveKsat(ksatScaleGEdit, tr("Ksat g"))
+            || !validateOptionalPositiveKsat(ksatScaleUwEdit, tr("Ksat uw"))) {
+            return false;
+        }
+    }
+
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString effectiveAll = options.ksatScaleAll.trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : options.ksatScaleAll.trimmed();
         const QString effectiveG = options.ksatScaleG.trimmed().isEmpty() ? QStringLiteral("2.5") : options.ksatScaleG.trimmed();
@@ -2788,6 +2860,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
                                  effectiveAll,
                                  effectiveG,
                                  effectiveUw)));
+        appendLog(stamp(tr("VN field-generator settings are stored in script metadata only in the current app workflow.")));
+        appendLog(stamp(tr("VN init-theta mode is written into script metadata now and applied as a runtime flag when you run through the app.")));
     }
     QString error;
     if (!StarterScriptBuilder::Write(options, &error)) {
@@ -2953,6 +3027,32 @@ void ModelCreatorWindow::runScript()
         return;
     }
 
+    const bool vnRunContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+
+    if (vnRunContext) {
+        auto validateOptionalPositiveKsat = [this](QLineEdit *edit, const QString &label) -> bool {
+            const QString text = edit ? edit->text().trimmed() : QString();
+            if (text.isEmpty()) {
+                return true;
+            }
+            bool ok = false;
+            const double value = text.toDouble(&ok);
+            if (!ok || !std::isfinite(value) || value <= 0.0) {
+                QMessageBox::warning(this,
+                                     tr("Invalid VN Ksat scale"),
+                                     tr("%1 must be blank or a positive number before run.").arg(label));
+                return false;
+            }
+            return true;
+        };
+        if (!validateOptionalPositiveKsat(ksatScaleEdit, tr("Ksat all"))
+            || !validateOptionalPositiveKsat(ksatScaleGEdit, tr("Ksat g"))
+            || !validateOptionalPositiveKsat(ksatScaleUwEdit, tr("Ksat uw"))) {
+            appendLog(stamp(tr("Run cancelled: invalid VN Ksat scale input.")));
+            return;
+        }
+    }
+
     if (!artifactsDirEdit->text().trimmed().isEmpty()) {
         const QString artifactsPath = artifactsDirEdit->text().trimmed();
         if (!QDir(artifactsPath).exists()) {
@@ -3048,7 +3148,12 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
-    const bool vnRunContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
+    if (vnRunContext) {
+        const QString initThetaMode = vnInitThetaModeCombo->currentData().toString().trimmed();
+        if (!initThetaMode.isEmpty() && initThetaMode.compare(QStringLiteral("Default"), Qt::CaseInsensitive) != 0) {
+            appendFlagIfPresent(QStringLiteral("--init-theta"), initThetaMode);
+        }
+    }
     if (passScriptWithRunFlagDefault) {
         if (guiConfigTemplateEdit->text().trimmed().isEmpty()) {
             appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: <script> --run")));
@@ -3078,6 +3183,13 @@ void ModelCreatorWindow::runScript()
                                  effectiveAll,
                                  effectiveG,
                                  effectiveUw)));
+        const QString initThetaMode = vnInitThetaModeCombo->currentData().toString().trimmed();
+        if (!initThetaMode.isEmpty() && initThetaMode.compare(QStringLiteral("Default"), Qt::CaseInsensitive) != 0) {
+            appendLog(stamp(tr("Applied runtime flag: --init-theta %1").arg(initThetaMode)));
+        } else {
+            appendLog(stamp(tr("No runtime --init-theta flag applied (Default mode).")));
+        }
+        appendLog(stamp(tr("VN field-generator settings remain metadata-only in the current app workflow; they are not passed as executable flags.")));
     }
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
