@@ -402,3 +402,5 @@ build-OpenHydroQual-Console-Desktop_Qt_6_9_1-Debug/
 OHQ-static/libOpenHydroQual.a
 
 Models/
+
+apps/build-model_creator_runner-Desktop_Qt_5_15_2_GCC_64bit-Debug/

@@ -65,6 +65,9 @@ private slots:
     void exportPlotDataCsv();
     void exportAllDepthSlicesCsv();
     void clearComparisonHistory();
+    void exportVnSoilProfileCsv();
+    void exportVnDepthSliceCsv();
+    void exportVnMetadataJson();
 
 private:
     void suggestSimulationWindowFromInflow(const QString &path, bool forceApply = false);
@@ -94,6 +97,16 @@ private:
     void writeArtifactManifest(const QStringList &artifacts);
     /// Show/hide context-sensitive and optional setup rows based on model/preset.
     void updateFieldVisibilityForContext();
+    bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
+    bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
+    QString currentEffectiveVnInitTheta() const;
+    QString currentEffectiveVnFieldPoints() const;
+    QString currentEffectiveVnFieldSeed() const;
+    QString currentEffectiveVnFieldDx() const;
+    QString currentEffectiveVnFieldPdf() const;
+    QString currentEffectiveKsatAll() const;
+    QString currentEffectiveKsatG() const;
+    QString currentEffectiveKsatUw() const;
 
     QComboBox *modelTypeCombo;
     QComboBox *workflowModeCombo;
@@ -147,6 +160,8 @@ private:
     QLineEdit *vnFieldSeedEdit;
     QLineEdit *vnFieldDxEdit;
     QComboBox *vnFieldPdfModeCombo;
+    QLineEdit *vnSoilProfileExportEdit;
+    QLineEdit *vnDepthSliceExportEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
@@ -186,6 +201,8 @@ private:
     QWidget *vnSoftSoilParamsRowWidget = nullptr;
     QWidget *vnInitThetaRowWidget = nullptr;
     QWidget *vnFieldGeneratorRowWidget = nullptr;
+    QWidget *vnSoilToolRowWidget = nullptr;
+    QWidget *vnOutputToolRowWidget = nullptr;
     QTabWidget *tabs;
     QTextEdit *logView;
     SimpleLinePlotWidget *inflowPlot;
@@ -211,6 +228,9 @@ private:
     QPushButton *runButton;
     QPushButton *exportArtifactsButton;
     QPushButton *stopButton;
+    QPushButton *exportVnSoilProfileButton;
+    QPushButton *exportVnDepthSliceButton;
+    QPushButton *exportVnMetadataButton;
     OHQProcessRunner *runner;
     /// Timestamp captured when a run begins (used for artifact recency checks).
     QDateTime runStartedAt;
