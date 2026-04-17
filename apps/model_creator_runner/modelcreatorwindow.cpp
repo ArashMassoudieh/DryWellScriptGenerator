@@ -129,6 +129,91 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
     return fallbackBuildMode;
 }
 
+
+QString CsvEscaped(const QString &value)
+{
+    QString out = value;
+    out.replace(QStringLiteral("\""), QStringLiteral("\"\""));
+    return out;
+}
+
+bool WriteTextFileUtf8(const QString &targetPath, const QString &text, QString *errorMessage)
+{
+    QSaveFile out(targetPath);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Could not open file for writing: %1").arg(targetPath);
+        }
+        return false;
+    }
+
+    const QByteArray utf8 = text.toUtf8();
+    const qint64 written = out.write(utf8);
+    if (written != utf8.size()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Failed while writing file: %1").arg(targetPath);
+        }
+        out.cancelWriting();
+        return false;
+    }
+
+    if (!out.commit()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Could not finalize file: %1").arg(targetPath);
+        }
+        return false;
+    }
+    return true;
+}
+
+QString BuildUniformSoilProfileCsv(int nzG,
+                                   int nzUw,
+                                   double topElevation,
+                                   double layerThickness,
+                                   const QString &ksat,
+                                   const QString &alpha,
+                                   const QString &n,
+                                   const QString &thetaSat,
+                                   const QString &thetaRes)
+{
+    const int safeNzG = qMax(0, nzG);
+    const int safeNzUw = qMax(0, nzUw);
+    const double safeDz = layerThickness > 0.0 ? layerThickness : 1.0;
+    QString csv;
+    QTextStream ts(&csv);
+    ts << "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
+    for (int i = 0; i < safeNzG; ++i) {
+        const double depth = topElevation + (static_cast<double>(i) + 0.5) * safeDz;
+        ts << "G," << i << ',' << depth << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
+    }
+    for (int i = 0; i < safeNzUw; ++i) {
+        const double depth = topElevation + (static_cast<double>(safeNzG + i) + 0.5) * safeDz;
+        ts << "UW," << i << ',' << depth << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
+    }
+    return csv;
+}
+
+QJsonObject BuildOutputSelectionObject(const QComboBox *xCombo,
+                                       const QComboBox *yCombo,
+                                       const QComboBox *depthCombo,
+                                       const QLineEdit *sliceEdit,
+                                       const QLineEdit *sourceFileEdit)
+{
+    QJsonObject obj;
+    auto addCombo = [&obj](const QString &prefix, const QComboBox *combo) {
+        if (!combo) return;
+        obj.insert(prefix + QStringLiteral("_index"), combo->currentIndex());
+        obj.insert(prefix + QStringLiteral("_text"), combo->currentText().trimmed());
+        obj.insert(prefix + QStringLiteral("_data"), combo->currentData().toString());
+    };
+    addCombo(QStringLiteral("x"), xCombo);
+    addCombo(QStringLiteral("y"), yCombo);
+    addCombo(QStringLiteral("depth"), depthCombo);
+    if (sliceEdit) obj.insert(QStringLiteral("target_x"), sliceEdit->text().trimmed());
+    if (sourceFileEdit) obj.insert(QStringLiteral("source_output_file"), sourceFileEdit->text().trimmed());
+    return obj;
+}
+
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
@@ -4637,56 +4722,101 @@ bool ModelCreatorWindow::validateVnAwarenessInputs(QString *errorMessage, bool f
         return true;
     }
 
+    const auto fail = [&](const QString &message) {
+        if (errorMessage) {
+            *errorMessage = message;
+        }
+        return false;
+    };
+
+    const QString buildMode = vnBuildModeCombo->currentData().toString().trimmed();
+    if (buildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
+        const QString baseOhq = vnBaseOhqFileEdit->text().trimmed();
+        if (baseOhq.isEmpty()) {
+            return fail(tr("VN LoadFromOhq mode requires a base .ohq file."));
+        }
+        const QFileInfo baseInfo(baseOhq);
+        if (!baseInfo.exists() || !baseInfo.isFile()) {
+            return fail(tr("VN base .ohq file does not exist: %1").arg(baseOhq));
+        }
+    }
+
     bool ok = false;
     const int points = currentEffectiveVnFieldPoints().toInt(&ok);
     if (!ok || points <= 0) {
-        if (errorMessage) *errorMessage = tr("VN field points must be a positive integer.");
-        return false;
+        return fail(tr("VN field points must be a positive integer."));
     }
+
     const int seed = currentEffectiveVnFieldSeed().toInt(&ok);
     if (!ok || seed < 0) {
-        if (errorMessage) *errorMessage = tr("VN field seed must be a non-negative integer.");
-        return false;
+        return fail(tr("VN field seed must be a non-negative integer."));
     }
+
     const double dx = currentEffectiveVnFieldDx().toDouble(&ok);
     if (!ok || !std::isfinite(dx) || dx <= 0.0) {
-        if (errorMessage) *errorMessage = tr("VN field dx must be a positive number.");
-        return false;
+        return fail(tr("VN field dx must be a positive number."));
     }
+
     const auto validatePositiveOptional = [&](const QLineEdit *edit, const QString &label) {
-        if (!edit || edit->text().trimmed().isEmpty()) return true;
+        if (edit == nullptr || edit->text().trimmed().isEmpty()) {
+            return true;
+        }
         bool localOk = false;
         const double v = edit->text().trimmed().toDouble(&localOk);
         if (!localOk || !std::isfinite(v) || v <= 0.0) {
-            if (errorMessage) *errorMessage = tr("%1 must be a positive number when provided.").arg(label);
-            return false;
+            return fail(tr("%1 must be a positive number when provided.").arg(label));
         }
         return true;
     };
+
     if (!validatePositiveOptional(ksatScaleEdit, tr("Ksat all"))
         || !validatePositiveOptional(ksatScaleGEdit, tr("Ksat g"))
-        || !validatePositiveOptional(ksatScaleUwEdit, tr("Ksat uw"))) {
+        || !validatePositiveOptional(ksatScaleUwEdit, tr("Ksat uw"))
+        || !validatePositiveOptional(vnSoftGridXEdit, tr("VN grid X"))
+        || !validatePositiveOptional(vnSoftGridYEdit, tr("VN grid Y"))
+        || !validatePositiveOptional(vnSoftUwGridXEdit, tr("VN under-well grid X"))
+        || !validatePositiveOptional(vnSoftUwGridYEdit, tr("VN under-well grid Y"))
+        || !validatePositiveOptional(vnSoftCellSizeEdit, tr("VN cell size"))
+        || !validatePositiveOptional(vnSoftUwCellSizeEdit, tr("VN under-well cell size"))
+        || !validatePositiveOptional(vnSoftGapSizeEdit, tr("VN gap size"))
+        || !validatePositiveOptional(vnSoftRwGEdit, tr("VN rw g"))
+        || !validatePositiveOptional(vnSoftRwUwEdit, tr("VN rw uw"))
+        || !validatePositiveOptional(vnSoftRadiusInfluenceEdit, tr("VN radius of influence"))
+        || !validatePositiveOptional(vnSoftDepthWellCEdit, tr("VN depth of well c"))
+        || !validatePositiveOptional(vnSoftDepthWellGEdit, tr("VN depth of well g"))
+        || !validatePositiveOptional(vnSoftDepthToGwEdit, tr("VN depth to groundwater"))
+        || !validatePositiveOptional(vnSoftLayerThicknessEdit, tr("VN layer thickness"))
+        || !validatePositiveOptional(vnSoftSoilKsatOriginalEdit, tr("VN Ksat original"))
+        || !validatePositiveOptional(vnSoftSoilAlphaEdit, tr("VN alpha"))
+        || !validatePositiveOptional(vnSoftSoilNEdit, tr("VN n"))
+        || !validatePositiveOptional(vnSoftSoilThetaSatEdit, tr("VN theta sat"))
+        || !validatePositiveOptional(vnSoftSoilThetaResEdit, tr("VN theta res"))) {
         return false;
     }
-    const QString mode = vnBuildModeCombo->currentData().toString().trimmed();
-    if (mode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
-        && vnBaseOhqFileEdit->text().trimmed().isEmpty()) {
-        if (errorMessage) *errorMessage = tr("VN LoadFromOhq mode requires a base .ohq file.");
-        return false;
-    }
+
     const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
-    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
-        && vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
-        if (errorMessage) *errorMessage = tr("VN soil param mode 'File' requires a soil-parameter profile file.");
-        return false;
+    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
+        const QString profilePath = vnSoftSoilParameterFileEdit->text().trimmed();
+        if (profilePath.isEmpty()) {
+            return fail(tr("VN soil param mode 'File' requires a soil-parameter profile file."));
+        }
+        const QFileInfo profileInfo(profilePath);
+        if (!profileInfo.exists() || !profileInfo.isFile()) {
+            return fail(tr("VN soil-parameter profile file does not exist: %1").arg(profilePath));
+        }
     }
+
     if (forRun) {
         const QString scriptPath = scriptPathEdit->text().trimmed();
         if (scriptPath.isEmpty()) {
-            if (errorMessage) *errorMessage = tr("Select or generate an OHQ script before running VN-aware tools.");
-            return false;
+            return fail(tr("Select or generate an OHQ script before running VN-aware tools."));
+        }
+        const QFileInfo scriptInfo(scriptPath);
+        if (!scriptInfo.exists() || !scriptInfo.isFile()) {
+            return fail(tr("Selected OHQ script does not exist: %1").arg(scriptPath));
         }
     }
+
     return true;
 }
 
@@ -4707,24 +4837,75 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     QJsonObject root;
     root.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
     root.insert(QStringLiteral("workflow_mode"), workflowModeCombo->currentData().toString());
-    root.insert(QStringLiteral("vn_build_mode"), vnBuildModeCombo->currentData().toString());
-    root.insert(QStringLiteral("init_theta_mode"), currentEffectiveVnInitTheta());
-    root.insert(QStringLiteral("field_points"), currentEffectiveVnFieldPoints());
-    root.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldSeed());
-    root.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldDx());
-    root.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldPdf());
-    root.insert(QStringLiteral("ksat_all"), currentEffectiveKsatAll());
-    root.insert(QStringLiteral("ksat_g"), currentEffectiveKsatG());
-    root.insert(QStringLiteral("ksat_uw"), currentEffectiveKsatUw());
-    root.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
-    root.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
-    root.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
-    root.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
-    root.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
-    root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));
-    root.insert(QStringLiteral("resultgrid_runtime"), QStringLiteral("not_executed_in_current_app"));
-    root.insert(QStringLiteral("ert_snapshot_runtime"), QStringLiteral("not_executed_in_current_app"));
     root.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+
+    QJsonObject vn;
+    vn.insert(QStringLiteral("build_mode"), vnBuildModeCombo->currentData().toString());
+    vn.insert(QStringLiteral("init_theta_mode"), currentEffectiveVnInitTheta());
+    vn.insert(QStringLiteral("base_ohq_file"), vnBaseOhqFileEdit->text().trimmed());
+    vn.insert(QStringLiteral("soil_layers_file"), vnSoilLayersFileEdit->text().trimmed());
+    vn.insert(QStringLiteral("moisture_layers_file"), vnMoistureLayersFileEdit->text().trimmed());
+
+    QJsonObject field;
+    field.insert(QStringLiteral("points"), currentEffectiveVnFieldPoints());
+    field.insert(QStringLiteral("seed"), currentEffectiveVnFieldSeed());
+    field.insert(QStringLiteral("dx"), currentEffectiveVnFieldDx());
+    field.insert(QStringLiteral("pdf_mode"), currentEffectiveVnFieldPdf());
+    field.insert(QStringLiteral("runtime"), QStringLiteral("metadata_only_in_current_app"));
+    vn.insert(QStringLiteral("field_settings"), field);
+
+    QJsonObject soil;
+    soil.insert(QStringLiteral("mode"), vnSoftSoilParamModeCombo->currentData().toString());
+    soil.insert(QStringLiteral("profile_file"), vnSoftSoilParameterFileEdit->text().trimmed());
+    soil.insert(QStringLiteral("ksat_original"), vnSoftSoilKsatOriginalEdit->text().trimmed());
+    soil.insert(QStringLiteral("alpha"), vnSoftSoilAlphaEdit->text().trimmed());
+    soil.insert(QStringLiteral("n"), vnSoftSoilNEdit->text().trimmed());
+    soil.insert(QStringLiteral("theta_sat"), vnSoftSoilThetaSatEdit->text().trimmed());
+    soil.insert(QStringLiteral("theta_res"), vnSoftSoilThetaResEdit->text().trimmed());
+    soil.insert(QStringLiteral("grid_x"), vnSoftGridXEdit->text().trimmed());
+    soil.insert(QStringLiteral("grid_y"), vnSoftGridYEdit->text().trimmed());
+    soil.insert(QStringLiteral("uw_grid_x"), vnSoftUwGridXEdit->text().trimmed());
+    soil.insert(QStringLiteral("uw_grid_y"), vnSoftUwGridYEdit->text().trimmed());
+    soil.insert(QStringLiteral("cell_size"), vnSoftCellSizeEdit->text().trimmed());
+    soil.insert(QStringLiteral("uw_cell_size"), vnSoftUwCellSizeEdit->text().trimmed());
+    soil.insert(QStringLiteral("gap_size"), vnSoftGapSizeEdit->text().trimmed());
+    soil.insert(QStringLiteral("rw_g"), vnSoftRwGEdit->text().trimmed());
+    soil.insert(QStringLiteral("rw_uw"), vnSoftRwUwEdit->text().trimmed());
+    soil.insert(QStringLiteral("radius_of_influence"), vnSoftRadiusInfluenceEdit->text().trimmed());
+    soil.insert(QStringLiteral("depth_of_well_c"), vnSoftDepthWellCEdit->text().trimmed());
+    soil.insert(QStringLiteral("depth_of_well_g"), vnSoftDepthWellGEdit->text().trimmed());
+    soil.insert(QStringLiteral("depth_to_gw"), vnSoftDepthToGwEdit->text().trimmed());
+    soil.insert(QStringLiteral("top_elevation"), vnSoftTopElevationEdit->text().trimmed());
+    soil.insert(QStringLiteral("layer_thickness"), vnSoftLayerThicknessEdit->text().trimmed());
+    vn.insert(QStringLiteral("soil_settings"), soil);
+
+    QJsonObject scaling;
+    scaling.insert(QStringLiteral("ksat_all"), currentEffectiveKsatAll());
+    scaling.insert(QStringLiteral("ksat_g"), currentEffectiveKsatG());
+    scaling.insert(QStringLiteral("ksat_uw"), currentEffectiveKsatUw());
+    vn.insert(QStringLiteral("ksat_scaling"), scaling);
+
+    root.insert(QStringLiteral("vn"), vn);
+
+    QJsonObject simulation;
+    simulation.insert(QStringLiteral("start"), simulationStartEdit->text().trimmed());
+    simulation.insert(QStringLiteral("end"), simulationEndEdit->text().trimmed());
+    simulation.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
+    simulation.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
+    simulation.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
+    root.insert(QStringLiteral("simulation"), simulation);
+
+    root.insert(QStringLiteral("output_analysis"), BuildOutputSelectionObject(outputXAxisCombo,
+                                                                             outputYAxisCombo,
+                                                                             depthColumnCombo,
+                                                                             sliceXEdit,
+                                                                             outputSeriesFileEdit));
+
+    QJsonArray notes;
+    notes.append(QStringLiteral("init-theta is runtime-applied in generated script context"));
+    notes.append(QStringLiteral("field-generator settings are metadata only in the current app"));
+    notes.append(QStringLiteral("no in-app FieldGenerator / ResultGrid / ERT execution yet"));
+    root.insert(QStringLiteral("notes"), notes);
 
     QSaveFile out(targetPath);
     if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -4770,56 +4951,106 @@ void ModelCreatorWindow::exportVnSoilProfileCsv()
                                               tr("Save VN soil profile CSV"),
                                               QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_soil_profile.csv")),
                                               tr("CSV files (*.csv);;All files (*.*)"));
-        if (target.isEmpty()) return;
+        if (target.isEmpty()) {
+            return;
+        }
         vnSoilProfileExportEdit->setText(target);
     }
 
-    if (vnSoftSoilParamModeCombo->currentData().toString().trimmed().compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
+    const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+    QString csvText;
+    QString sourceDescription;
+
+    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
+        const QString sourceFile = vnSoftSoilParameterFileEdit->text().trimmed();
         QFile::remove(target);
-        if (!QFile::copy(vnSoftSoilParameterFileEdit->text().trimmed(), target)) {
-            QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not copy VN soil parameter profile to target path."));
+        if (!QFile::copy(sourceFile, target)) {
+            QMessageBox::warning(this, tr("Export VN soil profile"),
+                                 tr("Could not copy VN soil parameter profile to target path."));
             return;
         }
-        appendLog(stamp(tr("Copied VN soil profile file: %1").arg(target)));
-        saveSettings();
-        return;
+        sourceDescription = tr("copied from file mode source");
+    } else {
+        if (soilMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
+            csvText = StarterScriptBuilder::VnReferenceSoilProfileCsv();
+            sourceDescription = tr("exported from VN reference defaults");
+        } else {
+            bool ok = false;
+            const int nzG = vnSoftGridYEdit->text().trimmed().toInt(&ok);
+            const int safeNzG = ok && nzG > 0 ? nzG : 15;
+            const int nzUw = vnSoftUwGridYEdit->text().trimmed().toInt(&ok);
+            const int safeNzUw = ok && nzUw > 0 ? nzUw : 12;
+            const double top = vnSoftTopElevationEdit->text().trimmed().toDouble(&ok);
+            const double safeTop = ok ? top : -5.0;
+            const double dz = vnSoftLayerThicknessEdit->text().trimmed().toDouble(&ok);
+            const double safeDz = ok && dz > 0.0 ? dz : 1.0;
+
+            QString ksat = vnSoftSoilKsatOriginalEdit->text().trimmed();
+            QString alpha = vnSoftSoilAlphaEdit->text().trimmed();
+            QString n = vnSoftSoilNEdit->text().trimmed();
+            QString thetaSat = vnSoftSoilThetaSatEdit->text().trimmed();
+            QString thetaRes = vnSoftSoilThetaResEdit->text().trimmed();
+
+            if (soilMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0) {
+                if (ksat.isEmpty()) ksat = QStringLiteral("1.05196");
+                if (alpha.isEmpty()) alpha = QStringLiteral("3.47536");
+                if (n.isEmpty()) n = QStringLiteral("1.74582");
+                if (thetaSat.isEmpty()) thetaSat = QStringLiteral("0.39");
+                if (thetaRes.isEmpty()) thetaRes = QStringLiteral("0.049");
+                sourceDescription = tr("exported from ModelCreator defaults");
+            } else {
+                if (ksat.isEmpty()) ksat = QStringLiteral("1.05196");
+                if (alpha.isEmpty()) alpha = QStringLiteral("3.47536");
+                if (n.isEmpty()) n = QStringLiteral("1.74582");
+                if (thetaSat.isEmpty()) thetaSat = QStringLiteral("0.39");
+                if (thetaRes.isEmpty()) thetaRes = QStringLiteral("0.049");
+                sourceDescription = tr("exported from current manual soil settings");
+            }
+
+            csvText = BuildUniformSoilProfileCsv(safeNzG, safeNzUw, safeTop, safeDz,
+                                                 ksat, alpha, n, thetaSat, thetaRes);
+        }
+
+        if (csvText.trimmed().isEmpty()) {
+            QMessageBox::warning(this, tr("Export VN soil profile"),
+                                 tr("No VN soil profile content could be produced for the current mode."));
+            return;
+        }
+
+        QString writeError;
+        if (!WriteTextFileUtf8(target, csvText, &writeError)) {
+            QMessageBox::warning(this, tr("Export VN soil profile"), writeError);
+            return;
+        }
     }
 
-    bool ok = false;
-    const int nzG = vnSoftGridYEdit->text().trimmed().toInt(&ok);
-    const int safeNzG = ok && nzG > 0 ? nzG : 15;
-    const int nzUw = vnSoftUwGridYEdit->text().trimmed().toInt(&ok);
-    const int safeNzUw = ok && nzUw > 0 ? nzUw : 12;
-    const double top = vnSoftTopElevationEdit->text().trimmed().toDouble(&ok);
-    const double safeTop = ok ? top : -5.0;
-    const double dz = vnSoftLayerThicknessEdit->text().trimmed().toDouble(&ok);
-    const double safeDz = ok && dz > 0.0 ? dz : 1.0;
-    const QString ksat = vnSoftSoilKsatOriginalEdit->text().trimmed().isEmpty() ? QStringLiteral("1.05196") : vnSoftSoilKsatOriginalEdit->text().trimmed();
-    const QString alpha = vnSoftSoilAlphaEdit->text().trimmed().isEmpty() ? QStringLiteral("3.47536") : vnSoftSoilAlphaEdit->text().trimmed();
-    const QString n = vnSoftSoilNEdit->text().trimmed().isEmpty() ? QStringLiteral("1.74582") : vnSoftSoilNEdit->text().trimmed();
-    const QString thetaSat = vnSoftSoilThetaSatEdit->text().trimmed().isEmpty() ? QStringLiteral("0.39") : vnSoftSoilThetaSatEdit->text().trimmed();
-    const QString thetaRes = vnSoftSoilThetaResEdit->text().trimmed().isEmpty() ? QStringLiteral("0.049") : vnSoftSoilThetaResEdit->text().trimmed();
+    const QString sidecarPath = QFileInfo(target).absolutePath() + QDir::separator()
+        + QFileInfo(target).completeBaseName() + QStringLiteral("_settings.json");
+    QJsonObject sidecar;
+    sidecar.insert(QStringLiteral("exported_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    sidecar.insert(QStringLiteral("export_path"), target);
+    sidecar.insert(QStringLiteral("source_description"), sourceDescription);
+    sidecar.insert(QStringLiteral("soil_mode"), soilMode);
+    sidecar.insert(QStringLiteral("profile_file"), vnSoftSoilParameterFileEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("ksat_original"), vnSoftSoilKsatOriginalEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("alpha"), vnSoftSoilAlphaEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("n"), vnSoftSoilNEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("theta_sat"), vnSoftSoilThetaSatEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("theta_res"), vnSoftSoilThetaResEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("grid_y"), vnSoftGridYEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("uw_grid_y"), vnSoftUwGridYEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("top_elevation"), vnSoftTopElevationEdit->text().trimmed());
+    sidecar.insert(QStringLiteral("layer_thickness"), vnSoftLayerThicknessEdit->text().trimmed());
 
-    QSaveFile out(target);
-    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not open target CSV for writing."));
-        return;
+    QString sidecarError;
+    WriteTextFileUtf8(sidecarPath,
+                      QString::fromUtf8(QJsonDocument(sidecar).toJson(QJsonDocument::Indented)),
+                      &sidecarError);
+
+    appendLog(stamp(tr("Exported VN soil profile CSV: %1 (%2)").arg(target, sourceDescription)));
+    if (QFileInfo::exists(sidecarPath)) {
+        appendLog(stamp(tr("Saved VN soil export settings: %1").arg(sidecarPath)));
     }
-    QTextStream ts(&out);
-    ts << "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
-    for (int j = 0; j < safeNzG; ++j) {
-        const double actY = safeTop - (j + 0.5) * safeDz;
-        ts << "Soil-g," << actY << ',' << -actY << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
-    }
-    for (int j = 0; j < safeNzUw; ++j) {
-        const double actY = safeTop - (safeNzG + j + 0.5) * safeDz;
-        ts << "Soil-uw," << actY << ',' << -actY << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
-    }
-    if (!out.commit()) {
-        QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not finalize soil profile CSV."));
-        return;
-    }
-    appendLog(stamp(tr("Exported VN soil profile CSV: %1").arg(target)));
     saveSettings();
 }
 
@@ -4855,7 +5086,10 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
         }
         double minX = xCol.first();
         double maxX = xCol.first();
-        for (double x : xCol) { minX = qMin(minX, x); maxX = qMax(maxX, x); }
+        for (double x : xCol) {
+            minX = qMin(minX, x);
+            maxX = qMax(maxX, x);
+        }
         targetX = 0.5 * (minX + maxX);
         sliceXEdit->setText(QString::number(targetX, 'g', 6));
     }
@@ -4872,7 +5106,9 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
                                               tr("Save VN depth slice CSV"),
                                               QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv")),
                                               tr("CSV files (*.csv);;All files (*.*)"));
-        if (target.isEmpty()) return;
+        if (target.isEmpty()) {
+            return;
+        }
         vnDepthSliceExportEdit->setText(target);
     }
 
@@ -4881,19 +5117,59 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
         QMessageBox::warning(this, tr("Export VN depth slice"), tr("Could not open target CSV for writing."));
         return;
     }
+
     QTextStream ts(&out);
-    ts << "depth_m,value,target_x,x_column,depth_column,y_column\n";
+    ts << "point_index,depth_m,value,target_x,source_output_file,x_column,depth_column,y_column\n";
+    int pointIndex = 0;
     for (const QPointF &pt : series) {
-        ts << pt.x() << ',' << pt.y() << ',' << targetX << ','
-           << outputNumericHeaders.value(xIdx) << ','
-           << outputNumericHeaders.value(depthIdx) << ','
-           << outputNumericHeaders.value(yIdx) << "\n";
+        ts << pointIndex++ << ','
+           << pt.x() << ','
+           << pt.y() << ','
+           << targetX << ",\""
+           << CsvEscaped(outputSeriesFileEdit->text().trimmed()) << "\",\""
+           << CsvEscaped(outputNumericHeaders.value(xIdx)) << "\",\""
+           << CsvEscaped(outputNumericHeaders.value(depthIdx)) << "\",\""
+           << CsvEscaped(outputNumericHeaders.value(yIdx)) << "\"\n";
     }
     if (!out.commit()) {
         QMessageBox::warning(this, tr("Export VN depth slice"), tr("Could not finalize depth-slice CSV."));
         return;
     }
+
+    const QString sidecarPath = QFileInfo(target).absolutePath() + QDir::separator()
+        + QFileInfo(target).completeBaseName() + QStringLiteral("_settings.json");
+    QJsonObject sidecar;
+    sidecar.insert(QStringLiteral("exported_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    sidecar.insert(QStringLiteral("export_path"), target);
+    sidecar.insert(QStringLiteral("row_count"), series.size());
+    sidecar.insert(QStringLiteral("target_x"), targetX);
+    sidecar.insert(QStringLiteral("output_analysis"),
+                   BuildOutputSelectionObject(outputXAxisCombo,
+                                              outputYAxisCombo,
+                                              depthColumnCombo,
+                                              sliceXEdit,
+                                              outputSeriesFileEdit));
+    sidecar.insert(QStringLiteral("comparison_summary"), comparisonSummaryLabel->text().trimmed());
+    sidecar.insert(QStringLiteral("comparison_valid"), lastComparisonValid);
+    if (lastComparisonValid) {
+        QJsonObject metrics;
+        metrics.insert(QStringLiteral("n"), lastComparisonN);
+        metrics.insert(QStringLiteral("rmse"), lastComparisonRmse);
+        metrics.insert(QStringLiteral("mae"), lastComparisonMae);
+        metrics.insert(QStringLiteral("bias"), lastComparisonBias);
+        metrics.insert(QStringLiteral("r2"), lastComparisonR2);
+        sidecar.insert(QStringLiteral("comparison_metrics"), metrics);
+    }
+
+    QString sidecarError;
+    WriteTextFileUtf8(sidecarPath,
+                      QString::fromUtf8(QJsonDocument(sidecar).toJson(QJsonDocument::Indented)),
+                      &sidecarError);
+
     appendLog(stamp(tr("Exported VN depth-slice CSV: %1").arg(target)));
+    if (QFileInfo::exists(sidecarPath)) {
+        appendLog(stamp(tr("Saved VN depth-slice settings: %1").arg(sidecarPath)));
+    }
     saveSettings();
 }
 
