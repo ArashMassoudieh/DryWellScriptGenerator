@@ -100,7 +100,6 @@ private:
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
     QString currentEffectiveVnInitTheta() const;
-    QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;
     QString currentEffectiveVnFieldSeed() const;
     QString currentEffectiveVnFieldDx() const;
@@ -160,7 +159,6 @@ private:
     QLineEdit *vnFieldPointsEdit;
     QLineEdit *vnFieldSeedEdit;
     QLineEdit *vnFieldDxEdit;
-    QComboBox *vnFieldModeCombo;
     QComboBox *vnFieldPdfModeCombo;
     QLineEdit *vnSoilProfileExportEdit;
     QLineEdit *vnDepthSliceExportEdit;

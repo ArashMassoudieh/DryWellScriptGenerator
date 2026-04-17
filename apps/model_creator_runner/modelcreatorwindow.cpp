@@ -121,97 +121,8 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
         return modeFromPreset;
     }
 
-    const QString trimmedPreset = presetSelection.trimmed();
-    if (trimmedPreset.startsWith(QStringLiteral("VN_"), Qt::CaseInsensitive) || trimmedPreset.isEmpty()) {
-        return QStringLiteral("Preset");
-    }
-
-    return fallbackBuildMode;
-}
-
-
-QString CsvEscaped(const QString &value)
-{
-    QString out = value;
-    out.replace(QStringLiteral("\""), QStringLiteral("\"\""));
-    return out;
-}
-
-bool WriteTextFileUtf8(const QString &targetPath, const QString &text, QString *errorMessage)
-{
-    QSaveFile out(targetPath);
-    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        if (errorMessage) {
-            *errorMessage = QObject::tr("Could not open file for writing: %1").arg(targetPath);
-        }
-        return false;
-    }
-
-    const QByteArray utf8 = text.toUtf8();
-    const qint64 written = out.write(utf8);
-    if (written != utf8.size()) {
-        if (errorMessage) {
-            *errorMessage = QObject::tr("Failed while writing file: %1").arg(targetPath);
-        }
-        out.cancelWriting();
-        return false;
-    }
-
-    if (!out.commit()) {
-        if (errorMessage) {
-            *errorMessage = QObject::tr("Could not finalize file: %1").arg(targetPath);
-        }
-        return false;
-    }
-    return true;
-}
-
-QString BuildUniformSoilProfileCsv(int nzG,
-                                   int nzUw,
-                                   double topElevation,
-                                   double layerThickness,
-                                   const QString &ksat,
-                                   const QString &alpha,
-                                   const QString &n,
-                                   const QString &thetaSat,
-                                   const QString &thetaRes)
-{
-    const int safeNzG = qMax(0, nzG);
-    const int safeNzUw = qMax(0, nzUw);
-    const double safeDz = layerThickness > 0.0 ? layerThickness : 1.0;
-    QString csv;
-    QTextStream ts(&csv);
-    ts << "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
-    for (int i = 0; i < safeNzG; ++i) {
-        const double depth = topElevation + (static_cast<double>(i) + 0.5) * safeDz;
-        ts << "G," << i << ',' << depth << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
-    }
-    for (int i = 0; i < safeNzUw; ++i) {
-        const double depth = topElevation + (static_cast<double>(safeNzG + i) + 0.5) * safeDz;
-        ts << "UW," << i << ',' << depth << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
-    }
-    return csv;
-}
-
-QJsonObject BuildOutputSelectionObject(const QComboBox *xCombo,
-                                       const QComboBox *yCombo,
-                                       const QComboBox *depthCombo,
-                                       const QLineEdit *sliceEdit,
-                                       const QLineEdit *sourceFileEdit)
-{
-    QJsonObject obj;
-    auto addCombo = [&obj](const QString &prefix, const QComboBox *combo) {
-        if (!combo) return;
-        obj.insert(prefix + QStringLiteral("_index"), combo->currentIndex());
-        obj.insert(prefix + QStringLiteral("_text"), combo->currentText().trimmed());
-        obj.insert(prefix + QStringLiteral("_data"), combo->currentData().toString());
-    };
-    addCombo(QStringLiteral("x"), xCombo);
-    addCombo(QStringLiteral("y"), yCombo);
-    addCombo(QStringLiteral("depth"), depthCombo);
-    if (sliceEdit) obj.insert(QStringLiteral("target_x"), sliceEdit->text().trimmed());
-    if (sourceFileEdit) obj.insert(QStringLiteral("source_output_file"), sourceFileEdit->text().trimmed());
-    return obj;
+    Q_UNUSED(presetSelection);
+    return fallbackBuildMode.isEmpty() ? QStringLiteral("SoftReference") : fallbackBuildMode;
 }
 
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
@@ -1260,7 +1171,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnFieldPointsEdit(new QLineEdit(this)),
       vnFieldSeedEdit(new QLineEdit(this)),
       vnFieldDxEdit(new QLineEdit(this)),
-      vnFieldModeCombo(new QComboBox(this)),
       vnFieldPdfModeCombo(new QComboBox(this)),
       vnSoilProfileExportEdit(new QLineEdit(this)),
       vnDepthSliceExportEdit(new QLineEdit(this)),
@@ -1413,8 +1323,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
     vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
     vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
-    vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
-    vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
+    vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. "));
     vnBuildModeRowWidget = addTextRow(layout, tr("Build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
@@ -1552,7 +1461,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
     }
-    vnInitThetaModeCombo->addItem(tr("None / Default"), QStringLiteral("Default"));
+    vnInitThetaModeCombo->addItem(tr("Default"), QStringLiteral("Default"));
     vnInitThetaModeCombo->addItem(tr("ERT-3 only"), QStringLiteral("ERT3_Only"));
     vnInitThetaModeCombo->addItem(tr("ERT-5 only"), QStringLiteral("ERT5_Only"));
     vnInitThetaModeCombo->addItem(tr("ERT IDW_R"), QStringLiteral("ERT_IDW_R"));
@@ -1562,9 +1471,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnFieldPointsEdit, tr("200"));
     setupCompactNumericEdit(vnFieldSeedEdit, tr("42"));
     setupCompactNumericEdit(vnFieldDxEdit, tr("0.5"));
-    vnFieldModeCombo->addItem(tr("None"), QStringLiteral("none"));
-    vnFieldModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
-    vnFieldModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
     vnFieldPdfModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
     vnFieldPdfModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
     vnFieldPdfModeCombo->setToolTip(tr("VN-only metadata/control for the separate FieldGenerator preprocessing workflow."));
@@ -1573,8 +1479,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(tr("VN field generator")));
-        row->addWidget(new QLabel(tr("mode")));
-        row->addWidget(vnFieldModeCombo);
         row->addWidget(new QLabel(tr("points")));
         row->addWidget(vnFieldPointsEdit);
         row->addWidget(new QLabel(tr("seed")));
@@ -1797,9 +1701,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     connect(enrichmentPresetCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); });
     connect(vnBuildModeCombo, &QComboBox::currentTextChanged, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
-    connect(vnInitThetaModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
-    connect(vnFieldModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
-    connect(vnFieldPdfModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); updateFieldVisibilityForContext(); });
     connect(showOptionalFieldsCheck, &QCheckBox::toggled, this, [this]() { updateFieldVisibilityForContext(); saveSettings(); });
     connect(allowGuiExecutionCheck, &QCheckBox::toggled, this, [this]() { saveSettings(); });
 
@@ -2058,8 +1959,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
     const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
@@ -2092,11 +1992,6 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
-    const bool vnFieldGenEnabled = vnContext && currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
-    vnFieldPointsEdit->setEnabled(vnFieldGenEnabled);
-    vnFieldSeedEdit->setEnabled(vnFieldGenEnabled);
-    vnFieldDxEdit->setEnabled(vnFieldGenEnabled);
-    vnFieldPdfModeCombo->setEnabled(vnFieldGenEnabled);
     if (vnSoilToolRowWidget) vnSoilToolRowWidget->setVisible(vnContext);
     if (vnOutputToolRowWidget) vnOutputToolRowWidget->setVisible(vnContext);
 
@@ -2721,12 +2616,14 @@ void ModelCreatorWindow::previewScript()
         if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedVnBuildMode = VnBuildModeFromPresetSelection(selectedPreset);
+            options.vnBuildMode = !selectedVnBuildMode.isEmpty()
+                ? selectedVnBuildMode
+                : ResolveVnBuildModeForUi(options.modelType, selectedPreset,
+                                          vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed()
+                                                          : QStringLiteral("SoftReference"));
+            options.vnPreset.clear();
             if (!selectedVnBuildMode.isEmpty()) {
-                options.vnBuildMode = selectedVnBuildMode;
                 options.enrichmentPreset.clear();
-            } else {
-                options.vnBuildMode = QStringLiteral("Preset");
-                options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
@@ -2833,11 +2730,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
         meta.insert(QStringLiteral("build_mode"), vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed() : QString());
         meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
-        meta.insert(QStringLiteral("field_generator_mode"), currentEffectiveVnFieldMode());
-        meta.insert(QStringLiteral("field_points"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
-        meta.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
-        meta.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
-        meta.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
+        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
         meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
@@ -2863,18 +2759,17 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
     const bool vnGenerationContext = modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     if (vnGenerationContext) {
-        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
-        if (vnFieldGenEnabled && !vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
             appendLog(stamp(tr("Generation cancelled: VN field points must be a positive integer.")));
             return false;
         }
-        if (vnFieldGenEnabled && !vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
             appendLog(stamp(tr("Generation cancelled: VN field seed must be a non-negative integer.")));
             return false;
         }
-        if (vnFieldGenEnabled && !vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
             appendLog(stamp(tr("Generation cancelled: VN field dx must be a positive number.")));
             return false;
@@ -2937,11 +2832,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         QStringList vnMetadata;
         vnMetadata << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_generator_mode=%1").arg(currentEffectiveVnFieldMode());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString());
         const QString vnMetadataBlock = vnMetadata.join('\n');
         if (options.additionalCommands.trimmed().isEmpty()) {
             options.additionalCommands = vnMetadataBlock;
@@ -2980,12 +2874,14 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     if (options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
         const QString selectedVnBuildMode = VnBuildModeFromPresetSelection(selectedPreset);
+        options.vnBuildMode = !selectedVnBuildMode.isEmpty()
+            ? selectedVnBuildMode
+            : ResolveVnBuildModeForUi(options.modelType, selectedPreset,
+                                      vnBuildModeCombo ? vnBuildModeCombo->currentData().toString().trimmed()
+                                                      : QStringLiteral("SoftReference"));
+        options.vnPreset.clear();
         if (!selectedVnBuildMode.isEmpty()) {
-            options.vnBuildMode = selectedVnBuildMode;
             options.enrichmentPreset.clear();
-        } else {
-            options.vnBuildMode = QStringLiteral("Preset");
-            options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
@@ -3111,11 +3007,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
 
         int vnFieldPoints = 200;
         double vnFieldDx = 0.5;
-        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
-        if (vnFieldGenEnabled && !parsePositiveInt(vnFieldPointsEdit, tr("VN field points"), 200, &vnFieldPoints)) {
+        if (!parsePositiveInt(vnFieldPointsEdit, tr("VN field points"), 200, &vnFieldPoints)) {
             return false;
         }
-        if (vnFieldGenEnabled && !parsePositiveDouble(vnFieldDxEdit, tr("VN field dx"), 0.5, &vnFieldDx)) {
+        if (!parsePositiveDouble(vnFieldDxEdit, tr("VN field dx"), 0.5, &vnFieldDx)) {
             return false;
         }
         if (!validateOptionalPositiveKsat(ksatScaleEdit, tr("Ksat all"))
@@ -3130,7 +3025,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString effectiveG = options.ksatScaleG.trimmed().isEmpty() ? QStringLiteral("2.5") : options.ksatScaleG.trimmed();
         const QString effectiveUw = options.ksatScaleUw.trimmed().isEmpty() ? QStringLiteral("35") : options.ksatScaleUw.trimmed();
         appendLog(stamp(tr("VN generation config: buildMode=%1, initTheta=%2, field(points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
-                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("Preset") : options.vnBuildMode,
+                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : options.vnBuildMode,
                                  vnInitThetaModeCombo->currentData().toString(),
                                  vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
                                  vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),
@@ -3196,11 +3091,10 @@ void ModelCreatorWindow::runScript()
         meta.insert(QStringLiteral("phase"), phase);
         meta.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
         meta.insert(QStringLiteral("init_theta_mode"), vnInitThetaModeCombo->currentData().toString());
-        meta.insert(QStringLiteral("field_generator_mode"), currentEffectiveVnFieldMode());
-        meta.insert(QStringLiteral("field_points"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints());
-        meta.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed());
-        meta.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx());
-        meta.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf());
+        meta.insert(QStringLiteral("field_points"), vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_seed"), vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_dx"), vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        meta.insert(QStringLiteral("field_pdf_mode"), vnFieldPdfModeCombo->currentData().toString());
         meta.insert(QStringLiteral("ksat_all"), ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_g"), ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed());
         meta.insert(QStringLiteral("ksat_uw"), ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed());
@@ -3235,18 +3129,17 @@ void ModelCreatorWindow::runScript()
         modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
 
     if (vnRunContext) {
-        const bool vnFieldGenEnabled = currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0;
-        if (vnFieldGenEnabled && !vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
+        if (!vnFieldPointsEdit->text().trimmed().isEmpty() && !IsPositiveIntegerText(vnFieldPointsEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field points must be a positive integer."));
             appendLog(stamp(tr("Run cancelled: VN field points must be a positive integer.")));
             return;
         }
-        if (vnFieldGenEnabled && !vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
+        if (!vnFieldSeedEdit->text().trimmed().isEmpty() && !IsNonNegativeIntegerText(vnFieldSeedEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field seed must be a non-negative integer."));
             appendLog(stamp(tr("Run cancelled: VN field seed must be a non-negative integer.")));
             return;
         }
-        if (vnFieldGenEnabled && !vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
+        if (!vnFieldDxEdit->text().trimmed().isEmpty() && !IsPositiveDoubleText(vnFieldDxEdit->text())) {
             QMessageBox::warning(this, tr("Invalid VN field settings"), tr("VN field dx must be a positive number."));
             appendLog(stamp(tr("Run cancelled: VN field dx must be a positive number.")));
             return;
@@ -3565,13 +3458,12 @@ void ModelCreatorWindow::runScript()
         const QString effectiveAll = ksatScaleEdit->text().trimmed().isEmpty() ? QStringLiteral("(blank -> reference preserved)") : ksatScaleEdit->text().trimmed();
         const QString effectiveG = ksatScaleGEdit->text().trimmed().isEmpty() ? QStringLiteral("2.5") : ksatScaleGEdit->text().trimmed();
         const QString effectiveUw = ksatScaleUwEdit->text().trimmed().isEmpty() ? QStringLiteral("35") : ksatScaleUwEdit->text().trimmed();
-        appendLog(stamp(tr("VN runtime metadata: initTheta=%1, field(mode=%2, points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
+        appendLog(stamp(tr("VN runtime metadata: initTheta=%1, field(points=%2, seed=%3, dx=%4, pdf=%5), Ksat(all=%6, g=%7, uw=%8)")
                             .arg(vnInitThetaModeCombo->currentData().toString(),
-                                 currentEffectiveVnFieldMode(),
-                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPoints(),
-                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldSeed(),
-                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldDx(),
-                                 currentEffectiveVnFieldMode().compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0 ? QStringLiteral("(disabled)") : currentEffectiveVnFieldPdf(),
+                                 vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
+                                 vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),
+                                 vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed(),
+                                 vnFieldPdfModeCombo->currentData().toString(),
                                  effectiveAll,
                                  effectiveG,
                                  effectiveUw)));
@@ -4510,7 +4402,8 @@ void ModelCreatorWindow::loadSettings()
     vnMoistureLayersFileEdit->setText(settings.value("vnMoistureLayersFile").toString());
     if (vnBuildModeCombo) {
         QString savedVnBuildMode = settings.value("vnBuildMode", "SoftReference").toString().trimmed();
-        if (savedVnBuildMode.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0) {
+        if (savedVnBuildMode.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0
+            || savedVnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
             savedVnBuildMode = QStringLiteral("SoftReference");
         }
         const int vnBuildModeIndex = vnBuildModeCombo->findData(savedVnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : savedVnBuildMode);
@@ -4568,9 +4461,6 @@ void ModelCreatorWindow::loadSettings()
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
     vnInitThetaModeCombo->setCurrentIndex(vnInitThetaModeIndex >= 0 ? vnInitThetaModeIndex : 0);
-    const QString vnFieldMode = settingTextOrDefault("vnFieldMode", "none");
-    const int vnFieldModeIndex = vnFieldModeCombo->findData(vnFieldMode);
-    vnFieldModeCombo->setCurrentIndex(vnFieldModeIndex >= 0 ? vnFieldModeIndex : 0);
     vnFieldPointsEdit->setText(settingTextOrDefault("vnFieldPoints", "200"));
     vnFieldSeedEdit->setText(settingTextOrDefault("vnFieldSeed", "42"));
     vnFieldDxEdit->setText(settingTextOrDefault("vnFieldDx", "0.5"));
@@ -4676,7 +4566,6 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
-    settings.setValue("vnFieldMode", vnFieldModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
     settings.setValue("vnFieldSeed", vnFieldSeedEdit->text());
     settings.setValue("vnFieldDx", vnFieldDxEdit->text());
@@ -4701,13 +4590,6 @@ QString ModelCreatorWindow::currentEffectiveVnInitTheta() const
     return vnInitThetaModeCombo->currentData().toString().trimmed().isEmpty()
         ? QStringLiteral("Default")
         : vnInitThetaModeCombo->currentData().toString().trimmed();
-}
-
-QString ModelCreatorWindow::currentEffectiveVnFieldMode() const
-{
-    return vnFieldModeCombo->currentData().toString().trimmed().isEmpty()
-        ? QStringLiteral("none")
-        : vnFieldModeCombo->currentData().toString().trimmed();
 }
 
 QString ModelCreatorWindow::currentEffectiveVnFieldPoints() const
@@ -4754,101 +4636,56 @@ bool ModelCreatorWindow::validateVnAwarenessInputs(QString *errorMessage, bool f
         return true;
     }
 
-    const auto fail = [&](const QString &message) {
-        if (errorMessage) {
-            *errorMessage = message;
-        }
-        return false;
-    };
-
-    const QString buildMode = vnBuildModeCombo->currentData().toString().trimmed();
-    if (buildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
-        const QString baseOhq = vnBaseOhqFileEdit->text().trimmed();
-        if (baseOhq.isEmpty()) {
-            return fail(tr("VN LoadFromOhq mode requires a base .ohq file."));
-        }
-        const QFileInfo baseInfo(baseOhq);
-        if (!baseInfo.exists() || !baseInfo.isFile()) {
-            return fail(tr("VN base .ohq file does not exist: %1").arg(baseOhq));
-        }
-    }
-
     bool ok = false;
     const int points = currentEffectiveVnFieldPoints().toInt(&ok);
     if (!ok || points <= 0) {
-        return fail(tr("VN field points must be a positive integer."));
+        if (errorMessage) *errorMessage = tr("VN field points must be a positive integer.");
+        return false;
     }
-
     const int seed = currentEffectiveVnFieldSeed().toInt(&ok);
     if (!ok || seed < 0) {
-        return fail(tr("VN field seed must be a non-negative integer."));
+        if (errorMessage) *errorMessage = tr("VN field seed must be a non-negative integer.");
+        return false;
     }
-
     const double dx = currentEffectiveVnFieldDx().toDouble(&ok);
     if (!ok || !std::isfinite(dx) || dx <= 0.0) {
-        return fail(tr("VN field dx must be a positive number."));
+        if (errorMessage) *errorMessage = tr("VN field dx must be a positive number.");
+        return false;
     }
-
     const auto validatePositiveOptional = [&](const QLineEdit *edit, const QString &label) {
-        if (edit == nullptr || edit->text().trimmed().isEmpty()) {
-            return true;
-        }
+        if (!edit || edit->text().trimmed().isEmpty()) return true;
         bool localOk = false;
         const double v = edit->text().trimmed().toDouble(&localOk);
         if (!localOk || !std::isfinite(v) || v <= 0.0) {
-            return fail(tr("%1 must be a positive number when provided.").arg(label));
+            if (errorMessage) *errorMessage = tr("%1 must be a positive number when provided.").arg(label);
+            return false;
         }
         return true;
     };
-
     if (!validatePositiveOptional(ksatScaleEdit, tr("Ksat all"))
         || !validatePositiveOptional(ksatScaleGEdit, tr("Ksat g"))
-        || !validatePositiveOptional(ksatScaleUwEdit, tr("Ksat uw"))
-        || !validatePositiveOptional(vnSoftGridXEdit, tr("VN grid X"))
-        || !validatePositiveOptional(vnSoftGridYEdit, tr("VN grid Y"))
-        || !validatePositiveOptional(vnSoftUwGridXEdit, tr("VN under-well grid X"))
-        || !validatePositiveOptional(vnSoftUwGridYEdit, tr("VN under-well grid Y"))
-        || !validatePositiveOptional(vnSoftCellSizeEdit, tr("VN cell size"))
-        || !validatePositiveOptional(vnSoftUwCellSizeEdit, tr("VN under-well cell size"))
-        || !validatePositiveOptional(vnSoftGapSizeEdit, tr("VN gap size"))
-        || !validatePositiveOptional(vnSoftRwGEdit, tr("VN rw g"))
-        || !validatePositiveOptional(vnSoftRwUwEdit, tr("VN rw uw"))
-        || !validatePositiveOptional(vnSoftRadiusInfluenceEdit, tr("VN radius of influence"))
-        || !validatePositiveOptional(vnSoftDepthWellCEdit, tr("VN depth of well c"))
-        || !validatePositiveOptional(vnSoftDepthWellGEdit, tr("VN depth of well g"))
-        || !validatePositiveOptional(vnSoftDepthToGwEdit, tr("VN depth to groundwater"))
-        || !validatePositiveOptional(vnSoftLayerThicknessEdit, tr("VN layer thickness"))
-        || !validatePositiveOptional(vnSoftSoilKsatOriginalEdit, tr("VN Ksat original"))
-        || !validatePositiveOptional(vnSoftSoilAlphaEdit, tr("VN alpha"))
-        || !validatePositiveOptional(vnSoftSoilNEdit, tr("VN n"))
-        || !validatePositiveOptional(vnSoftSoilThetaSatEdit, tr("VN theta sat"))
-        || !validatePositiveOptional(vnSoftSoilThetaResEdit, tr("VN theta res"))) {
+        || !validatePositiveOptional(ksatScaleUwEdit, tr("Ksat uw"))) {
         return false;
     }
-
-    const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
-    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
-        const QString profilePath = vnSoftSoilParameterFileEdit->text().trimmed();
-        if (profilePath.isEmpty()) {
-            return fail(tr("VN soil param mode 'File' requires a soil-parameter profile file."));
-        }
-        const QFileInfo profileInfo(profilePath);
-        if (!profileInfo.exists() || !profileInfo.isFile()) {
-            return fail(tr("VN soil-parameter profile file does not exist: %1").arg(profilePath));
-        }
+    const QString mode = vnBuildModeCombo->currentData().toString().trimmed();
+    if (mode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
+        && vnBaseOhqFileEdit->text().trimmed().isEmpty()) {
+        if (errorMessage) *errorMessage = tr("VN LoadFromOhq mode requires a base .ohq file.");
+        return false;
     }
-
+    const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
+    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+        && vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
+        if (errorMessage) *errorMessage = tr("VN soil param mode 'File' requires a soil-parameter profile file.");
+        return false;
+    }
     if (forRun) {
         const QString scriptPath = scriptPathEdit->text().trimmed();
         if (scriptPath.isEmpty()) {
-            return fail(tr("Select or generate an OHQ script before running VN-aware tools."));
-        }
-        const QFileInfo scriptInfo(scriptPath);
-        if (!scriptInfo.exists() || !scriptInfo.isFile()) {
-            return fail(tr("Selected OHQ script does not exist: %1").arg(scriptPath));
+            if (errorMessage) *errorMessage = tr("Select or generate an OHQ script before running VN-aware tools.");
+            return false;
         }
     }
-
     return true;
 }
 
@@ -4869,75 +4706,24 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     QJsonObject root;
     root.insert(QStringLiteral("model_type"), modelTypeCombo->currentText().trimmed());
     root.insert(QStringLiteral("workflow_mode"), workflowModeCombo->currentData().toString());
+    root.insert(QStringLiteral("vn_build_mode"), vnBuildModeCombo->currentData().toString());
+    root.insert(QStringLiteral("init_theta_mode"), currentEffectiveVnInitTheta());
+    root.insert(QStringLiteral("field_points"), currentEffectiveVnFieldPoints());
+    root.insert(QStringLiteral("field_seed"), currentEffectiveVnFieldSeed());
+    root.insert(QStringLiteral("field_dx"), currentEffectiveVnFieldDx());
+    root.insert(QStringLiteral("field_pdf_mode"), currentEffectiveVnFieldPdf());
+    root.insert(QStringLiteral("ksat_all"), currentEffectiveKsatAll());
+    root.insert(QStringLiteral("ksat_g"), currentEffectiveKsatG());
+    root.insert(QStringLiteral("ksat_uw"), currentEffectiveKsatUw());
+    root.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
+    root.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
+    root.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
+    root.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
+    root.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
+    root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));
+    root.insert(QStringLiteral("resultgrid_runtime"), QStringLiteral("not_executed_in_current_app"));
+    root.insert(QStringLiteral("ert_snapshot_runtime"), QStringLiteral("not_executed_in_current_app"));
     root.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
-
-    QJsonObject vn;
-    vn.insert(QStringLiteral("build_mode"), vnBuildModeCombo->currentData().toString());
-    vn.insert(QStringLiteral("init_theta_mode"), currentEffectiveVnInitTheta());
-    vn.insert(QStringLiteral("base_ohq_file"), vnBaseOhqFileEdit->text().trimmed());
-    vn.insert(QStringLiteral("soil_layers_file"), vnSoilLayersFileEdit->text().trimmed());
-    vn.insert(QStringLiteral("moisture_layers_file"), vnMoistureLayersFileEdit->text().trimmed());
-
-    QJsonObject field;
-    field.insert(QStringLiteral("points"), currentEffectiveVnFieldPoints());
-    field.insert(QStringLiteral("seed"), currentEffectiveVnFieldSeed());
-    field.insert(QStringLiteral("dx"), currentEffectiveVnFieldDx());
-    field.insert(QStringLiteral("pdf_mode"), currentEffectiveVnFieldPdf());
-    field.insert(QStringLiteral("runtime"), QStringLiteral("metadata_only_in_current_app"));
-    vn.insert(QStringLiteral("field_settings"), field);
-
-    QJsonObject soil;
-    soil.insert(QStringLiteral("mode"), vnSoftSoilParamModeCombo->currentData().toString());
-    soil.insert(QStringLiteral("profile_file"), vnSoftSoilParameterFileEdit->text().trimmed());
-    soil.insert(QStringLiteral("ksat_original"), vnSoftSoilKsatOriginalEdit->text().trimmed());
-    soil.insert(QStringLiteral("alpha"), vnSoftSoilAlphaEdit->text().trimmed());
-    soil.insert(QStringLiteral("n"), vnSoftSoilNEdit->text().trimmed());
-    soil.insert(QStringLiteral("theta_sat"), vnSoftSoilThetaSatEdit->text().trimmed());
-    soil.insert(QStringLiteral("theta_res"), vnSoftSoilThetaResEdit->text().trimmed());
-    soil.insert(QStringLiteral("grid_x"), vnSoftGridXEdit->text().trimmed());
-    soil.insert(QStringLiteral("grid_y"), vnSoftGridYEdit->text().trimmed());
-    soil.insert(QStringLiteral("uw_grid_x"), vnSoftUwGridXEdit->text().trimmed());
-    soil.insert(QStringLiteral("uw_grid_y"), vnSoftUwGridYEdit->text().trimmed());
-    soil.insert(QStringLiteral("cell_size"), vnSoftCellSizeEdit->text().trimmed());
-    soil.insert(QStringLiteral("uw_cell_size"), vnSoftUwCellSizeEdit->text().trimmed());
-    soil.insert(QStringLiteral("gap_size"), vnSoftGapSizeEdit->text().trimmed());
-    soil.insert(QStringLiteral("rw_g"), vnSoftRwGEdit->text().trimmed());
-    soil.insert(QStringLiteral("rw_uw"), vnSoftRwUwEdit->text().trimmed());
-    soil.insert(QStringLiteral("radius_of_influence"), vnSoftRadiusInfluenceEdit->text().trimmed());
-    soil.insert(QStringLiteral("depth_of_well_c"), vnSoftDepthWellCEdit->text().trimmed());
-    soil.insert(QStringLiteral("depth_of_well_g"), vnSoftDepthWellGEdit->text().trimmed());
-    soil.insert(QStringLiteral("depth_to_gw"), vnSoftDepthToGwEdit->text().trimmed());
-    soil.insert(QStringLiteral("top_elevation"), vnSoftTopElevationEdit->text().trimmed());
-    soil.insert(QStringLiteral("layer_thickness"), vnSoftLayerThicknessEdit->text().trimmed());
-    vn.insert(QStringLiteral("soil_settings"), soil);
-
-    QJsonObject scaling;
-    scaling.insert(QStringLiteral("ksat_all"), currentEffectiveKsatAll());
-    scaling.insert(QStringLiteral("ksat_g"), currentEffectiveKsatG());
-    scaling.insert(QStringLiteral("ksat_uw"), currentEffectiveKsatUw());
-    vn.insert(QStringLiteral("ksat_scaling"), scaling);
-
-    root.insert(QStringLiteral("vn"), vn);
-
-    QJsonObject simulation;
-    simulation.insert(QStringLiteral("start"), simulationStartEdit->text().trimmed());
-    simulation.insert(QStringLiteral("end"), simulationEndEdit->text().trimmed());
-    simulation.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
-    simulation.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
-    simulation.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
-    root.insert(QStringLiteral("simulation"), simulation);
-
-    root.insert(QStringLiteral("output_analysis"), BuildOutputSelectionObject(outputXAxisCombo,
-                                                                             outputYAxisCombo,
-                                                                             depthColumnCombo,
-                                                                             sliceXEdit,
-                                                                             outputSeriesFileEdit));
-
-    QJsonArray notes;
-    notes.append(QStringLiteral("init-theta is runtime-applied in generated script context"));
-    notes.append(QStringLiteral("field-generator settings are metadata only in the current app"));
-    notes.append(QStringLiteral("no in-app FieldGenerator / ResultGrid / ERT execution yet"));
-    root.insert(QStringLiteral("notes"), notes);
 
     QSaveFile out(targetPath);
     if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -4983,106 +4769,56 @@ void ModelCreatorWindow::exportVnSoilProfileCsv()
                                               tr("Save VN soil profile CSV"),
                                               QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_soil_profile.csv")),
                                               tr("CSV files (*.csv);;All files (*.*)"));
-        if (target.isEmpty()) {
-            return;
-        }
+        if (target.isEmpty()) return;
         vnSoilProfileExportEdit->setText(target);
     }
 
-    const QString soilMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
-    QString csvText;
-    QString sourceDescription;
-
-    if (soilMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
-        const QString sourceFile = vnSoftSoilParameterFileEdit->text().trimmed();
+    if (vnSoftSoilParamModeCombo->currentData().toString().trimmed().compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
         QFile::remove(target);
-        if (!QFile::copy(sourceFile, target)) {
-            QMessageBox::warning(this, tr("Export VN soil profile"),
-                                 tr("Could not copy VN soil parameter profile to target path."));
+        if (!QFile::copy(vnSoftSoilParameterFileEdit->text().trimmed(), target)) {
+            QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not copy VN soil parameter profile to target path."));
             return;
         }
-        sourceDescription = tr("copied from file mode source");
-    } else {
-        if (soilMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0) {
-            csvText = StarterScriptBuilder::VnReferenceSoilProfileCsv();
-            sourceDescription = tr("exported from VN reference defaults");
-        } else {
-            bool ok = false;
-            const int nzG = vnSoftGridYEdit->text().trimmed().toInt(&ok);
-            const int safeNzG = ok && nzG > 0 ? nzG : 15;
-            const int nzUw = vnSoftUwGridYEdit->text().trimmed().toInt(&ok);
-            const int safeNzUw = ok && nzUw > 0 ? nzUw : 12;
-            const double top = vnSoftTopElevationEdit->text().trimmed().toDouble(&ok);
-            const double safeTop = ok ? top : -5.0;
-            const double dz = vnSoftLayerThicknessEdit->text().trimmed().toDouble(&ok);
-            const double safeDz = ok && dz > 0.0 ? dz : 1.0;
-
-            QString ksat = vnSoftSoilKsatOriginalEdit->text().trimmed();
-            QString alpha = vnSoftSoilAlphaEdit->text().trimmed();
-            QString n = vnSoftSoilNEdit->text().trimmed();
-            QString thetaSat = vnSoftSoilThetaSatEdit->text().trimmed();
-            QString thetaRes = vnSoftSoilThetaResEdit->text().trimmed();
-
-            if (soilMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0) {
-                if (ksat.isEmpty()) ksat = QStringLiteral("1.05196");
-                if (alpha.isEmpty()) alpha = QStringLiteral("3.47536");
-                if (n.isEmpty()) n = QStringLiteral("1.74582");
-                if (thetaSat.isEmpty()) thetaSat = QStringLiteral("0.39");
-                if (thetaRes.isEmpty()) thetaRes = QStringLiteral("0.049");
-                sourceDescription = tr("exported from ModelCreator defaults");
-            } else {
-                if (ksat.isEmpty()) ksat = QStringLiteral("1.05196");
-                if (alpha.isEmpty()) alpha = QStringLiteral("3.47536");
-                if (n.isEmpty()) n = QStringLiteral("1.74582");
-                if (thetaSat.isEmpty()) thetaSat = QStringLiteral("0.39");
-                if (thetaRes.isEmpty()) thetaRes = QStringLiteral("0.049");
-                sourceDescription = tr("exported from current manual soil settings");
-            }
-
-            csvText = BuildUniformSoilProfileCsv(safeNzG, safeNzUw, safeTop, safeDz,
-                                                 ksat, alpha, n, thetaSat, thetaRes);
-        }
-
-        if (csvText.trimmed().isEmpty()) {
-            QMessageBox::warning(this, tr("Export VN soil profile"),
-                                 tr("No VN soil profile content could be produced for the current mode."));
-            return;
-        }
-
-        QString writeError;
-        if (!WriteTextFileUtf8(target, csvText, &writeError)) {
-            QMessageBox::warning(this, tr("Export VN soil profile"), writeError);
-            return;
-        }
+        appendLog(stamp(tr("Copied VN soil profile file: %1").arg(target)));
+        saveSettings();
+        return;
     }
 
-    const QString sidecarPath = QFileInfo(target).absolutePath() + QDir::separator()
-        + QFileInfo(target).completeBaseName() + QStringLiteral("_settings.json");
-    QJsonObject sidecar;
-    sidecar.insert(QStringLiteral("exported_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
-    sidecar.insert(QStringLiteral("export_path"), target);
-    sidecar.insert(QStringLiteral("source_description"), sourceDescription);
-    sidecar.insert(QStringLiteral("soil_mode"), soilMode);
-    sidecar.insert(QStringLiteral("profile_file"), vnSoftSoilParameterFileEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("ksat_original"), vnSoftSoilKsatOriginalEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("alpha"), vnSoftSoilAlphaEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("n"), vnSoftSoilNEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("theta_sat"), vnSoftSoilThetaSatEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("theta_res"), vnSoftSoilThetaResEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("grid_y"), vnSoftGridYEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("uw_grid_y"), vnSoftUwGridYEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("top_elevation"), vnSoftTopElevationEdit->text().trimmed());
-    sidecar.insert(QStringLiteral("layer_thickness"), vnSoftLayerThicknessEdit->text().trimmed());
+    bool ok = false;
+    const int nzG = vnSoftGridYEdit->text().trimmed().toInt(&ok);
+    const int safeNzG = ok && nzG > 0 ? nzG : 15;
+    const int nzUw = vnSoftUwGridYEdit->text().trimmed().toInt(&ok);
+    const int safeNzUw = ok && nzUw > 0 ? nzUw : 12;
+    const double top = vnSoftTopElevationEdit->text().trimmed().toDouble(&ok);
+    const double safeTop = ok ? top : -5.0;
+    const double dz = vnSoftLayerThicknessEdit->text().trimmed().toDouble(&ok);
+    const double safeDz = ok && dz > 0.0 ? dz : 1.0;
+    const QString ksat = vnSoftSoilKsatOriginalEdit->text().trimmed().isEmpty() ? QStringLiteral("1.05196") : vnSoftSoilKsatOriginalEdit->text().trimmed();
+    const QString alpha = vnSoftSoilAlphaEdit->text().trimmed().isEmpty() ? QStringLiteral("3.47536") : vnSoftSoilAlphaEdit->text().trimmed();
+    const QString n = vnSoftSoilNEdit->text().trimmed().isEmpty() ? QStringLiteral("1.74582") : vnSoftSoilNEdit->text().trimmed();
+    const QString thetaSat = vnSoftSoilThetaSatEdit->text().trimmed().isEmpty() ? QStringLiteral("0.39") : vnSoftSoilThetaSatEdit->text().trimmed();
+    const QString thetaRes = vnSoftSoilThetaResEdit->text().trimmed().isEmpty() ? QStringLiteral("0.049") : vnSoftSoilThetaResEdit->text().trimmed();
 
-    QString sidecarError;
-    WriteTextFileUtf8(sidecarPath,
-                      QString::fromUtf8(QJsonDocument(sidecar).toJson(QJsonDocument::Indented)),
-                      &sidecarError);
-
-    appendLog(stamp(tr("Exported VN soil profile CSV: %1 (%2)").arg(target, sourceDescription)));
-    if (QFileInfo::exists(sidecarPath)) {
-        appendLog(stamp(tr("Saved VN soil export settings: %1").arg(sidecarPath)));
+    QSaveFile out(target);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not open target CSV for writing."));
+        return;
     }
+    QTextStream ts(&out);
+    ts << "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n";
+    for (int j = 0; j < safeNzG; ++j) {
+        const double actY = safeTop - (j + 0.5) * safeDz;
+        ts << "Soil-g," << actY << ',' << -actY << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
+    }
+    for (int j = 0; j < safeNzUw; ++j) {
+        const double actY = safeTop - (safeNzG + j + 0.5) * safeDz;
+        ts << "Soil-uw," << actY << ',' << -actY << ',' << ksat << ',' << alpha << ',' << n << ',' << thetaSat << ',' << thetaRes << "\n";
+    }
+    if (!out.commit()) {
+        QMessageBox::warning(this, tr("Export VN soil profile"), tr("Could not finalize soil profile CSV."));
+        return;
+    }
+    appendLog(stamp(tr("Exported VN soil profile CSV: %1").arg(target)));
     saveSettings();
 }
 
@@ -5118,10 +4854,7 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
         }
         double minX = xCol.first();
         double maxX = xCol.first();
-        for (double x : xCol) {
-            minX = qMin(minX, x);
-            maxX = qMax(maxX, x);
-        }
+        for (double x : xCol) { minX = qMin(minX, x); maxX = qMax(maxX, x); }
         targetX = 0.5 * (minX + maxX);
         sliceXEdit->setText(QString::number(targetX, 'g', 6));
     }
@@ -5138,9 +4871,7 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
                                               tr("Save VN depth slice CSV"),
                                               QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv")),
                                               tr("CSV files (*.csv);;All files (*.*)"));
-        if (target.isEmpty()) {
-            return;
-        }
+        if (target.isEmpty()) return;
         vnDepthSliceExportEdit->setText(target);
     }
 
@@ -5149,59 +4880,19 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
         QMessageBox::warning(this, tr("Export VN depth slice"), tr("Could not open target CSV for writing."));
         return;
     }
-
     QTextStream ts(&out);
-    ts << "point_index,depth_m,value,target_x,source_output_file,x_column,depth_column,y_column\n";
-    int pointIndex = 0;
+    ts << "depth_m,value,target_x,x_column,depth_column,y_column\n";
     for (const QPointF &pt : series) {
-        ts << pointIndex++ << ','
-           << pt.x() << ','
-           << pt.y() << ','
-           << targetX << ",\""
-           << CsvEscaped(outputSeriesFileEdit->text().trimmed()) << "\",\""
-           << CsvEscaped(outputNumericHeaders.value(xIdx)) << "\",\""
-           << CsvEscaped(outputNumericHeaders.value(depthIdx)) << "\",\""
-           << CsvEscaped(outputNumericHeaders.value(yIdx)) << "\"\n";
+        ts << pt.x() << ',' << pt.y() << ',' << targetX << ','
+           << outputNumericHeaders.value(xIdx) << ','
+           << outputNumericHeaders.value(depthIdx) << ','
+           << outputNumericHeaders.value(yIdx) << "\n";
     }
     if (!out.commit()) {
         QMessageBox::warning(this, tr("Export VN depth slice"), tr("Could not finalize depth-slice CSV."));
         return;
     }
-
-    const QString sidecarPath = QFileInfo(target).absolutePath() + QDir::separator()
-        + QFileInfo(target).completeBaseName() + QStringLiteral("_settings.json");
-    QJsonObject sidecar;
-    sidecar.insert(QStringLiteral("exported_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
-    sidecar.insert(QStringLiteral("export_path"), target);
-    sidecar.insert(QStringLiteral("row_count"), series.size());
-    sidecar.insert(QStringLiteral("target_x"), targetX);
-    sidecar.insert(QStringLiteral("output_analysis"),
-                   BuildOutputSelectionObject(outputXAxisCombo,
-                                              outputYAxisCombo,
-                                              depthColumnCombo,
-                                              sliceXEdit,
-                                              outputSeriesFileEdit));
-    sidecar.insert(QStringLiteral("comparison_summary"), comparisonSummaryLabel->text().trimmed());
-    sidecar.insert(QStringLiteral("comparison_valid"), lastComparisonValid);
-    if (lastComparisonValid) {
-        QJsonObject metrics;
-        metrics.insert(QStringLiteral("n"), lastComparisonN);
-        metrics.insert(QStringLiteral("rmse"), lastComparisonRmse);
-        metrics.insert(QStringLiteral("mae"), lastComparisonMae);
-        metrics.insert(QStringLiteral("bias"), lastComparisonBias);
-        metrics.insert(QStringLiteral("r2"), lastComparisonR2);
-        sidecar.insert(QStringLiteral("comparison_metrics"), metrics);
-    }
-
-    QString sidecarError;
-    WriteTextFileUtf8(sidecarPath,
-                      QString::fromUtf8(QJsonDocument(sidecar).toJson(QJsonDocument::Indented)),
-                      &sidecarError);
-
     appendLog(stamp(tr("Exported VN depth-slice CSV: %1").arg(target)));
-    if (QFileInfo::exists(sidecarPath)) {
-        appendLog(stamp(tr("Saved VN depth-slice settings: %1").arg(sidecarPath)));
-    }
     saveSettings();
 }
 
