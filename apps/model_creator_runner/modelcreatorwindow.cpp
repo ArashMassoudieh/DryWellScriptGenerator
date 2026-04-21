@@ -1663,10 +1663,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         vnSoftSoilParamsRowWidget = container;
     }
     vnInitThetaModeCombo->addItem(tr("Default"), QStringLiteral("Default"));
-    vnInitThetaModeCombo->addItem(tr("ERT-3 only"), QStringLiteral("ERT3_Only"));
-    vnInitThetaModeCombo->addItem(tr("ERT-5 only"), QStringLiteral("ERT5_Only"));
-    vnInitThetaModeCombo->addItem(tr("ERT IDW_R"), QStringLiteral("ERT_IDW_R"));
-    vnInitThetaModeCombo->addItem(tr("ERT R_Avg"), QStringLiteral("ERT_R_Avg"));
+    vnInitThetaModeCombo->addItem(tr("ERT3_Only"), QStringLiteral("ERT3_Only"));
+    vnInitThetaModeCombo->addItem(tr("ERT5_Only"), QStringLiteral("ERT5_Only"));
+    vnInitThetaModeCombo->addItem(tr("ERT_IDW_R"), QStringLiteral("ERT_IDW_R"));
+    vnInitThetaModeCombo->addItem(tr("ERT_R_Avg"), QStringLiteral("ERT_R_Avg"));
     vnInitThetaModeCombo->setToolTip(tr("Metadata/control for the init-theta strategy in the current app workflow."));
     vnInitThetaRowWidget = addTextRow(layout, tr("Init-theta mode"), vnInitThetaModeCombo);
     setupCompactNumericEdit(vnFieldPointsEdit, tr("200"));
