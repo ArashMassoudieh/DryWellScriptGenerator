@@ -47,6 +47,8 @@
 #include <QWidget>
 #include <algorithm>
 #include <cmath>
+#include <QDesktopServices>
+#include <QUrl>
 
 namespace {
 QString stamp(const QString &message)
@@ -1699,6 +1701,24 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(tr("Soil tool")));
         row->addWidget(vnSoilProfileExportEdit, 1);
+        auto *defaultBtn = new QPushButton(tr("Default"), container);
+        connect(defaultBtn, &QPushButton::clicked, this, [this]() {
+            vnSoilProfileExportEdit->setText(QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_soil_profile.csv")));
+            saveSettings();
+        });
+        row->addWidget(defaultBtn);
+        auto *openBtn = new QPushButton(tr("Open"), container);
+        connect(openBtn, &QPushButton::clicked, this, [this]() {
+            const QString path = vnSoilProfileExportEdit->text().trimmed().isEmpty()
+                ? QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_soil_profile.csv"))
+                : vnSoilProfileExportEdit->text().trimmed();
+            const QFileInfo info(path);
+            const QString openTarget = info.exists() ? info.absoluteFilePath() : info.absolutePath();
+            if (!openTarget.isEmpty()) {
+                QDesktopServices::openUrl(QUrl::fromLocalFile(openTarget));
+            }
+        });
+        row->addWidget(openBtn);
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, [this]() {
             const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_soil_profile.csv"));
@@ -1723,6 +1743,24 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->setContentsMargins(0, 0, 0, 0);
         row->addWidget(new QLabel(tr("Output tool")));
         row->addWidget(vnDepthSliceExportEdit, 1);
+        auto *defaultBtn = new QPushButton(tr("Default"), container);
+        connect(defaultBtn, &QPushButton::clicked, this, [this]() {
+            vnDepthSliceExportEdit->setText(QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv")));
+            saveSettings();
+        });
+        row->addWidget(defaultBtn);
+        auto *openBtn = new QPushButton(tr("Open"), container);
+        connect(openBtn, &QPushButton::clicked, this, [this]() {
+            const QString path = vnDepthSliceExportEdit->text().trimmed().isEmpty()
+                ? QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv"))
+                : vnDepthSliceExportEdit->text().trimmed();
+            const QFileInfo info(path);
+            const QString openTarget = info.exists() ? info.absoluteFilePath() : info.absolutePath();
+            if (!openTarget.isEmpty()) {
+                QDesktopServices::openUrl(QUrl::fromLocalFile(openTarget));
+            }
+        });
+        row->addWidget(openBtn);
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, [this]() {
             const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv"));
