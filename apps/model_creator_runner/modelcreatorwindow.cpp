@@ -1372,6 +1372,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnFieldPdfModeCombo(new QComboBox(this)),
       vnSoilProfileExportEdit(new QLineEdit(this)),
       vnDepthSliceExportEdit(new QLineEdit(this)),
+      vnErtSnapshotExportEdit(new QLineEdit(this)),
+      vtkInventoryExportEdit(new QLineEdit(this)),
       observationObjectEdit(new QLineEdit(this)),
       observationExpressionEdit(new QLineEdit(this)),
       observationNameEdit(new QLineEdit(this)),
@@ -1403,9 +1405,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       runButton(new QPushButton(tr("Run selected .ohq"), this)),
       exportArtifactsButton(new QPushButton(tr("Export run artifacts"), this)),
       stopButton(new QPushButton(tr("Stop"), this)),
-      exportVnSoilProfileButton(new QPushButton(tr("Export soil profile"), this)),
-      exportVnDepthSliceButton(new QPushButton(tr("Export depth slice"), this)),
-      exportVnMetadataButton(new QPushButton(tr("Export metadata JSON"), this)),
+      exportVnSoilProfileButton(new QPushButton(tr("Export VN soil profile"), this)),
+      exportVnDepthSliceButton(new QPushButton(tr("Export VN depth slice"), this)),
+      exportVnMetadataButton(new QPushButton(tr("Export VN metadata JSON"), this)),
       exportVnErtSnapshotButton(new QPushButton(tr("Export ERT-ready CSV"), this)),
       exportVtkInventoryButton(new QPushButton(tr("Export VTK inventory"), this)),
       saveVnGeneratedFieldButton(new QPushButton(tr("Save field file"), this)),
@@ -1669,19 +1671,19 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnInitThetaModeCombo->addItem(tr("ERT-5 only"), QStringLiteral("ERT5_Only"));
     vnInitThetaModeCombo->addItem(tr("ERT IDW_R"), QStringLiteral("ERT_IDW_R"));
     vnInitThetaModeCombo->addItem(tr("ERT R_Avg"), QStringLiteral("ERT_R_Avg"));
-    vnInitThetaModeCombo->setToolTip(tr("Metadata/control for the init-theta strategy in the current app workflow."));
-    vnInitThetaRowWidget = addTextRow(layout, tr("Init-theta mode"), vnInitThetaModeCombo);
+    vnInitThetaModeCombo->setToolTip(tr("VN-only metadata/control for the initial-theta strategy used by the separate VN ModelCreator pipeline."));
+    vnInitThetaRowWidget = addTextRow(layout, tr("VN init-theta mode"), vnInitThetaModeCombo);
     setupCompactNumericEdit(vnFieldPointsEdit, tr("200"));
     setupCompactNumericEdit(vnFieldSeedEdit, tr("42"));
     setupCompactNumericEdit(vnFieldDxEdit, tr("0.5"));
     vnFieldPdfModeCombo->addItem(tr("Parametric"), QStringLiteral("parametric"));
     vnFieldPdfModeCombo->addItem(tr("Nonparametric"), QStringLiteral("nonparametric"));
-    vnFieldPdfModeCombo->setToolTip(tr("Metadata/control for field-profile export settings in the current app workflow."));
+    vnFieldPdfModeCombo->setToolTip(tr("VN-only metadata/control for the separate FieldGenerator preprocessing workflow."));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Field generator")));
+        row->addWidget(new QLabel(tr("VN field generator")));
         row->addWidget(new QLabel(tr("points")));
         row->addWidget(vnFieldPointsEdit);
         row->addWidget(new QLabel(tr("seed")));
@@ -1694,12 +1696,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
         vnFieldGeneratorRowWidget = container;
     }
-    vnSoilProfileExportEdit->setPlaceholderText(tr("<working_dir>/vn_soil_profile.csv"));
+    vnSoilProfileExportEdit->setPlaceholderText(tr("Suggested: <working_dir>/vn_soil_profile.csv"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soil tool")));
+        row->addWidget(new QLabel(tr("VN soil tool")));
         row->addWidget(vnSoilProfileExportEdit, 1);
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, [this]() {
@@ -1718,7 +1720,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         layout->addWidget(container);
         vnSoilToolRowWidget = container;
     }
-    vnDepthSliceExportEdit->setPlaceholderText(tr("<working_dir>/vn_depth_slice.csv"));
+    vnDepthSliceExportEdit->setPlaceholderText(tr("Suggested: <working_dir>/vn_depth_slice.csv"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -1728,7 +1730,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, [this]() {
             const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_depth_slice.csv"));
-            const QString fileName = QFileDialog::getSaveFileName(this, tr("Save VN depth slice CSV"), suggested, tr("CSV files (*.csv);;All files (*.*)"));
+            const QString fileName = QFileDialog::getSaveFileName(this, tr("Save depth slice CSV"), suggested, tr("CSV files (*.csv);;All files (*.*)"));
             if (!fileName.isEmpty()) {
                 vnDepthSliceExportEdit->setText(fileName);
                 saveSettings();
@@ -1737,11 +1739,51 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(browseBtn);
         row->addWidget(exportVnDepthSliceButton);
         row->addWidget(exportVnMetadataButton);
-        row->addWidget(exportVnErtSnapshotButton);
-        row->addWidget(exportVtkInventoryButton);
         row->addStretch(1);
         layout->addWidget(container);
         vnOutputToolRowWidget = container;
+    }
+    vnErtSnapshotExportEdit->setPlaceholderText(tr("Suggested: <working_dir>/vn_ert_snapshot.csv"));
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("ERT tool")));
+        row->addWidget(vnErtSnapshotExportEdit, 1);
+        auto *browseBtn = new QPushButton(tr("Browse"), container);
+        connect(browseBtn, &QPushButton::clicked, this, [this]() {
+            const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_ert_snapshot.csv"));
+            const QString fileName = QFileDialog::getSaveFileName(this, tr("Save ERT-ready CSV"), suggested, tr("CSV files (*.csv);;All files (*.*)"));
+            if (!fileName.isEmpty()) {
+                vnErtSnapshotExportEdit->setText(fileName);
+                saveSettings();
+            }
+        });
+        row->addWidget(browseBtn);
+        row->addWidget(exportVnErtSnapshotButton);
+        row->addStretch(1);
+        layout->addWidget(container);
+    }
+    vtkInventoryExportEdit->setPlaceholderText(tr("Suggested: <working_dir>/vtk_inventory.csv"));
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("VTK tool")));
+        row->addWidget(vtkInventoryExportEdit, 1);
+        auto *browseBtn = new QPushButton(tr("Browse"), container);
+        connect(browseBtn, &QPushButton::clicked, this, [this]() {
+            const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vtk_inventory.csv"));
+            const QString fileName = QFileDialog::getSaveFileName(this, tr("Save VTK inventory CSV"), suggested, tr("CSV files (*.csv);;All files (*.*)"));
+            if (!fileName.isEmpty()) {
+                vtkInventoryExportEdit->setText(fileName);
+                saveSettings();
+            }
+        });
+        row->addWidget(browseBtn);
+        row->addWidget(exportVtkInventoryButton);
+        row->addStretch(1);
+        layout->addWidget(container);
     }
     observationObjectEdit->setPlaceholderText(tr("e.g. Soil (1$1)"));
     observationObjectEdit->setToolTip(tr("Target soil/layer object used for observation extraction in generated script."));
@@ -3244,8 +3286,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
                                  effectiveAll,
                                  effectiveG,
                                  effectiveUw)));
-        appendLog(stamp(tr("Field-generator settings are stored in script metadata only in the current app workflow.")));
-        appendLog(stamp(tr("Init-theta mode is written into script metadata in the current app workflow; no executable runtime flag is passed.")));
+        appendLog(stamp(tr("VN field-generator settings are stored in script metadata only in the current app workflow.")));
+        appendLog(stamp(tr("VN init-theta mode is written into script metadata in the current app workflow; no executable runtime flag is passed.")));
     }
     QString error;
     if (!StarterScriptBuilder::Write(options, &error)) {
@@ -3274,7 +3316,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
                 appendLog(stamp(tr("Warning: failed to write VN sidecar metadata: %1").arg(metadataPath)));
             }
         }
-        appendLog(stamp(tr("Field-generator settings are tracked as metadata/comments only in the current app workflow; no in-app FieldGenerator execution is performed.")));
+        appendLog(stamp(tr("VN field-generator settings are tracked as metadata/comments only in the current app workflow; no in-app FieldGenerator execution is performed.")));
     }
 
     appendLog(stamp(tr("Generated %1 starter script: %2").arg(options.modelType, options.outputFile)));
@@ -3707,7 +3749,7 @@ void ModelCreatorWindow::runScript()
         } else {
             appendLog(stamp(tr("VN init-theta mode remains Default metadata in the current app workflow.")));
         }
-        appendLog(stamp(tr("Field-generator settings remain metadata-only in the current app workflow; they are not passed as executable flags.")));
+        appendLog(stamp(tr("VN field-generator settings remain metadata-only in the current app workflow; they are not passed as executable flags.")));
     }
     runner->runScript(scriptInfo.absoluteFilePath(), wdInfo.absoluteFilePath(), executableArgs);
 }
@@ -4699,6 +4741,8 @@ void ModelCreatorWindow::loadSettings()
     vnFieldDxEdit->setText(settingTextOrDefault("vnFieldDx", "0.5"));
     vnSoilProfileExportEdit->setText(settings.value("vnSoilProfileExportPath", QDir(defaultWorkingDirectory).filePath("vn_soil_profile.csv")).toString());
     vnDepthSliceExportEdit->setText(settings.value("vnDepthSliceExportPath", QDir(defaultWorkingDirectory).filePath("vn_depth_slice.csv")).toString());
+    vnErtSnapshotExportEdit->setText(settings.value("vnErtSnapshotExportPath", QDir(defaultWorkingDirectory).filePath("vn_ert_snapshot.csv")).toString());
+    vtkInventoryExportEdit->setText(settings.value("vtkInventoryExportPath", QDir(defaultWorkingDirectory).filePath("vtk_inventory.csv")).toString());
     const QString vnFieldPdfMode = settingTextOrDefault("vnFieldPdfMode", "parametric");
     const int vnFieldPdfModeIndex = vnFieldPdfModeCombo->findData(vnFieldPdfMode);
     vnFieldPdfModeCombo->setCurrentIndex(vnFieldPdfModeIndex >= 0 ? vnFieldPdfModeIndex : 0);
@@ -4804,6 +4848,8 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnFieldDx", vnFieldDxEdit->text());
     settings.setValue("vnSoilProfileExportPath", vnSoilProfileExportEdit->text());
     settings.setValue("vnDepthSliceExportPath", vnDepthSliceExportEdit->text());
+    settings.setValue("vnErtSnapshotExportPath", vnErtSnapshotExportEdit->text());
+    settings.setValue("vtkInventoryExportPath", vtkInventoryExportEdit->text());
     settings.setValue("vnFieldPdfMode", vnFieldPdfModeCombo->currentData().toString());
     if (showOptionalFieldsCheck) {
         settings.setValue("showOptionalFields", showOptionalFieldsCheck->isChecked());
@@ -4994,6 +5040,8 @@ void ModelCreatorWindow::syncVnToolDefaultPaths()
 
     const QString soilDefault = QDir(workDir).filePath(QStringLiteral("vn_soil_profile.csv"));
     const QString outputDefault = QDir(workDir).filePath(QStringLiteral("vn_depth_slice.csv"));
+    const QString ertDefault = QDir(workDir).filePath(QStringLiteral("vn_ert_snapshot.csv"));
+    const QString vtkDefault = QDir(workDir).filePath(QStringLiteral("vtk_inventory.csv"));
 
     const auto shouldReplaceWithDefault = [](const QString &currentValue, const QString &defaultFileName) {
         const QString trimmed = currentValue.trimmed();
@@ -5009,6 +5057,12 @@ void ModelCreatorWindow::syncVnToolDefaultPaths()
     }
     if (shouldReplaceWithDefault(vnDepthSliceExportEdit->text(), QStringLiteral("vn_depth_slice.csv"))) {
         vnDepthSliceExportEdit->setText(outputDefault);
+    }
+    if (shouldReplaceWithDefault(vnErtSnapshotExportEdit->text(), QStringLiteral("vn_ert_snapshot.csv"))) {
+        vnErtSnapshotExportEdit->setText(ertDefault);
+    }
+    if (shouldReplaceWithDefault(vtkInventoryExportEdit->text(), QStringLiteral("vtk_inventory.csv"))) {
+        vtkInventoryExportEdit->setText(vtkDefault);
     }
 }
 
@@ -5075,9 +5129,17 @@ bool ModelCreatorWindow::writeVnGeneratedFieldFile(const QString &targetPath, QS
         return false;
     }
     const QString sidecarPath = target + QStringLiteral(".json");
-    if (QFileInfo::exists(sidecarPath)) {
-        QFile::remove(sidecarPath);
-    }
+    QJsonObject meta;
+    meta.insert(QStringLiteral("kind"), QStringLiteral("vn_generated_field_profile"));
+    meta.insert(QStringLiteral("field_mode"), currentEffectiveVnFieldMode());
+    meta.insert(QStringLiteral("pdf_mode"), currentEffectiveVnFieldPdf());
+    meta.insert(QStringLiteral("points"), currentEffectiveVnFieldPoints());
+    meta.insert(QStringLiteral("seed"), currentEffectiveVnFieldSeed());
+    meta.insert(QStringLiteral("dx"), currentEffectiveVnFieldDx());
+    meta.insert(QStringLiteral("source_build_mode"), vnBuildModeCombo->currentData().toString());
+    meta.insert(QStringLiteral("source_soil_param_mode"), vnSoftSoilParamModeCombo->currentData().toString());
+    meta.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    WriteJsonFile(sidecarPath, meta);
 
     return true;
 }
@@ -5328,13 +5390,17 @@ void ModelCreatorWindow::exportVnErtSnapshotCsv()
         return;
     }
 
-    const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_ert_snapshot.csv"));
-    const QString target = QFileDialog::getSaveFileName(this,
-                                                        tr("Save ERT-ready CSV"),
-                                                        suggested,
-                                                        tr("CSV files (*.csv);;All files (*.*)"));
+    QString target = vnErtSnapshotExportEdit->text().trimmed();
     if (target.isEmpty()) {
-        return;
+        const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_ert_snapshot.csv"));
+        target = QFileDialog::getSaveFileName(this,
+                                              tr("Save ERT-ready CSV"),
+                                              suggested,
+                                              tr("CSV files (*.csv);;All files (*.*)"));
+        if (target.isEmpty()) {
+            return;
+        }
+        vnErtSnapshotExportEdit->setText(target);
     }
 
     const QString boreholeName = InferErtBoreholeName(targetX);
@@ -5368,6 +5434,7 @@ void ModelCreatorWindow::exportVnErtSnapshotCsv()
 
     appendLog(stamp(tr("Exported ERT-ready borehole CSV: %1").arg(target)));
     appendLog(stamp(tr("This app-side export uses the currently selected output/depth columns and slice X/R as a borehole-style profile.")));
+    saveSettings();
 }
 
 void ModelCreatorWindow::exportVtkInventoryCsv()
@@ -5400,13 +5467,17 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         return;
     }
 
-    const QString suggested = QDir(workingDirectory).filePath(QStringLiteral("vtk_inventory.csv"));
-    const QString target = QFileDialog::getSaveFileName(this,
-                                                        tr("Save VTK inventory CSV"),
-                                                        suggested,
-                                                        tr("CSV files (*.csv);;All files (*.*)"));
+    QString target = vtkInventoryExportEdit->text().trimmed();
     if (target.isEmpty()) {
-        return;
+        const QString suggested = QDir(workingDirectory).filePath(QStringLiteral("vtk_inventory.csv"));
+        target = QFileDialog::getSaveFileName(this,
+                                              tr("Save VTK inventory CSV"),
+                                              suggested,
+                                              tr("CSV files (*.csv);;All files (*.*)"));
+        if (target.isEmpty()) {
+            return;
+        }
+        vtkInventoryExportEdit->setText(target);
     }
 
     const auto esc = [](const QString &value) {
@@ -5439,6 +5510,7 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
     }
 
     appendLog(stamp(tr("Exported VTK inventory CSV: %1 (%2 file(s))").arg(target).arg(vtkFiles.size())));
+    saveSettings();
 }
 
 QStringList ModelCreatorWindow::collectRunArtifacts() const

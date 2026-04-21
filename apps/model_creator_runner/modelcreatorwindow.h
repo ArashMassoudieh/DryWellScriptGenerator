@@ -68,10 +68,10 @@ private slots:
     void exportVnSoilProfileCsv();
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
-    void saveVnGeneratedFieldFile();
-    void useVnGeneratedFieldFile();
     void exportVnErtSnapshotCsv();
     void exportVtkInventoryCsv();
+    void saveVnGeneratedFieldFile();
+    void useVnGeneratedFieldFile();
 
 private:
     void suggestSimulationWindowFromInflow(const QString &path, bool forceApply = false);
@@ -170,6 +170,8 @@ private:
     QComboBox *vnFieldPdfModeCombo;
     QLineEdit *vnSoilProfileExportEdit;
     QLineEdit *vnDepthSliceExportEdit;
+    QLineEdit *vnErtSnapshotExportEdit;
+    QLineEdit *vtkInventoryExportEdit;
     QLineEdit *observationObjectEdit;
     QLineEdit *observationExpressionEdit;
     QLineEdit *observationNameEdit;
