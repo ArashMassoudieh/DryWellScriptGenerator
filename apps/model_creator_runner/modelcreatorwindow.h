@@ -113,6 +113,7 @@ private:
     QString currentEffectiveKsatG() const;
     QString currentEffectiveKsatUw() const;
     QString defaultVnGeneratedFieldFilePath() const;
+    void syncVnToolDefaultPaths();
     bool writeVnGeneratedFieldFile(const QString &targetPath, QString *errorMessage = nullptr) const;
 
     QComboBox *modelTypeCombo;
