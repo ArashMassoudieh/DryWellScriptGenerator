@@ -129,6 +129,20 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
     return fallbackBuildMode;
 }
 
+QString InferErtBoreholeName(double radiusM)
+{
+    if (!std::isfinite(radiusM)) {
+        return QStringLiteral("ERT");
+    }
+    if (std::fabs(radiusM - 3.0) <= 0.25) {
+        return QStringLiteral("ERT-3");
+    }
+    if (std::fabs(radiusM - 5.0) <= 0.25) {
+        return QStringLiteral("ERT-5");
+    }
+    return QStringLiteral("R_%1m").arg(QString::number(radiusM, 'g', 6));
+}
+
 bool InterpolateY(const QVector<QPointF> &series, double x, double *yOut)
 {
     if (series.size() < 2 || yOut == nullptr) {
@@ -1212,6 +1226,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       exportVnSoilProfileButton(new QPushButton(tr("Export VN soil profile"), this)),
       exportVnDepthSliceButton(new QPushButton(tr("Export VN depth slice"), this)),
       exportVnMetadataButton(new QPushButton(tr("Export VN metadata JSON"), this)),
+      exportVnErtSnapshotButton(new QPushButton(tr("Export ERT-ready CSV"), this)),
+      exportVtkInventoryButton(new QPushButton(tr("Export VTK inventory"), this)),
       saveVnGeneratedFieldButton(new QPushButton(tr("Save field file"), this)),
       useVnGeneratedFieldButton(new QPushButton(tr("Use field file"), this)),
       runner(new OHQProcessRunner(this))
@@ -1541,6 +1557,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(browseBtn);
         row->addWidget(exportVnDepthSliceButton);
         row->addWidget(exportVnMetadataButton);
+        row->addWidget(exportVnErtSnapshotButton);
+        row->addWidget(exportVtkInventoryButton);
         row->addStretch(1);
         layout->addWidget(container);
         vnOutputToolRowWidget = container;
@@ -1650,6 +1668,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(exportVnSoilProfileButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnSoilProfileCsv);
     connect(exportVnDepthSliceButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnDepthSliceCsv);
     connect(exportVnMetadataButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnMetadataJson);
+    connect(exportVnErtSnapshotButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnErtSnapshotCsv);
+    connect(exportVtkInventoryButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVtkInventoryCsv);
     connect(saveVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::saveVnGeneratedFieldFile);
     connect(useVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::useVnGeneratedFieldFile);
     connect(stopButton, &QPushButton::clicked, runner, &OHQProcessRunner::stop);
@@ -3043,7 +3063,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
                                  effectiveG,
                                  effectiveUw)));
         appendLog(stamp(tr("VN field-generator settings are stored in script metadata only in the current app workflow.")));
-        appendLog(stamp(tr("VN init-theta mode is written into script metadata now and applied as a runtime flag when you run through the app.")));
+        appendLog(stamp(tr("VN init-theta mode is written into script metadata in the current app workflow; no executable runtime flag is passed.")));
     }
     QString error;
     if (!StarterScriptBuilder::Write(options, &error)) {
@@ -3440,12 +3460,7 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
-    if (vnRunContext) {
-        const QString initThetaMode = vnInitThetaModeCombo->currentData().toString().trimmed();
-        if (!initThetaMode.isEmpty() && initThetaMode.compare(QStringLiteral("Default"), Qt::CaseInsensitive) != 0) {
-            appendFlagIfPresent(QStringLiteral("--init-theta"), initThetaMode);
-        }
-    }
+
     if (passScriptWithRunFlagDefault) {
         if (guiConfigTemplateEdit->text().trimmed().isEmpty()) {
             appendLog(stamp(tr("Executable looks like OpenHydroQual GUI; using default args: <script> --run")));
@@ -3477,9 +3492,9 @@ void ModelCreatorWindow::runScript()
                                  effectiveUw)));
         const QString initThetaMode = vnInitThetaModeCombo->currentData().toString().trimmed();
         if (!initThetaMode.isEmpty() && initThetaMode.compare(QStringLiteral("Default"), Qt::CaseInsensitive) != 0) {
-            appendLog(stamp(tr("Applied runtime flag: --init-theta %1").arg(initThetaMode)));
+            appendLog(stamp(tr("VN init-theta mode is metadata-only in the current app workflow: %1").arg(initThetaMode)));
         } else {
-            appendLog(stamp(tr("No runtime --init-theta flag applied (Default mode).")));
+            appendLog(stamp(tr("VN init-theta mode remains Default metadata in the current app workflow.")));
         }
         appendLog(stamp(tr("VN field-generator settings remain metadata-only in the current app workflow; they are not passed as executable flags.")));
     }
@@ -5035,6 +5050,166 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
     }
     appendLog(stamp(tr("Exported VN depth-slice CSV: %1").arg(target)));
     saveSettings();
+}
+
+
+void ModelCreatorWindow::exportVnErtSnapshotCsv()
+{
+    QString validationError;
+    if (!validateVnAwarenessInputs(&validationError, false)) {
+        QMessageBox::warning(this, tr("Export ERT-ready CSV"), validationError);
+        return;
+    }
+
+    QString error;
+    if (!loadOutputColumns(&error)) {
+        QMessageBox::warning(this, tr("Export ERT-ready CSV"), error);
+        return;
+    }
+
+    const int xIdx = outputXAxisCombo->currentIndex();
+    const int yIdx = outputYAxisCombo->currentIndex();
+    const int depthIdx = depthColumnCombo->currentIndex();
+    if (xIdx < 0 || yIdx < 0 || depthIdx < 0) {
+        QMessageBox::warning(this, tr("Export ERT-ready CSV"), tr("Select valid X/Y/Depth columns first."));
+        return;
+    }
+
+    bool ok = false;
+    double targetX = sliceXEdit->text().trimmed().toDouble(&ok);
+    if (!ok) {
+        const QVector<double> &xCol = outputNumericColumns[xIdx];
+        if (xCol.isEmpty()) {
+            QMessageBox::warning(this, tr("Export ERT-ready CSV"), tr("X column is empty."));
+            return;
+        }
+        double minX = xCol.first();
+        double maxX = xCol.first();
+        for (double x : xCol) {
+            minX = qMin(minX, x);
+            maxX = qMax(maxX, x);
+        }
+        targetX = 0.5 * (minX + maxX);
+        sliceXEdit->setText(QString::number(targetX, 'g', 6));
+    }
+
+    const QVector<QPointF> series = computeDepthSliceSeries(targetX, xIdx, yIdx, depthIdx);
+    if (series.isEmpty()) {
+        QMessageBox::information(this, tr("Export ERT-ready CSV"), tr("No depth-slice data available."));
+        return;
+    }
+
+    const QString suggested = QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("vn_ert_snapshot.csv"));
+    const QString target = QFileDialog::getSaveFileName(this,
+                                                        tr("Save ERT-ready CSV"),
+                                                        suggested,
+                                                        tr("CSV files (*.csv);;All files (*.*)"));
+    if (target.isEmpty()) {
+        return;
+    }
+
+    const QString boreholeName = InferErtBoreholeName(targetX);
+    QSaveFile out(target);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Export ERT-ready CSV"), tr("Could not open target CSV for writing."));
+        return;
+    }
+
+    QTextStream ts(&out);
+    ts << "borehole_name,r_m,depth_m,theta_model,target_x,x_column,depth_column,value_column,init_theta_mode,field_points,field_seed,field_dx,field_pdf_mode\n";
+    for (const QPointF &pt : series) {
+        ts << boreholeName << ','
+           << targetX << ','
+           << pt.x() << ','
+           << pt.y() << ','
+           << targetX << ','
+           << outputNumericHeaders.value(xIdx) << ','
+           << outputNumericHeaders.value(depthIdx) << ','
+           << outputNumericHeaders.value(yIdx) << ','
+           << currentEffectiveVnInitTheta() << ','
+           << currentEffectiveVnFieldPoints() << ','
+           << currentEffectiveVnFieldSeed() << ','
+           << currentEffectiveVnFieldDx() << ','
+           << currentEffectiveVnFieldPdf() << "\n";
+    }
+    if (!out.commit()) {
+        QMessageBox::warning(this, tr("Export ERT-ready CSV"), tr("Could not finalize ERT-ready CSV."));
+        return;
+    }
+
+    appendLog(stamp(tr("Exported ERT-ready borehole CSV: %1").arg(target)));
+    appendLog(stamp(tr("This app-side export uses the currently selected output/depth columns and slice X/R as a borehole-style profile.")));
+}
+
+void ModelCreatorWindow::exportVtkInventoryCsv()
+{
+    const QString workingDirectory = workingDirEdit->text().trimmed();
+    if (workingDirectory.isEmpty()) {
+        QMessageBox::warning(this, tr("Export VTK inventory"), tr("Set a working directory first."));
+        return;
+    }
+    const QFileInfo wdInfo(workingDirectory);
+    if (!wdInfo.exists() || !wdInfo.isDir()) {
+        QMessageBox::warning(this, tr("Export VTK inventory"), tr("Working directory does not exist or is not a directory."));
+        return;
+    }
+
+    QStringList vtkFiles;
+    QDirIterator it(workingDirectory, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QFileInfo fi = it.fileInfo();
+        const QString ext = fi.suffix().toLower();
+        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu")) {
+            vtkFiles << fi.absoluteFilePath();
+        }
+    }
+    vtkFiles.sort();
+
+    if (vtkFiles.isEmpty()) {
+        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu files were found under the current working directory."));
+        return;
+    }
+
+    const QString suggested = QDir(workingDirectory).filePath(QStringLiteral("vtk_inventory.csv"));
+    const QString target = QFileDialog::getSaveFileName(this,
+                                                        tr("Save VTK inventory CSV"),
+                                                        suggested,
+                                                        tr("CSV files (*.csv);;All files (*.*)"));
+    if (target.isEmpty()) {
+        return;
+    }
+
+    const auto esc = [](const QString &value) {
+        QString copy = value;
+        copy.replace('"', "\"\"");
+        return copy;
+    };
+
+    QSaveFile out(target);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Export VTK inventory"), tr("Could not open target CSV for writing."));
+        return;
+    }
+
+    QTextStream ts(&out);
+    ts << "file_path,relative_path,file_name,extension,size_bytes,last_modified_utc\n";
+    const QDir root(workingDirectory);
+    for (const QString &path : vtkFiles) {
+        const QFileInfo fi(path);
+        ts << '"' << esc(fi.absoluteFilePath()) << '"' << ','
+           << '"' << esc(root.relativeFilePath(fi.absoluteFilePath())) << '"' << ','
+           << '"' << esc(fi.fileName()) << '"' << ','
+           << fi.suffix().toLower() << ','
+           << fi.size() << ','
+           << fi.lastModified().toUTC().toString(Qt::ISODate) << "\n";
+    }
+    if (!out.commit()) {
+        QMessageBox::warning(this, tr("Export VTK inventory"), tr("Could not finalize VTK inventory CSV."));
+        return;
+    }
+
+    appendLog(stamp(tr("Exported VTK inventory CSV: %1 (%2 file(s))").arg(target).arg(vtkFiles.size())));
 }
 
 QStringList ModelCreatorWindow::collectRunArtifacts() const

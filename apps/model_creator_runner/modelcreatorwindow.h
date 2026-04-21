@@ -68,6 +68,8 @@ private slots:
     void exportVnSoilProfileCsv();
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
+    void exportVnErtSnapshotCsv();
+    void exportVtkInventoryCsv();
     void saveVnGeneratedFieldFile();
     void useVnGeneratedFieldFile();
 
@@ -236,6 +238,8 @@ private:
     QPushButton *exportVnSoilProfileButton;
     QPushButton *exportVnDepthSliceButton;
     QPushButton *exportVnMetadataButton;
+    QPushButton *exportVnErtSnapshotButton;
+    QPushButton *exportVtkInventoryButton;
     QPushButton *saveVnGeneratedFieldButton;
     QPushButton *useVnGeneratedFieldButton;
     OHQProcessRunner *runner;
