@@ -68,10 +68,10 @@ private slots:
     void exportVnSoilProfileCsv();
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
-    void exportVnErtSnapshotCsv();
-    void exportVtkInventoryCsv();
     void saveVnGeneratedFieldFile();
     void useVnGeneratedFieldFile();
+    void exportVnErtSnapshotCsv();
+    void exportVtkInventoryCsv();
 
 private:
     void suggestSimulationWindowFromInflow(const QString &path, bool forceApply = false);

@@ -36,6 +36,8 @@
 #include <QSaveFile>
 #include <QScrollArea>
 #include <QSignalBlocker>
+#include <QSet>
+#include <functional>
 #include <QSettings>
 #include <QTabWidget>
 #include <QTableWidget>
@@ -923,6 +925,18 @@ bool BuildGuiConfigFromTemplate(const QString &templatePath,
         }
         return false;
     }
+    QJsonParseError parseError;
+    const QJsonDocument parsed = QJsonDocument::fromJson(configText.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || (!parsed.isObject() && !parsed.isArray())) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("GUI config template did not produce valid JSON: %1").arg(templatePath);
+            if (parseError.error != QJsonParseError::NoError) {
+                *errorMessage += QObject::tr(" (%1 at offset %2)").arg(parseError.errorString()).arg(parseError.offset);
+            }
+        }
+        return false;
+    }
+
     QTextStream out(&outFile);
     out << configText;
     if (!outFile.commit()) {
@@ -1056,6 +1070,157 @@ bool BuildDefaultGuiConfig(const QString &scriptPath,
         *generatedConfigPath = outPath;
     }
     return true;
+}
+
+
+bool ReadJsonObjectFile(const QString &path,
+                        QJsonDocument *document,
+                        QString *errorMessage)
+{
+    if (path.trimmed().isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("JSON path is empty.");
+        }
+        return false;
+    }
+
+    QFile inFile(path);
+    if (!inFile.exists()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("JSON file does not exist: %1").arg(path);
+        }
+        return false;
+    }
+    if (!inFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Cannot open JSON file: %1").arg(path);
+        }
+        return false;
+    }
+
+    const QByteArray bytes = inFile.readAll();
+    if (bytes.trimmed().isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("JSON file is empty: %1").arg(path);
+        }
+        return false;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument parsed = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Invalid JSON in %1 at offset %2: %3")
+                                .arg(path)
+                                .arg(parseError.offset)
+                                .arg(parseError.errorString());
+        }
+        return false;
+    }
+    if (!parsed.isObject() && !parsed.isArray()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("JSON root must be an object or array: %1").arg(path);
+        }
+        return false;
+    }
+
+    if (document) {
+        *document = parsed;
+    }
+    return true;
+}
+
+QString DescribeJsonFileForLog(const QString &path)
+{
+    const QFileInfo info(path);
+    if (!info.exists()) {
+        return QObject::tr("%1 (missing)").arg(path);
+    }
+    return QObject::tr("%1 (%2 bytes)").arg(path).arg(info.size());
+}
+
+void RemoveStaleRunnerGuiConfigs(const QString &workingDirectory,
+                                 const QStringList &preservePaths,
+                                 QStringList *removedPaths,
+                                 QStringList *failedPaths)
+{
+    if (workingDirectory.trimmed().isEmpty()) {
+        return;
+    }
+
+    const QDir dir(workingDirectory);
+    const QStringList candidateNames = {
+        QStringLiteral("runner_gui_config.auto.json"),
+        QStringLiteral("runner_gui_config.generated.json")
+    };
+
+    QSet<QString> preserveCanonical;
+    for (const QString &path : preservePaths) {
+        const QString trimmed = path.trimmed();
+        if (trimmed.isEmpty()) {
+            continue;
+        }
+        QFileInfo info(trimmed);
+        preserveCanonical.insert(info.canonicalFilePath().isEmpty() ? info.absoluteFilePath() : info.canonicalFilePath());
+    }
+
+    for (const QString &name : candidateNames) {
+        const QString absPath = dir.filePath(name);
+        QFileInfo info(absPath);
+        if (!info.exists() || !info.isFile()) {
+            continue;
+        }
+
+        const QString canonical = info.canonicalFilePath().isEmpty() ? info.absoluteFilePath() : info.canonicalFilePath();
+        if (preserveCanonical.contains(canonical)) {
+            continue;
+        }
+
+        QFile file(absPath);
+        if (file.remove()) {
+            if (removedPaths) {
+                removedPaths->push_back(absPath);
+            }
+        } else if (failedPaths) {
+            failedPaths->push_back(absPath);
+        }
+    }
+}
+
+void LogRuntimeJsonCandidates(const QString &workingDirectory,
+                              const QStringList &extraPaths,
+                              std::function<void(const QString&)> logFn)
+{
+    if (!logFn) {
+        return;
+    }
+
+    QStringList paths;
+    if (!workingDirectory.trimmed().isEmpty()) {
+        const QDir dir(workingDirectory);
+        const QFileInfoList infos = dir.entryInfoList(QStringList() << QStringLiteral("*.json"),
+                                                      QDir::Files | QDir::NoSymLinks,
+                                                      QDir::Name);
+        for (const QFileInfo &info : infos) {
+            paths << info.absoluteFilePath();
+        }
+    }
+    for (const QString &path : extraPaths) {
+        if (!path.trimmed().isEmpty()) {
+            paths << path.trimmed();
+        }
+    }
+    paths.removeDuplicates();
+
+    if (paths.isEmpty()) {
+        logFn(QObject::tr("Runtime JSON candidates: none"));
+        return;
+    }
+
+    logFn(QObject::tr("Runtime JSON candidates:"));
+    for (const QString &path : paths) {
+        logFn(QObject::tr("  - %1").arg(DescribeJsonFileForLog(path)));
+    }
 }
 
 bool IsKnownRuntimeNoiseLine(const QString &line)
@@ -3386,6 +3551,7 @@ void ModelCreatorWindow::runScript()
         }
     }
 
+    QStringList jsonPathsToPreserve;
     runner->setExecutablePath(executablePathToRun);
     QStringList executableArgs;
     pendingGuiRetryArgs.clear();
@@ -3407,6 +3573,7 @@ void ModelCreatorWindow::runScript()
                 return;
             }
             executableArgs = QStringList{generatedConfigPath};
+            jsonPathsToPreserve << generatedConfigPath;
             appendLog(stamp(tr("Generated GUI config from template: %1").arg(generatedConfigPath)));
         } else {
             executableArgs = QStringList{
@@ -3423,6 +3590,7 @@ void ModelCreatorWindow::runScript()
                                       &autoConfigPath,
                                       &autoConfigError)) {
                 pendingGuiRetryArgs << (QStringList{autoConfigPath});
+                jsonPathsToPreserve << autoConfigPath;
                 appendLog(stamp(tr("Prepared auto GUI JSON config candidate: %1").arg(autoConfigPath)));
             } else {
                 appendLog(stamp(tr("Auto GUI JSON config was not created: %1").arg(autoConfigError)));
@@ -3460,6 +3628,25 @@ void ModelCreatorWindow::runScript()
     appendFlagIfPresent(QStringLiteral("--ksat-scale"), ksatScaleEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-g"), ksatScaleGEdit->text());
     appendFlagIfPresent(QStringLiteral("--ksat-scale-uw"), ksatScaleUwEdit->text());
+
+    if (!passScriptWithRunFlagDefault) {
+        QStringList removedJsonConfigs;
+        QStringList failedJsonConfigs;
+        RemoveStaleRunnerGuiConfigs(wdInfo.absoluteFilePath(), jsonPathsToPreserve, &removedJsonConfigs, &failedJsonConfigs);
+        for (const QString &path : removedJsonConfigs) {
+            appendLog(stamp(tr("Removed stale GUI JSON config before run: %1").arg(path)));
+        }
+        for (const QString &path : failedJsonConfigs) {
+            appendLog(stamp(tr("Warning: could not remove stale GUI JSON config before run: %1").arg(path)));
+        }
+    }
+
+    QStringList runtimeJsonCandidates;
+    runtimeJsonCandidates << QDir(wdInfo.absoluteFilePath()).filePath(QStringLiteral("vn_runner_metadata.json"));
+    runtimeJsonCandidates << jsonPathsToPreserve;
+    LogRuntimeJsonCandidates(wdInfo.absoluteFilePath(), runtimeJsonCandidates, [this](const QString &line) {
+        appendLog(stamp(line));
+    });
 
     if (passScriptWithRunFlagDefault) {
         if (guiConfigTemplateEdit->text().trimmed().isEmpty()) {
