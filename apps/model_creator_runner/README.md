@@ -6,7 +6,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 1. Create/select model input.
 2. Generate `.ohq` script.
 3. Run OHQ solver.
-4. Save outputs and VTK exports.
+4. Save outputs, ERT-ready CSV snapshots, and VTK exports.
 
 ## Current state
 - Minimal runner UI implemented with user-friendly options for **HQ_Drywell**, **VN_Drywell**, and **R_Bioswale** starter scripts.
@@ -24,6 +24,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
   - optional raw "additional OHQ commands" appended to generated starter scripts
     - includes **Load file** to import reusable command snippets from `.txt`/`.ohq`/`.csv`
 - Supports **Review/Edit .ohq**, **Generate starter .ohq**, and **Generate + Run** actions.
+- The merged runner now combines the base workflow with VN helper/export tooling in the same window, so the full feature set is available together.
 - Adds **Quick Run + Save** to apply suggested defaults, generate starter script, run OHQ, and save/copy artifacts to the artifacts directory in one flow.
 - For VN workflows, **Additional OHQ commands → Load file** now accepts `.ohq`, `.txt`, and `.csv`, so you can quickly load full OHQ files plus soil/moisture layer snippets.
 - VN generation also includes explicit optional file inputs:
@@ -35,6 +36,11 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
     - VN base .ohq provided -> **LoadFromOhq**.
     - If VN soft-grid controls differ from defaults, mode is treated as **SoftReference** so grid settings are applied.
   - VN controls are now always shown in VN context (not hidden behind optional fields), including soft-grid controls and VN base/snippet paths.
+  - Dedicated VN helper rows are available for:
+    - soil/profile tools
+    - output/depth-slice tools
+    - **ERT tool** (export an ERT-ready borehole CSV snapshot)
+    - **VTK tool** (export an inventory of `.vtk/.vtp/.vtu` files found under the working directory)
   - If VN inflow is left empty, generation now defaults to `Synthetic_rain_flow.csv` (matching VN reference behavior).
   - In **SoftReference**, optional VN window controls now shape deterministic `Soil-g` + `Soil-uw` grid/link topology grafted onto the embedded VN reference scaffold:
     - **VN soft grid X/Y + cell [m]** for `Soil-g`
@@ -72,14 +78,19 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 - Includes stop/cancel support for a running process.
 - Includes an **Export run artifacts** action to copy discovered `.vtk/.vtp/.vtu/.csv/.txt` files from the working directory tree (preserving relative folders) and write `export_manifest.csv`.
 - Persists last used paths/settings using `QSettings`.
+- VN tool export paths auto-follow the working directory when still on their default suggestions, including `vn_soil_profile.csv`, `vn_depth_slice.csv`, `vn_ert_snapshot.csv`, and `vtk_inventory.csv`.
 - Detects newly modified output artifacts after each run and optionally copies them into a user-selected folder and writes `artifact_manifest.csv`.
 - Lets you review and edit generated/draft scripts in a dedicated editor window before saving.
 - Includes a **Plots** tab to visualize inflow inputs, output series, and observation data from numeric `.csv/.txt` files.
 - Output plot now supports selecting **any numeric output parameter** for Y against any numeric X-axis column (e.g., radius/depth/time), enabling per-parameter inspection.
 - Adds backend **depth-slice interpolation** (`Build depth slice`) to plot selected parameter-through-depth at a selected X/R location from output columns (or use an optional external depth-profile file).
+- VN generated-field profile export now also writes a small JSON sidecar next to the CSV, capturing the active field mode, PDF mode, points, seed, spacing, and source build settings for traceability.
 - Adds **Export all depth slices** to dump through-depth profiles for all output parameters at the selected X/R into one CSV.
 - Includes an **output-vs-observation comparison** summary (RMSE/MAE/Bias/R²) on the Plots tab, using X-axis interpolation for overlapping ranges to support ERT-style calibration checks.
 - When an artifacts directory is configured, comparison runs append unique entries to `comparison_history.csv` for longitudinal calibration tracking (duplicate metrics snapshots are skipped).
 - Includes **Clear history** to reset `comparison_history.csv` from the artifacts directory when starting a new calibration cycle.
 - Adds **Export plot data** to save current output plot series, depth-slice profile, and comparison summary into a CSV plus a companion JSON analysis report (including structured comparison metrics when available).
+- Adds **Export ERT-ready CSV** to write a borehole-style CSV from the current VN depth-slice selection, with inferred borehole labels such as `ERT`, `ERT-3`, or `ERT-5` based on the selected X/radius.
+- Adds **Export VTK inventory** to scan the working directory tree and write a CSV manifest of discovered `.vtk`, `.vtp`, and `.vtu` files.
 - Includes a lightweight regression test script at `tests/test_analysis_algorithms.py` for interpolation/depth-slice math sanity checks.
+- Current VN sidecar/runtime metadata explicitly records that field generator metadata is captured, while ResultGrid and ERT snapshot execution are not yet run in-app.
