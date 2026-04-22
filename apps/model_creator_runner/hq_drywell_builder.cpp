@@ -1,5 +1,9 @@
 #include "hq_drywell_builder.h"
 
+#include <QRegularExpression>
+#include <QStringList>
+#include <QTextStream>
+
 namespace {
 
 static const char *kDrywellFullRef = R"DRY(
@@ -2753,6 +2757,134 @@ setasparameter;object=SoilDeep (37$0),parametername=alpha,quantity=MC_to_EC_coef
 setasparameter;object=SoilDeep (37$0),parametername=theta_t,quantity=MC_to_EC_Threshold_Moisture
 )DRY";
 
+
+
+QString ExtractCommandValueLocal(const QString &line, const QString &key)
+{
+    const QRegularExpression rx(QStringLiteral("(^|[,;])\\s*%1=([^,;\n\r]*)")
+                                .arg(QRegularExpression::escape(key)),
+                                QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = rx.match(line);
+    return m.hasMatch() ? m.captured(2).trimmed() : QString();
+}
+
+double ExtractDoubleLocal(const QString &line, const QString &key, double fallback)
+{
+    bool ok = false;
+    const double parsed = ExtractCommandValueLocal(line, key).toDouble(&ok);
+    return ok ? parsed : fallback;
+}
+
+QString ExtractStringLocal(const QString &line, const QString &key, const QString &fallback = QString())
+{
+    const QString value = ExtractCommandValueLocal(line, key);
+    return value.isEmpty() ? fallback : value;
+}
+
+QString NormalizeSoftSoilModeLocal(const QString &mode)
+{
+    const QString m = mode.trimmed();
+    if (m.compare(QStringLiteral("Manual"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("Manual");
+    }
+    if (m.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("ModelCreatorDefaults");
+    }
+    if (m.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("File");
+    }
+    return QStringLiteral("ReferenceDefaults");
+}
+
+struct SoftSoilPropsLocal
+{
+    double ksat = 0.0;
+    double alpha = 0.0;
+    double n = 0.0;
+    double thetaSat = 0.0;
+    double thetaRes = 0.0;
+};
+
+SoftSoilPropsLocal ResolveSoftSoilOverridesLocal(const StarterScriptOptions &options,
+                                                 const SoftSoilPropsLocal &referenceDefaults,
+                                                 const SoftSoilPropsLocal &modelCreatorDefaults)
+{
+    const QString mode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
+    if (mode == QStringLiteral("Manual")) {
+        return SoftSoilPropsLocal {
+            options.vnSoftSoilKsatOriginal,
+            options.vnSoftSoilAlpha,
+            options.vnSoftSoilN,
+            options.vnSoftSoilThetaSat,
+            options.vnSoftSoilThetaRes
+        };
+    }
+    if (mode == QStringLiteral("ModelCreatorDefaults")) {
+        return modelCreatorDefaults;
+    }
+    return referenceDefaults;
+}
+
+
+bool ParseSoilBlockSpec(const QString &line, HqDrywellBuilder::SoilBlockSpec *spec)
+{
+    if (spec == nullptr) {
+        return false;
+    }
+    const QString trimmed = line.trimmed();
+    if (!trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    HqDrywellBuilder::SoilBlockSpec parsed;
+    parsed.name = ExtractStringLocal(trimmed, QStringLiteral("name"), parsed.name);
+    parsed.thetaSat = ExtractDoubleLocal(trimmed, QStringLiteral("theta_sat"), parsed.thetaSat);
+    parsed.thetaRes = ExtractDoubleLocal(trimmed, QStringLiteral("theta_res"), parsed.thetaRes);
+    parsed.n = ExtractDoubleLocal(trimmed, QStringLiteral("n"), parsed.n);
+    parsed.kSatOriginal = ExtractDoubleLocal(trimmed, QStringLiteral("K_sat_original"), parsed.kSatOriginal);
+    parsed.alpha = ExtractDoubleLocal(trimmed, QStringLiteral("alpha"), parsed.alpha);
+    parsed.area = ExtractDoubleLocal(trimmed, QStringLiteral("area"), parsed.area);
+    parsed.x = ExtractDoubleLocal(trimmed, QStringLiteral("x"), parsed.x);
+    parsed.y = ExtractDoubleLocal(trimmed, QStringLiteral("y"), parsed.y);
+    parsed.bottomElevation = ExtractDoubleLocal(trimmed, QStringLiteral("bottom_elevation"), parsed.bottomElevation);
+    parsed.depth = ExtractDoubleLocal(trimmed, QStringLiteral("depth"), parsed.depth);
+    parsed.actualX = ExtractDoubleLocal(trimmed, QStringLiteral("actual_x"), parsed.actualX);
+    parsed.actualY = ExtractDoubleLocal(trimmed, QStringLiteral("actual_y"), parsed.actualY);
+
+    *spec = parsed;
+    return !spec->name.trimmed().isEmpty();
+}
+
+QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
+{
+    const QString embedded = HqDrywellBuilder::FullReferenceScript();
+    const QStringList lines = embedded.split('\n', Qt::KeepEmptyParts);
+    QString out;
+    QTextStream ts(&out);
+
+    const SoftSoilPropsLocal referenceDefaults = { 1.0, 1.0, 1.41, 0.4, 0.05 };
+    const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
+    const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(options, referenceDefaults, modelCreatorDefaults);
+
+    for (const QString &rawLine : lines) {
+        const QString trimmed = rawLine.trimmed();
+        if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+            HqDrywellBuilder::SoilBlockSpec spec;
+            if (ParseSoilBlockSpec(trimmed, &spec)) {
+                spec.thetaSat = resolved.thetaSat;
+                spec.thetaRes = resolved.thetaRes;
+                spec.n = resolved.n;
+                spec.kSatOriginal = resolved.ksat;
+                spec.alpha = resolved.alpha;
+                ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
+                continue;
+            }
+        }
+        ts << rawLine << '\n';
+    }
+    return out;
+}
+
 } // namespace
 
 QString HqDrywellBuilder::FullReferenceScript()
@@ -2803,4 +2935,34 @@ bool HqDrywellBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
         "bottom_elevation=0[m],Storage=0[m~^3],name=Infiltration_Pond,alpha=86.061,beta=2.766,x=0,y=0,_height=200\n")
                       .arg(inflow);
     return true;
+}
+
+
+bool HqDrywellBuilder::Build(const StarterScriptOptions &options,
+                 QString *scriptText,
+                 QString *errorMessage)
+{
+    if (scriptText == nullptr) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Internal error: output script buffer is null.");
+        }
+        return false;
+    }
+
+    const QString mode = options.hqBuildMode.trimmed();
+    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+        *scriptText = FullReferenceScript();
+        return true;
+    }
+
+    if (mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        *scriptText = BuildSoftReferenceScriptLocal(options);
+        return true;
+    }
+
+    if (errorMessage) {
+        *errorMessage = QStringLiteral("HqDrywell builder does not handle mode: %1").arg(mode);
+    }
+    return false;
 }

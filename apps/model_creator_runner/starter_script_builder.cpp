@@ -1672,122 +1672,13 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
-    if (hqModelType && hqMode == QStringLiteral("FullReference")) {
-        QString out = HqDrywellBuilder::FullReferenceScript();
-        if (!out.endsWith('\n')) {
-            out += '\n';
-        }
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
-        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        const QString hqInflowTarget = HqDrywellBuilder::InflowTargetObject();
-        if (!hqInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
-            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(hqInflowTarget, inflow);
-        }
-        ApplyCommonScriptFixups(&out, inflow);
-        *scriptText = out;
-        return true;
-    }
-
-    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("FullReference")) {
-        QString out = RBioswaleBuilder::FullReferenceScript();
-        if (!out.endsWith('\n')) {
-            out += '\n';
-        }
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
-        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        const QString rInflowTarget = RBioswaleBuilder::InflowTargetObject();
-        if (!rInflowTarget.trimmed().isEmpty() && !inflow.isEmpty()) {
-            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n").arg(rInflowTarget, inflow);
-        }
-        ApplyCommonScriptFixups(&out, inflow);
-        *scriptText = out;
-        return true;
-    }
-
-    if (hqModelType && hqMode == QStringLiteral("SoftReference")) {
+    if (hqModelType && (hqMode == QStringLiteral("FullReference")
+                        || hqMode == QStringLiteral("SoftReference")
+                        || hqMode == QStringLiteral("Preset"))) {
         QString out;
-        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
-        const QString embedded = HqDrywellBuilder::FullReferenceScript();
-        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
-                                                     HqDrywellBuilder::InflowTargetObject(),
-                                                     IsHqSoftReferenceSoilLine,
-                                                     &out);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
-        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        QTextStream ts(&out);
-        ts.seek(out.size());
-        ts << "# HQ_Drywell soft reference soil scaffold generated from embedded drywell reference\n";
-        const VnSoftSoilProps hqReferenceDefaults { 1.0, 1.0, 1.41, 0.4, 0.05 };
-        const VnSoftSoilProps hqResolvedProps = ResolveSoftReferenceSoilOverrides(options, hqReferenceDefaults, false);
-        AppendEmbeddedStructureSoftReferenceSoils(
-            embedded,
-            IsHqSoftReferenceSoilLine,
-            [&](const QString &rawLine) -> QString {
-                const QString trimmed = rawLine.trimmed();
-                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
-                    return ApplySoilOverridesToLine(rawLine, hqResolvedProps);
-                }
-                return rawLine;
-            },
-            &ts);
-
-        const QString extra = options.additionalCommands.trimmed();
-        if (!extra.isEmpty()) {
-            out += "\n# user_additional_commands\n" + extra;
-            if (!extra.endsWith('\n')) {
-                out += "\n";
-            }
+        if (!HqDrywellBuilder::Build(options, &out, errorMessage)) {
+            return false;
         }
-        ApplyCommonScriptFixups(&out, inflow);
-        *scriptText = out;
-        return true;
-    }
-
-    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference")) {
-        QString out;
-        AppendTemplateLoads(&out, options.templateDirectory, RequiredTemplates());
-        const QString embedded = RBioswaleBuilder::FullReferenceScript();
-        AppendEmbeddedStructureSoftReferenceScaffold(embedded,
-                                                     RBioswaleBuilder::InflowTargetObject(),
-                                                     IsRBioswaleSoftReferenceSoilLine,
-                                                     &out);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
-        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
-        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
-        QTextStream ts(&out);
-        ts.seek(out.size());
-        ts << "# R_Bioswale soft reference soil scaffold generated from embedded bioswale reference\n";
-        const VnSoftSoilProps rReferenceDefaults { 0.25, 3.6, 1.56, 0.43, 0.078 };
-        const VnSoftSoilProps rResolvedProps = ResolveSoftReferenceSoilOverrides(options, rReferenceDefaults, false);
-        AppendEmbeddedStructureSoftReferenceSoils(
-            embedded,
-            IsRBioswaleSoftReferenceSoilLine,
-            [&](const QString &rawLine) -> QString {
-                const QString trimmed = rawLine.trimmed();
-                if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
-                    return ApplySoilOverridesToLine(rawLine, rResolvedProps);
-                }
-                return rawLine;
-            },
-            &ts);
-
-        const QString extra = options.additionalCommands.trimmed();
-        if (!extra.isEmpty()) {
-            out += "\n# user_additional_commands\n" + extra;
-            if (!extra.endsWith('\n')) {
-                out += "\n";
-            }
-        }
-        ApplyCommonScriptFixups(&out, inflow);
-        *scriptText = out;
-        return true;
-    }
-
-    if (hqModelType && hqMode == QStringLiteral("Preset")) {
-        QString out = HqDrywellBuilder::FullReferenceScript();
         if (!out.endsWith('\n')) {
             out += '\n';
         }
@@ -1810,8 +1701,13 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
-    if (rBioswaleModelType && rBioswaleMode == QStringLiteral("Preset")) {
-        QString out = RBioswaleBuilder::FullReferenceScript();
+    if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
+                               || rBioswaleMode == QStringLiteral("SoftReference")
+                               || rBioswaleMode == QStringLiteral("Preset"))) {
+        QString out;
+        if (!RBioswaleBuilder::Build(options, &out, errorMessage)) {
+            return false;
+        }
         if (!out.endsWith('\n')) {
             out += '\n';
         }

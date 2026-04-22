@@ -71,8 +71,14 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // HQ_Drywell-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> existing starter generation path (default)
-    //   "FullReference" -> use embedded HQ full-reference payload from builder
+    //   "Preset"        -> delegate to HqDrywellBuilder::Build(...) using the
+    //                      structure's native Drywell-style helper functions
+    //   "SoftReference" -> delegate to HqDrywellBuilder::Build(...) using the
+    //                      HQ SoftRef path (soil blocks regenerated via
+    //                      HqDrywellBuilder::BuildSoilBlockCommand and the
+    //                      structure's own Drywell-style script logic)
+    //   "FullReference" -> use the embedded HQ full-reference payload through
+    //                      HqDrywellBuilder::Build(...)
     //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
     QString hqBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
     QString hqBaseOhqFile;
@@ -80,8 +86,14 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // R_Bioswale-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> existing starter generation path (default)
-    //   "FullReference" -> use embedded R_Bioswale full-reference payload
+    //   "Preset"        -> delegate to RBioswaleBuilder::Build(...) using the
+    //                      structure's native Bioswale-style helper functions
+    //   "SoftReference" -> delegate to RBioswaleBuilder::Build(...) using the
+    //                      R SoftRef path (soil blocks regenerated via
+    //                      RBioswaleBuilder::BuildSoilBlockCommand and the
+    //                      structure's own Bioswale-style script logic)
+    //   "FullReference" -> use the embedded R_Bioswale full-reference payload
+    //                      through RBioswaleBuilder::Build(...)
     //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
     QString rBioswaleBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
     QString rBioswaleBaseOhqFile;

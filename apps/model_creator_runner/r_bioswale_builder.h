@@ -34,6 +34,11 @@ bool AppendBaseInflowBlock(const StarterScriptOptions &options,
                            QString *scriptText,
                            QString *errorMessage = nullptr);
 
+
+bool Build(const StarterScriptOptions &options,
+           QString *scriptText,
+           QString *errorMessage = nullptr);
+
 } // namespace RBioswaleBuilder
 
 #endif // R_BIOSWALE_BUILDER_H
