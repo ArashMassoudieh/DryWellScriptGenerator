@@ -1307,9 +1307,10 @@ void AppendVnSoftReferenceGrid(QTextStream &ts, const StarterScriptOptions &opti
         return manualProps;
     };
 
+    const double yLastUw = 37000.0 + ((uwNy - 1) * uwLayerThickness) * 2000.0;
     ts << "create block;type=fixed_head,name=Ground Water,_width=" << (options.vnSoftRadiusOfInfluence * 1000.0)
        << ",_height=500,x=" << (-uwNx * 1000.0)
-       << ",y=" << (37000.0 + (assumedNzC + gNy + uwNy) * 2000.0)
+       << ",y=" << (yLastUw + 3000.0)
        << ",head=" << gwHead << ",Storage=100000\n";
 
     for (int y = 0; y < gNy; ++y) {
