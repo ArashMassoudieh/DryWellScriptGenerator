@@ -2298,12 +2298,11 @@ QString ModelCreatorWindow::currentStructureSoftSoilCsv(const QString &currentMo
     const double thetaSat = modelCreatorDefaults ? 0.39 : (vnSoftSoilThetaSatEdit ? vnSoftSoilThetaSatEdit->text().toDouble() : thetaSatDefault);
     const double thetaRes = modelCreatorDefaults ? 0.049 : (vnSoftSoilThetaResEdit ? vnSoftSoilThetaResEdit->text().toDouble() : thetaResDefault);
 
-    return QString::fromLatin1("zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res
-"
-                               "%1,%2,%3,%4,%5,%6,%7,%8
-"
-                               "%9,%10,%11,%4,%5,%6,%7,%8
-")
+    return QString::fromLatin1(
+            "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n"
+            "%1,%2,%3,%4,%5,%6,%7,%8\n"
+            "%9,%10,%11,%4,%5,%6,%7,%8\n"
+        )
         .arg(zone1)
         .arg(actY1, 0, 'g', 10)
         .arg(depth1, 0, 'g', 10)
@@ -2368,17 +2367,19 @@ void ModelCreatorWindow::populateStarterScriptOptions(StarterScriptOptions *opti
     if (includeVnMetadata && options->modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
         QStringList vnMetadata;
         vnMetadata << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(
+            vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(
+            vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
+        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(
+            vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
         vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString());
-        const QString vnMetadataBlock = vnMetadata.join('
-');
+
+        const QString vnMetadataBlock = vnMetadata.join(QChar('\n'));
         if (options->additionalCommands.trimmed().isEmpty()) {
             options->additionalCommands = vnMetadataBlock;
         } else {
-            options->additionalCommands = vnMetadataBlock + QStringLiteral("
-") + options->additionalCommands;
+            options->additionalCommands = vnMetadataBlock + QStringLiteral("\n") + options->additionalCommands;
         }
     }
 

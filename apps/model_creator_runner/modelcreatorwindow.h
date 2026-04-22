@@ -8,6 +8,7 @@
 #include <QPointF>
 #include <QStringList>
 #include <QVector>
+#include "starter_script_builder.h"
 
 class QComboBox;
 class QLineEdit;
