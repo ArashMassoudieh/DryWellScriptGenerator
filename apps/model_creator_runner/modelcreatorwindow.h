@@ -99,6 +99,14 @@ private:
     void copyArtifacts(const QStringList &artifacts);
     /// Write manifest CSV for copied/discovered artifacts.
     void writeArtifactManifest(const QStringList &artifacts);
+    /// Resolve the active build mode for the currently selected structure.
+    QString currentStructureBuildMode() const;
+    /// Return a structure-specific label for soft-soil profile exports.
+    QString currentStructureSoftSoilProfileLabel() const;
+    /// Build the active structure's soft-soil CSV using the current UI mode.
+    QString currentStructureSoftSoilCsv(const QString &currentMode) const;
+    /// Populate starter-script options from the current UI with structure-aware routing.
+    void populateStarterScriptOptions(StarterScriptOptions *options, bool includeVnMetadata) const;
     /// Show/hide context-sensitive and optional setup rows based on model/preset.
     void updateFieldVisibilityForContext();
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
