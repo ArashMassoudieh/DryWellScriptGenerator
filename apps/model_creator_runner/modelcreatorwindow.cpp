@@ -3058,6 +3058,15 @@ void ModelCreatorWindow::previewScript()
             } else {
                 options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             }
+            AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
+            AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
+            AssignDoubleIfProvided(rBioSwaleDepthEdit, &options.rBioSwaleDepth);
+            AssignDoubleIfProvided(rLengthEdit, &options.rLength);
+            AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
+            AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
+            AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+            AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
+            options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
         }
 
         QString error;
