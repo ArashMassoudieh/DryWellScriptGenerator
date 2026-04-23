@@ -683,6 +683,27 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
 }
 
+bool IsVnSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return IsVnSoftGridCustomized(options)
+        || !options.vnSoilLayersFile.trimmed().isEmpty()
+        || !options.vnMoistureLayersFile.trimmed().isEmpty()
+        || !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
 bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
 {
     const StarterScriptOptions defaults;
@@ -3075,6 +3096,10 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("SoftReference");
                 options.vnPreset.clear();
             }
+            if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsVnSoftCustomizationRequested(options)) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+            }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedHqMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("HQ_MODE"));
@@ -3356,6 +3381,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else {
             options.vnBuildMode = QStringLiteral("SoftReference");
             options.vnPreset.clear();
+        }
+        if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsVnSoftCustomizationRequested(options)) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
