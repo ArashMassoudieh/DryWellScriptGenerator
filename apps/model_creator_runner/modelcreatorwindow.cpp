@@ -683,6 +683,45 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
 }
 
+bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
+bool IsRBioswaleSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    if (IsHqSoftCustomizationRequested(options)) {
+        return true;
+    }
+    return !options.rSoilPropsFile.trimmed().isEmpty()
+        || differs(options.rBioSwaleWidth, defaults.rBioSwaleWidth)
+        || differs(options.rSystemWidth, defaults.rSystemWidth)
+        || differs(options.rBioSwaleDepth, defaults.rBioSwaleDepth)
+        || differs(options.rLength, defaults.rLength)
+        || options.rLateralCells != defaults.rLateralCells
+        || differs(options.rStreetWidth, defaults.rStreetWidth)
+        || options.rStreetCells != defaults.rStreetCells
+        || differs(options.rAnisoRatio, defaults.rAnisoRatio);
+}
+
 QString AutoDetectVnBuildMode(const StarterScriptOptions &options)
 {
     if (!options.vnBaseOhqFile.trimmed().isEmpty()) {
@@ -3047,6 +3086,10 @@ void ModelCreatorWindow::previewScript()
             } else {
                 options.hqBuildMode = QStringLiteral("SoftReference");
             }
+            if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsHqSoftCustomizationRequested(options)) {
+                options.hqBuildMode = QStringLiteral("SoftReference");
+            }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedRMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("R_MODE"));
@@ -3067,6 +3110,10 @@ void ModelCreatorWindow::previewScript()
             AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
             AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
             options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+            if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsRBioswaleSoftCustomizationRequested(options)) {
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            }
         }
 
         QString error;
@@ -3321,6 +3368,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else {
             options.hqBuildMode = QStringLiteral("SoftReference");
         }
+        if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsHqSoftCustomizationRequested(options)) {
+            options.hqBuildMode = QStringLiteral("SoftReference");
+        }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
         const QString selectedRMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("R_MODE"));
@@ -3341,6 +3392,10 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
         AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
         options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+        if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsRBioswaleSoftCustomizationRequested(options)) {
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+        }
 
         QStringList rMetadata;
         rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_width=%1").arg(options.rBioSwaleWidth);
