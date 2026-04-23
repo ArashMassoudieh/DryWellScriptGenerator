@@ -3088,6 +3088,10 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     int detectedRadials = 0;
     double inferredSurfaceElevation = 140.0;
     bool surfaceInferred = false;
+    double inferredWellDepth = 0.0;
+    double inferredWellRadius = 0.0;
+    double inferredPondRadius = 0.0;
+    bool radialExtentInferred = false;
     for (const QString &rawLine : lines) {
         HqDrywellBuilder::SoilBlockSpec scanSpec;
         if (!ParseSoilBlockSpec(rawLine.trimmed(), &scanSpec)) {
@@ -3100,9 +3104,26 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         }
         detectedLayers = qMax(detectedLayers, layerIndex);
         detectedRadials = qMax(detectedRadials, radialIndex);
+        inferredWellDepth = qMax(inferredWellDepth, -scanSpec.bottomElevation);
         if (!surfaceInferred) {
             inferredSurfaceElevation = scanSpec.actualY + 0.5 * scanSpec.depth;
             surfaceInferred = true;
+        }
+        if (scanSpec.actualX > 0.0 && scanSpec.area > 0.0) {
+            const double ringThickness =
+                scanSpec.area / (2.0 * 3.14159265358979323846 * scanSpec.actualX);
+            const double rIn = scanSpec.actualX - 0.5 * ringThickness;
+            const double rOut = scanSpec.actualX + 0.5 * ringThickness;
+            if (rOut > rIn && rIn >= 0.0) {
+                if (!radialExtentInferred) {
+                    inferredWellRadius = rIn;
+                    inferredPondRadius = rOut;
+                    radialExtentInferred = true;
+                } else {
+                    inferredWellRadius = qMin(inferredWellRadius, rIn);
+                    inferredPondRadius = qMax(inferredPondRadius, rOut);
+                }
+            }
         }
     }
     const int effectiveLayers = options.hqSoftShallowLayers > 0
@@ -3118,9 +3139,12 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         || options.hqSoftWellRadius > 0.0
         || options.hqSoftPondRadius > 0.0
         || options.hqSoftSurfaceElevation > 0.0;
-    const double effectiveWellDepth = options.hqSoftWellDepth > 0.0 ? options.hqSoftWellDepth : 12.192;
-    const double effectiveWellRadius = options.hqSoftWellRadius > 0.0 ? options.hqSoftWellRadius : 1.2192;
-    const double effectivePondRadius = options.hqSoftPondRadius > 0.0 ? options.hqSoftPondRadius : 20.0;
+    const double fallbackWellDepth = inferredWellDepth > 0.0 ? inferredWellDepth : 12.192;
+    const double fallbackWellRadius = radialExtentInferred ? inferredWellRadius : 1.2192;
+    const double fallbackPondRadius = radialExtentInferred ? inferredPondRadius : 20.0;
+    const double effectiveWellDepth = options.hqSoftWellDepth > 0.0 ? options.hqSoftWellDepth : fallbackWellDepth;
+    const double effectiveWellRadius = options.hqSoftWellRadius > 0.0 ? options.hqSoftWellRadius : fallbackWellRadius;
+    const double effectivePondRadius = options.hqSoftPondRadius > 0.0 ? options.hqSoftPondRadius : fallbackPondRadius;
     const double effectiveSurfaceElevation = options.hqSoftSurfaceElevation > 0.0
         ? options.hqSoftSurfaceElevation
         : inferredSurfaceElevation;
