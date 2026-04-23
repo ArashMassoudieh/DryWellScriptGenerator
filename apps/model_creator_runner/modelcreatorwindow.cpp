@@ -3099,6 +3099,7 @@ void ModelCreatorWindow::previewScript()
             if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
                 && IsVnSoftCustomizationRequested(options)) {
                 options.vnBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3114,6 +3115,7 @@ void ModelCreatorWindow::previewScript()
             if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
                 && IsHqSoftCustomizationRequested(options)) {
                 options.hqBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3138,6 +3140,7 @@ void ModelCreatorWindow::previewScript()
             if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
                 && IsRBioswaleSoftCustomizationRequested(options)) {
                 options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
             }
         }
 
@@ -3385,6 +3388,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
             && IsVnSoftCustomizationRequested(options)) {
             options.vnBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3400,6 +3404,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
             && IsHqSoftCustomizationRequested(options)) {
             options.hqBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3424,6 +3429,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
             && IsRBioswaleSoftCustomizationRequested(options)) {
             options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
         }
 
         QStringList rMetadata;
