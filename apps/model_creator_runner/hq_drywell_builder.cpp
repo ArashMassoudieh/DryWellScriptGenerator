@@ -3165,6 +3165,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
         return embedded;
     }
+    QSet<QString> keptSoilBlocks;
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
