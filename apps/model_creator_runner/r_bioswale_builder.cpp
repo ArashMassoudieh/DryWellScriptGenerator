@@ -4356,8 +4356,7 @@ bool RBioswaleBuilder::Build(const StarterScriptOptions &options,
     }
 
     if (mode.isEmpty()
-        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0
-        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = BuildSoftReferenceScriptLocal(options);
         return true;
     }
