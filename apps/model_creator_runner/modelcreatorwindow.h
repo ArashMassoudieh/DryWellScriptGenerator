@@ -44,6 +44,7 @@ private slots:
     void chooseVnSoilLayersFile();
     void chooseVnMoistureLayersFile();
     void chooseVnSoftSoilParameterFile();
+    void chooseRBioswaleSoilPropsFile();
     void showVnReferenceDefaultsTable();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
@@ -164,6 +165,15 @@ private:
     QLineEdit *vnSoftSoilThetaResEdit;
     QComboBox *vnSoftSoilParamModeCombo;
     QLineEdit *vnSoftSoilParameterFileEdit;
+    QLineEdit *rBioSwaleWidthEdit;
+    QLineEdit *rSystemWidthEdit;
+    QLineEdit *rBioSwaleDepthEdit;
+    QLineEdit *rSoilPropsFileEdit;
+    QLineEdit *rLateralCellsEdit;
+    QLineEdit *rLengthEdit;
+    QLineEdit *rStreetWidthEdit;
+    QLineEdit *rStreetCellsEdit;
+    QLineEdit *rAnisoRatioEdit;
     QComboBox *vnInitThetaModeCombo;
     QLineEdit *vnFieldPointsEdit;
     QLineEdit *vnFieldSeedEdit;
@@ -210,6 +220,9 @@ private:
     QWidget *vnSoftTopElevationRowWidget = nullptr;
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QWidget *vnSoftSoilParamsRowWidget = nullptr;
+    QWidget *rSoilGeometryRowWidget = nullptr;
+    QWidget *rSoilDomainRowWidget = nullptr;
+    QWidget *rSoilControlsRowWidget = nullptr;
     QWidget *vnInitThetaRowWidget = nullptr;
     QWidget *vnFieldGeneratorRowWidget = nullptr;
     QWidget *vnSoilToolRowWidget = nullptr;

@@ -1,8 +1,14 @@
 #include "r_bioswale_builder.h"
 
+#include <QDir>
+#include <QFile>
 #include <QRegularExpression>
 #include <QStringList>
 #include <QTextStream>
+#include <QVector>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -3746,33 +3752,534 @@ bool ParseSoilBlockSpec(const QString &line, RBioswaleBuilder::SoilBlockSpec *sp
     return !spec->name.trimmed().isEmpty();
 }
 
-QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
+struct RBioswaleLayerLocal
 {
-    const QString embedded = RBioswaleBuilder::FullReferenceScript();
-    const QStringList lines = embedded.split('\n', Qt::KeepEmptyParts);
-    QString out;
-    QTextStream ts(&out);
+    double depth = 0.1016;
+    double ksat = 0.25;
+    double alpha = 3.6;
+    double n = 1.56;
+    double thetaSat = 0.43;
+    double thetaRes = 0.078;
+};
 
+static QStringList SplitFlexibleCsvLocal(const QString &line)
+{
+    QStringList out;
+    QString current;
+    bool inQuotes = false;
+    for (const QChar ch : line) {
+        if (ch == '"') {
+            inQuotes = !inQuotes;
+            continue;
+        }
+        if (!inQuotes && (ch == ',' || ch == ';' || ch == '\t')) {
+            out << current.trimmed();
+            current.clear();
+            continue;
+        }
+        current += ch;
+    }
+    out << current.trimmed();
+    return out;
+}
+
+static QString NormalizeHeaderLocal(const QString &value)
+{
+    QString s = value.trimmed().toLower();
+    s.remove(' ');
+    s.remove('_');
+    s.remove('-');
+    return s;
+}
+
+static int FindHeaderIndexLocal(const QStringList &headers, const QStringList &aliases)
+{
+    for (int i = 0; i < headers.size(); ++i) {
+        const QString normalized = NormalizeHeaderLocal(headers.at(i));
+        for (const QString &alias : aliases) {
+            if (normalized == NormalizeHeaderLocal(alias)) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+static bool ParseDoubleLocal(const QString &text, double *value)
+{
+    if (value == nullptr) {
+        return false;
+    }
+    bool ok = false;
+    const double parsed = text.trimmed().toDouble(&ok);
+    if (!ok || !std::isfinite(parsed)) {
+        return false;
+    }
+    *value = parsed;
+    return true;
+}
+
+static bool LoadRBioswaleLayersFromFileLocal(const QString &path, QVector<RBioswaleLayerLocal> *layers)
+{
+    if (layers == nullptr || path.trimmed().isEmpty()) {
+        return false;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+    QTextStream in(&file);
+    QString headerLine;
+    while (!in.atEnd()) {
+        headerLine = in.readLine().trimmed();
+        if (!headerLine.isEmpty()) break;
+    }
+    if (headerLine.isEmpty()) {
+        return false;
+    }
+    const QStringList headers = SplitFlexibleCsvLocal(headerLine);
+    const int depthIdx = FindHeaderIndexLocal(headers, {QStringLiteral("depth"), QStringLiteral("depthm")});
+    const int ksatIdx = FindHeaderIndexLocal(headers, {QStringLiteral("ksat"), QStringLiteral("ksatoriginal")});
+    const int alphaIdx = FindHeaderIndexLocal(headers, {QStringLiteral("alpha")});
+    const int nIdx = FindHeaderIndexLocal(headers, {QStringLiteral("n")});
+    const int thetaSatIdx = FindHeaderIndexLocal(headers, {QStringLiteral("thetas"), QStringLiteral("theta_sat"), QStringLiteral("thetasat")});
+    const int thetaResIdx = FindHeaderIndexLocal(headers, {QStringLiteral("thetar"), QStringLiteral("theta_res"), QStringLiteral("thetares")});
+    if (depthIdx < 0 || ksatIdx < 0 || alphaIdx < 0 || nIdx < 0 || thetaSatIdx < 0 || thetaResIdx < 0) {
+        return false;
+    }
+    QVector<RBioswaleLayerLocal> parsed;
+    while (!in.atEnd()) {
+        const QString raw = in.readLine().trimmed();
+        if (raw.isEmpty()) continue;
+        const QStringList cols = SplitFlexibleCsvLocal(raw);
+        const int need = std::max({depthIdx, ksatIdx, alphaIdx, nIdx, thetaSatIdx, thetaResIdx});
+        if (cols.size() <= need) continue;
+        RBioswaleLayerLocal layer;
+        if (!ParseDoubleLocal(cols.at(depthIdx), &layer.depth) || layer.depth <= 0.0) continue;
+        if (!ParseDoubleLocal(cols.at(ksatIdx), &layer.ksat)) continue;
+        if (!ParseDoubleLocal(cols.at(alphaIdx), &layer.alpha)) continue;
+        if (!ParseDoubleLocal(cols.at(nIdx), &layer.n)) continue;
+        if (!ParseDoubleLocal(cols.at(thetaSatIdx), &layer.thetaSat)) continue;
+        if (!ParseDoubleLocal(cols.at(thetaResIdx), &layer.thetaRes)) continue;
+        parsed.push_back(layer);
+    }
+    if (parsed.isEmpty()) return false;
+    *layers = parsed;
+    return true;
+}
+
+static int LayerIndexFromNameLocal(const QString &name)
+{
+    QRegularExpression re(QStringLiteral("\((\d+)(?:\$\d+)?\)"));
+    const QRegularExpressionMatch m = re.match(name);
+    if (!m.hasMatch()) return -1;
+    bool ok = false;
+    const int idx = m.captured(1).toInt(&ok);
+    return ok ? idx : -1;
+}
+
+static bool IsNonEngineeredNameLocal(const QString &name)
+{
+    return name.startsWith(QStringLiteral("LeftTop ("), Qt::CaseInsensitive)
+        || name.startsWith(QStringLiteral("RightTop ("), Qt::CaseInsensitive)
+        || name.startsWith(QStringLiteral("UEngineered ("), Qt::CaseInsensitive)
+        || name.startsWith(QStringLiteral("LeftBottom ("), Qt::CaseInsensitive)
+        || name.startsWith(QStringLiteral("RightBottom ("), Qt::CaseInsensitive);
+}
+
+static QVector<RBioswaleLayerLocal> BuildReferenceLayersLocal(const SoftSoilPropsLocal &fallback)
+{
+    const QStringList lines = RBioswaleBuilder::FullReferenceScript().split('\n', Qt::KeepEmptyParts);
+    QVector<RBioswaleLayerLocal> layers;
+    QVector<bool> haveDepth;
+    QVector<bool> haveProps;
+    auto ensureSize = [&](int index) {
+        if (index <= 0) return;
+        while (layers.size() < index) {
+            RBioswaleLayerLocal layer;
+            layer.depth = 0.1016;
+            layer.ksat = fallback.ksat;
+            layer.alpha = fallback.alpha;
+            layer.n = fallback.n;
+            layer.thetaSat = fallback.thetaSat;
+            layer.thetaRes = fallback.thetaRes;
+            layers.push_back(layer);
+            haveDepth.push_back(false);
+            haveProps.push_back(false);
+        }
+    };
+    for (const QString &rawLine : lines) {
+        const QString trimmed = rawLine.trimmed();
+        if (!trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) continue;
+        RBioswaleBuilder::SoilBlockSpec spec;
+        if (!ParseSoilBlockSpec(trimmed, &spec)) continue;
+        const int layerIndex = LayerIndexFromNameLocal(spec.name);
+        if (layerIndex <= 0) continue;
+        ensureSize(layerIndex);
+        RBioswaleLayerLocal &layer = layers[layerIndex - 1];
+        if (!haveDepth[layerIndex - 1] && spec.depth > 0.0) {
+            layer.depth = spec.depth;
+            haveDepth[layerIndex - 1] = true;
+        }
+        if (IsNonEngineeredNameLocal(spec.name) && !haveProps[layerIndex - 1]) {
+            layer.ksat = spec.kSatOriginal;
+            layer.alpha = spec.alpha;
+            layer.n = spec.n;
+            layer.thetaSat = spec.thetaSat;
+            layer.thetaRes = spec.thetaRes;
+            haveProps[layerIndex - 1] = true;
+        }
+    }
+    return layers;
+}
+
+static QVector<RBioswaleLayerLocal> ResolveRBioswaleLayersLocal(const StarterScriptOptions &options,
+                                                                const SoftSoilPropsLocal &resolved)
+{
+    QVector<RBioswaleLayerLocal> layers;
+    if (LoadRBioswaleLayersFromFileLocal(options.rSoilPropsFile, &layers)) {
+        return layers;
+    }
+    return BuildReferenceLayersLocal(resolved);
+}
+
+static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
+{
     const SoftSoilPropsLocal referenceDefaults = { 0.25, 3.6, 1.56, 0.43, 0.078 };
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
     const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(options, referenceDefaults, modelCreatorDefaults);
+    const QVector<RBioswaleLayerLocal> layers = ResolveRBioswaleLayersLocal(options, resolved);
+    if (layers.isEmpty()) {
+        return RBioswaleBuilder::FullReferenceScript();
+    }
 
-    for (const QString &rawLine : lines) {
-        const QString trimmed = rawLine.trimmed();
-        if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
+    const QString templateDir = options.templateDirectory.trimmed();
+    const auto tf = [&](const QString &name) { return QDir(templateDir).filePath(name).replace('\\', '/'); };
+    const QString inflow = options.inflowFile.trimmed().isEmpty()
+        ? QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt")
+        : options.inflowFile.trimmed();
+
+    const double bioswaleWidth = options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096;
+    const double systemWidth = options.rSystemWidth > 0.0 ? options.rSystemWidth : 3.0;
+    const double bioswaleDepth = options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144;
+    const double modelLength = options.rLength > 0.0 ? options.rLength : 8.0;
+    const int lateralCells = options.rLateralCells > 0 ? options.rLateralCells : 6;
+    const double streetWidth = options.rStreetWidth > 0.0 ? options.rStreetWidth : 5.0;
+    const int streetCells = options.rStreetCells > 0 ? options.rStreetCells : 10;
+    const double anisoRatio = options.rAnisoRatio > 0.0 ? options.rAnisoRatio : 5.0;
+    const double catchmentArea = bioswaleWidth * modelLength;
+    const double leftCellWidth = systemWidth / double(lateralCells);
+    const double rightCellWidth = streetWidth / double(streetCells);
+
+    QString out;
+    QTextStream ts(&out);
+    ts << "loadtemplate; filename=" << tf(QStringLiteral("main_components.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("Pond_Plugin.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("unsaturated_soil.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("Well.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("Sewer_system.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("soil_evapotranspiration_models.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("evapotranspiration_models.json")) << '\n';
+    ts << "addtemplate; filename=" << tf(QStringLiteral("pipe_pump_tank.json")) << '\n';
+    ts << "setvalue; object=system, quantity=simulation_start_time, value=" << (options.simulationStart.trimmed().isEmpty() ? QStringLiteral("44438.3") : options.simulationStart.trimmed()) << '\n';
+    ts << "setvalue; object=system, quantity=simulation_end_time, value=" << (options.simulationEnd.trimmed().isEmpty() ? QStringLiteral("44440") : options.simulationEnd.trimmed()) << '\n';
+    ts << "setvalue; object=system, quantity=shakescalered, value=0.75\n";
+    ts << "setvalue; object=system, quantity=shakescale, value=0.05\n";
+    ts << "setvalue; object=system, quantity=pmute, value=0.02\n";
+    ts << "setvalue; object=system, quantity=ngen, value=40\n";
+    ts << "setvalue; object=system, quantity=pcross, value=1\n";
+    ts << "setvalue; object=system, quantity=outputfile, value=" << (options.outputSeriesFile.trimmed().isEmpty() ? QStringLiteral("GA_output.txt") : options.outputSeriesFile.trimmed()) << '\n';
+    ts << "setvalue; object=system, quantity=maxpop, value=40\n";
+    ts << "setvalue; object=system, quantity=write_solution_details, value=No\n";
+    ts << "setvalue; object=system, quantity=nr_tolerance, value=0.001\n";
+    ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor_fail, value=0.2\n";
+    ts << "setvalue; object=system, quantity=nr_timestep_reduction_factor, value=0.75\n";
+    ts << "setvalue; object=system, quantity=n_threads, value=4\n";
+    ts << "setvalue; object=system, quantity=minimum_timestep, value=1e-06\n";
+    ts << "setvalue; object=system, quantity=initial_time_step, value=0.01\n";
+    ts << "setvalue; object=system, quantity=c_n_weight, value=1\n";
+    ts << "create parameter;type=Parameter,high=10,low=0.1,name=KS_scale_factor,prior_distribution=log-normal,value=2\n";
+    ts << "create parameter;type=Parameter,high=10,low=1,name=Anisotropy_ratio,prior_distribution=log-normal,value=" << anisoRatio << '\n';
+    ts << "create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_alpha,prior_distribution=log-normal,value=1.35\n";
+    ts << "create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_n,prior_distribution=log-normal,value=1.5601\n";
+    ts << "create parameter;type=Parameter,high=10,low=0.01,name=EC_alpha,prior_distribution=log-normal,value=0.43\n";
+    ts << "create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2\n";
+    ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=" << inflow << ",Slope=0.02,Width=" << bioswaleWidth << "[m],y=-200,area=" << catchmentArea << "[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n";
+
+    int lowestUp = -1;
+    double gwElevation = -10.668;
+    double bottomElevation = 0.0;
+
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        if (bottomElevation >= -bioswaleDepth) {
             RBioswaleBuilder::SoilBlockSpec spec;
-            if (ParseSoilBlockSpec(trimmed, &spec)) {
-                spec.thetaSat = resolved.thetaSat;
-                spec.thetaRes = resolved.thetaRes;
-                spec.n = resolved.n;
-                spec.kSatOriginal = resolved.ksat;
-                spec.alpha = resolved.alpha;
+            spec.name = QStringLiteral("EngineeredSoil (%1)").arg(layer + 1);
+            spec.thetaSat = 0.4; spec.thetaRes = 0.08; spec.n = 1.80; spec.kSatOriginal = 50.0; spec.alpha = 1.0;
+            spec.area = catchmentArea; spec.x = 0.0; spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth; spec.actualX = 0.0; spec.actualY = bottomElevation + layers[layer].depth / 2.0;
+            ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
+            lowestUp = layer;
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        const double area = systemWidth * modelLength / double(lateralCells);
+        if (bottomElevation >= -bioswaleDepth) {
+            for (int column = 0; column < lateralCells; ++column) {
+                RBioswaleBuilder::SoilBlockSpec spec;
+                spec.name = QStringLiteral("LeftTop (%1$%2)").arg(layer + 1).arg(column + 1);
+                spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
+                spec.area = area; spec.x = 200.0 * (column + 1); spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth;
+                spec.actualX = leftCellWidth * (column + 0.5) + bioswaleWidth / 2.0;
+                spec.actualY = bottomElevation + layers[layer].depth / 2.0;
                 ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
-                continue;
             }
         }
-        ts << rawLine << '\n';
     }
+
+    const double rightArea = streetWidth * modelLength / double(streetCells);
+    for (int column = 0; column < streetCells; ++column) {
+        ts << "create block;type=Aggregate_storage_layer,K_sat=50[m/day],_height=100,_width=150,area=" << rightArea << "[m~^2],bottom_elevation=0[m],depth=0[m],inflow=,name=Subbase (" << (column + 1) << "),porosity=0.5,x=" << (-200.0 * (column + 1)) << ",y=0\n";
+    }
+    bottomElevation = -layers[0].depth;
+    for (int layer = 1; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        if (bottomElevation >= -bioswaleDepth) {
+            for (int column = 0; column < streetCells; ++column) {
+                RBioswaleBuilder::SoilBlockSpec spec;
+                spec.name = QStringLiteral("RightTop (%1$%2)").arg(layer + 1).arg(column + 1);
+                spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
+                spec.area = rightArea; spec.x = -200.0 * (column + 1); spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth;
+                spec.actualX = -(rightCellWidth * (column + 0.5) + bioswaleWidth / 2.0);
+                spec.actualY = bottomElevation + layers[layer].depth / 2.0;
+                ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
+            }
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        if (bottomElevation < -bioswaleDepth) {
+            RBioswaleBuilder::SoilBlockSpec spec;
+            spec.name = QStringLiteral("UEngineered (%1)").arg(layer + 1);
+            spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
+            spec.area = catchmentArea; spec.x = 0.0; spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth; spec.actualX = 0.0; spec.actualY = bottomElevation + layers[layer].depth / 2.0;
+            ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        const double area = systemWidth * modelLength / double(lateralCells);
+        if (bottomElevation < -bioswaleDepth) {
+            for (int column = 0; column < lateralCells; ++column) {
+                RBioswaleBuilder::SoilBlockSpec spec;
+                spec.name = QStringLiteral("LeftBottom (%1$%2)").arg(layer + 1).arg(column + 1);
+                spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
+                spec.area = area; spec.x = 200.0 * (column + 1); spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth;
+                spec.actualX = leftCellWidth * (column + 0.5) + bioswaleWidth / 2.0;
+                spec.actualY = bottomElevation + layers[layer].depth / 2.0;
+                ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
+            }
+            gwElevation = bottomElevation;
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        const double y = layer * 200.0;
+        if (bottomElevation < -bioswaleDepth) {
+            for (int column = 0; column < streetCells; ++column) {
+                RBioswaleBuilder::SoilBlockSpec spec;
+                spec.name = QStringLiteral("RightBottom (%1$%2)").arg(layer + 1).arg(column + 1);
+                spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
+                spec.area = rightArea; spec.x = -200.0 * (column + 1); spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth;
+                spec.actualX = -(rightCellWidth * (column + 0.5) + bioswaleWidth / 2.0);
+                spec.actualY = bottomElevation + layers[layer].depth / 2.0;
+                ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
+            }
+        }
+    }
+
+    ts << "create link;from=Catchment (1),to=EngineeredSoil (1),type=surfacewater_to_soil_link,name=Catchment (1) - EngineeredSoil (1)\n";
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer + 1 < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation - layers[layer + 1].depth >= -bioswaleDepth) {
+            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=EngineeredSoil (" << (layer + 2) << "),type=soil_to_soil_link,name=EngineeredSoil_V (" << (layer + 1) << ")\n";
+        } else {
+            break;
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        const double length = bioswaleWidth / 2.0 + leftCellWidth / 2.0;
+        const double area = layers[layer].depth * modelLength;
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation >= -bioswaleDepth) {
+            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=LeftTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
+        } else {
+            break;
+        }
+    }
+
+    double length = bioswaleWidth / 2.0 + rightCellWidth / 2.0;
+    double area = layers[0].depth * modelLength;
+    ts << "create link;from=EngineeredSoil (1),to=Subbase (1),type=soil_to_fixedhead_link_H,area=" << area << "[m~^2],length=" << length << "[m],name=EngineeredSoil-Subbase,outlet_head=" << (-layers[0].depth) << "[m]\n";
+    bottomElevation = -layers[0].depth;
+    for (int layer = 1; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation >= -bioswaleDepth) {
+            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=RightTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
+        } else {
+            break;
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        const double hLength = leftCellWidth;
+        const double hArea = layers[layer].depth * modelLength;
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation >= -bioswaleDepth) {
+            for (int column = 0; column < lateralCells - 1; ++column) {
+                ts << "create link;from=LeftTop (" << (layer + 1) << "$" << (column + 1) << "),to=LeftTop (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=LeftTopH (" << (layer + 1) << "$" << (column + 1) << "),length=" << hLength << "[m],area=" << hArea << "[m~^2]\n";
+            }
+        } else {
+            break;
+        }
+    }
+
+    bottomElevation = -layers[0].depth;
+    for (int column = 0; column < streetCells; ++column) {
+        ts << "create link;from=Subbase (" << (column + 1) << "),to=RightTop (2$" << (column + 1) << "),type=aggregate_to_soil_link,name=Subbase (" << (column + 1) << ") - RightTop (2$" << (column + 1) << ")\n";
+    }
+    for (int layer = 1; layer + 1 < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation - layers[layer + 1].depth >= -bioswaleDepth) {
+            for (int column = 0; column < streetCells; ++column) {
+                ts << "create link;from=RightTop (" << (layer + 1) << "$" << (column + 1) << "),to=RightTop (" << (layer + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=RightTop_V (" << (layer + 1) << "$" << (column + 1) << ")\n";
+            }
+        } else {
+            break;
+        }
+    }
+
+    if (lowestUp + 1 < layers.size()) {
+        ts << "create link;from=EngineeredSoil (" << (lowestUp + 1) << "),to=UEngineered (" << (lowestUp + 2) << "),type=soil_to_soil_link,name=Engineered_to_bottom (" << (lowestUp + 1) << ")\n";
+        for (int column = 0; column < lateralCells; ++column) {
+            ts << "create link;from=LeftTop (" << (lowestUp + 1) << "$" << (column + 1) << "),to=LeftBottom (" << (lowestUp + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=Left_to_bottom (" << (lowestUp + 1) << "$" << (column + 1) << ")\n";
+        }
+        for (int column = 0; column < streetCells; ++column) {
+            ts << "create link;from=RightTop (" << (lowestUp + 1) << "$" << (column + 1) << "),to=RightBottom (" << (lowestUp + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=Right_to_bottom (" << (lowestUp + 1) << "$" << (column + 1) << ")\n";
+        }
+    }
+
+    for (int layer = lowestUp + 1; layer + 1 < layers.size(); ++layer) {
+        ts << "create link;from=UEngineered (" << (layer + 1) << "),to=UEngineered (" << (layer + 2) << "),type=soil_to_soil_link,name=UEngineered_V (" << (layer + 1) << ")\n";
+        for (int column = 0; column < lateralCells; ++column) {
+            ts << "create link;from=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "),to=LeftBottom (" << (layer + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=LeftBottom_V (" << (layer + 1) << "$" << (column + 1) << ")\n";
+        }
+        for (int column = 0; column < streetCells; ++column) {
+            ts << "create link;from=RightBottom (" << (layer + 1) << "$" << (column + 1) << "),to=RightBottom (" << (layer + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=RightBottom_V (" << (layer + 1) << "$" << (column + 1) << ")\n";
+        }
+    }
+
+    for (int layer = lowestUp + 1; layer < layers.size(); ++layer) {
+        const double hArea = layers[layer].depth * modelLength;
+        for (int column = 0; column < lateralCells - 1; ++column) {
+            ts << "create link;from=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "),to=LeftBottom (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=LeftBottom_H (" << (layer + 1) << "$" << (column + 1) << "),length=" << leftCellWidth << "[m],area=" << hArea << "[m~^2]\n";
+        }
+        for (int column = 0; column < streetCells - 1; ++column) {
+            ts << "create link;from=RightBottom (" << (layer + 1) << "$" << (column + 1) << "),to=RightBottom (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=RightBottom_H (" << (layer + 1) << "$" << (column + 1) << "),length=" << rightCellWidth << "[m],area=" << hArea << "[m~^2]\n";
+        }
+        const double centerLeftLength = bioswaleWidth / 2.0 + leftCellWidth / 2.0;
+        ts << "create link;from=UEngineered (" << (layer + 1) << "),to=LeftBottom (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=UEngineeredtoLeft_H (" << (layer + 1) << "),length=" << centerLeftLength << "[m],area=" << hArea << "[m~^2]\n";
+        const double centerRightLength = bioswaleWidth / 2.0 + rightCellWidth / 2.0;
+        ts << "create link;from=UEngineered (" << (layer + 1) << "),to=RightBottom (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=UEngineeredtoRight_H (" << (layer + 1) << "),length=" << centerRightLength << "[m],area=" << hArea << "[m~^2]\n";
+    }
+
+    const double gwY = (layers.size() + 1) * 200.0;
+    ts << "create block;type=fixed_head,_width=200,y=" << gwY << ",name=GW,x=0,head=" << gwElevation << "[m],_height=200,Storage=100000[m~^3]\n";
+    ts << "create link;from=UEngineered (" << layers.size() << "),to=GW,type=soil_to_fixedhead_link,name=UEngineered - GW\n";
+    for (int column = 0; column < lateralCells; ++column) {
+        ts << "create link;from=LeftBottom (" << layers.size() << "$" << (column + 1) << "),to=GW,type=soil_to_fixedhead_link,name=LeftBottom - GW (" << (column + 1) << ")\n";
+    }
+    for (int column = 0; column < streetCells; ++column) {
+        ts << "create link;from=RightBottom (" << layers.size() << "$" << (column + 1) << "),to=GW,type=soil_to_fixedhead_link,name=RightBottom - GW (" << (column + 1) << ")\n";
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation >= -bioswaleDepth) {
+            for (int column = 0; column < lateralCells; ++column) {
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
+            }
+        }
+    }
+
+    bottomElevation = -layers[0].depth;
+    for (int layer = 1; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation >= -bioswaleDepth) {
+            for (int column = 0; column < streetCells; ++column) {
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
+            }
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation < -bioswaleDepth) {
+            ts << "setasparameter; object=UEngineered (" << (layer + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
+            ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+            ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
+            ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
+        } else {
+            ts << "setasparameter; object=EngineeredSoil (" << (layer + 1) << "), parametername= Eng_Soil_alpha, quantity= alpha\n";
+            ts << "setasparameter; object=EngineeredSoil (" << (layer + 1) << "), parametername= Eng_Soil_n, quantity= n\n";
+        }
+    }
+
+    bottomElevation = 0.0;
+    for (int layer = 0; layer < layers.size(); ++layer) {
+        bottomElevation -= layers[layer].depth;
+        if (bottomElevation < -bioswaleDepth) {
+            for (int column = 0; column < lateralCells; ++column) {
+                ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
+                ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
+                ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
+            }
+            for (int column = 0; column < streetCells; ++column) {
+                ts << "setasparameter; object=RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
+                ts << "setasparameter; object=RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
+                ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
+            }
+        }
+    }
+
     return out;
 }
 

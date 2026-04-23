@@ -1368,6 +1368,15 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftSoilThetaResEdit(new QLineEdit(this)),
       vnSoftSoilParamModeCombo(new QComboBox(this)),
       vnSoftSoilParameterFileEdit(new QLineEdit(this)),
+      rBioSwaleWidthEdit(new QLineEdit(this)),
+      rSystemWidthEdit(new QLineEdit(this)),
+      rBioSwaleDepthEdit(new QLineEdit(this)),
+      rSoilPropsFileEdit(new QLineEdit(this)),
+      rLateralCellsEdit(new QLineEdit(this)),
+      rLengthEdit(new QLineEdit(this)),
+      rStreetWidthEdit(new QLineEdit(this)),
+      rStreetCellsEdit(new QLineEdit(this)),
+      rAnisoRatioEdit(new QLineEdit(this)),
       vnInitThetaModeCombo(new QComboBox(this)),
       vnFieldPointsEdit(new QLineEdit(this)),
       vnFieldSeedEdit(new QLineEdit(this)),
@@ -1559,6 +1568,15 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
     vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
     vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
+    setupCompactNumericEdit(rBioSwaleWidthEdit, tr("0.6096"));
+    setupCompactNumericEdit(rSystemWidthEdit, tr("3"));
+    setupCompactNumericEdit(rBioSwaleDepthEdit, tr("0.9144"));
+    setupCompactNumericEdit(rLateralCellsEdit, tr("6"));
+    setupCompactNumericEdit(rLengthEdit, tr("8"));
+    setupCompactNumericEdit(rStreetWidthEdit, tr("5"));
+    setupCompactNumericEdit(rStreetCellsEdit, tr("10"));
+    setupCompactNumericEdit(rAnisoRatioEdit, tr("5"));
+    rSoilPropsFileEdit->setPlaceholderText(tr("Optional: Rosemead soil properties file (.txt/.csv)"));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -1668,6 +1686,53 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addStretch(1);
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("R soil blocks")));
+        row->addWidget(new QLabel(tr("bioswale_w[m]")));
+        row->addWidget(rBioSwaleWidthEdit);
+        row->addWidget(new QLabel(tr("ext_left[m]")));
+        row->addWidget(rSystemWidthEdit);
+        row->addWidget(new QLabel(tr("depth[m]")));
+        row->addWidget(rBioSwaleDepthEdit);
+        row->addWidget(new QLabel(tr("length[m]")));
+        row->addWidget(rLengthEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        rSoilGeometryRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("R domain")));
+        row->addWidget(new QLabel(tr("left_cells")));
+        row->addWidget(rLateralCellsEdit);
+        row->addWidget(new QLabel(tr("street_w[m]")));
+        row->addWidget(rStreetWidthEdit);
+        row->addWidget(new QLabel(tr("street_cells")));
+        row->addWidget(rStreetCellsEdit);
+        row->addWidget(new QLabel(tr("aniso")));
+        row->addWidget(rAnisoRatioEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        rSoilDomainRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("R soil props")));
+        row->addWidget(rSoilPropsFileEdit, 1);
+        auto *browseBtn = new QPushButton(tr("Browse"), container);
+        connect(browseBtn, &QPushButton::clicked, this, &ModelCreatorWindow::chooseRBioswaleSoilPropsFile);
+        row->addWidget(browseBtn);
+        row->addStretch(1);
+        layout->addWidget(container);
+        rSoilControlsRowWidget = container;
     }
     vnInitThetaModeCombo->addItem(tr("Default"), QStringLiteral("Default"));
     vnInitThetaModeCombo->addItem(tr("ERT-3 only"), QStringLiteral("ERT3_Only"));
@@ -2013,6 +2078,15 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftSoilThetaSatEdit);
     saveOnEdit(vnSoftSoilThetaResEdit);
     saveOnEdit(vnSoftSoilParameterFileEdit);
+    saveOnEdit(rBioSwaleWidthEdit);
+    saveOnEdit(rSystemWidthEdit);
+    saveOnEdit(rBioSwaleDepthEdit);
+    saveOnEdit(rSoilPropsFileEdit);
+    saveOnEdit(rLateralCellsEdit);
+    saveOnEdit(rLengthEdit);
+    saveOnEdit(rStreetWidthEdit);
+    saveOnEdit(rStreetCellsEdit);
+    saveOnEdit(rAnisoRatioEdit);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
         const QString mode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -2293,6 +2367,9 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
+    if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
+    if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
+    if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnSoilToolRowWidget) vnSoilToolRowWidget->setVisible(vnContext);
@@ -2656,6 +2733,23 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
     if (!fileName.isEmpty()) {
         vnSoftSoilParameterFileEdit->setText(fileName);
         SetAutoSuggestedField(vnSoftSoilParameterFileEdit, false);
+        saveSettings();
+    }
+}
+
+
+void ModelCreatorWindow::chooseRBioswaleSoilPropsFile()
+{
+    const QString startDir = rSoilPropsFileEdit->text().trimmed().isEmpty()
+        ? workingDirEdit->text().trimmed()
+        : QFileInfo(rSoilPropsFileEdit->text().trimmed()).absolutePath();
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select Rosemead soil properties file"),
+                                                          startDir,
+                                                          tr("Data files (*.txt *.csv *.dat);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        rSoilPropsFileEdit->setText(fileName);
+        SetAutoSuggestedField(rSoilPropsFileEdit, false);
         saveSettings();
     }
 }
@@ -3216,6 +3310,34 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         } else {
             options.rBioswaleBuildMode = QStringLiteral("Preset");
+        }
+        AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
+        AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
+        AssignDoubleIfProvided(rBioSwaleDepthEdit, &options.rBioSwaleDepth);
+        AssignDoubleIfProvided(rLengthEdit, &options.rLength);
+        AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
+        AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
+        AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+        AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
+        options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+
+        QStringList rMetadata;
+        rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_width=%1").arg(options.rBioSwaleWidth);
+        rMetadata << QStringLiteral("# r_bioswale_ui:extension_left=%1").arg(options.rSystemWidth);
+        rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_depth=%1").arg(options.rBioSwaleDepth);
+        rMetadata << QStringLiteral("# r_bioswale_ui:length=%1").arg(options.rLength);
+        rMetadata << QStringLiteral("# r_bioswale_ui:lateral_cells=%1").arg(options.rLateralCells);
+        rMetadata << QStringLiteral("# r_bioswale_ui:street_width=%1").arg(options.rStreetWidth);
+        rMetadata << QStringLiteral("# r_bioswale_ui:street_cells=%1").arg(options.rStreetCells);
+        rMetadata << QStringLiteral("# r_bioswale_ui:anisotropy_ratio=%1").arg(options.rAnisoRatio);
+        if (!options.rSoilPropsFile.isEmpty()) {
+            rMetadata << QStringLiteral("# r_bioswale_ui:soil_props_file=%1").arg(options.rSoilPropsFile);
+        }
+        const QString rMetadataBlock = rMetadata.join('\n');
+        if (options.additionalCommands.trimmed().isEmpty()) {
+            options.additionalCommands = rMetadataBlock;
+        } else {
+            options.additionalCommands = rMetadataBlock + QStringLiteral("\n") + options.additionalCommands;
         }
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
@@ -4811,6 +4933,15 @@ void ModelCreatorWindow::loadSettings()
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
+    rBioSwaleWidthEdit->setText(settingTextOrDefault("rBioSwaleWidth", "0.6096"));
+    rSystemWidthEdit->setText(settingTextOrDefault("rSystemWidth", "3"));
+    rBioSwaleDepthEdit->setText(settingTextOrDefault("rBioSwaleDepth", "0.9144"));
+    rSoilPropsFileEdit->setText(settings.value("rSoilPropsFile").toString());
+    rLateralCellsEdit->setText(settingTextOrDefault("rLateralCells", "6"));
+    rLengthEdit->setText(settingTextOrDefault("rLength", "8"));
+    rStreetWidthEdit->setText(settingTextOrDefault("rStreetWidth", "5"));
+    rStreetCellsEdit->setText(settingTextOrDefault("rStreetCells", "10"));
+    rAnisoRatioEdit->setText(settingTextOrDefault("rAnisoRatio", "5"));
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
     vnInitThetaModeCombo->setCurrentIndex(vnInitThetaModeIndex >= 0 ? vnInitThetaModeIndex : 0);
@@ -4920,6 +5051,15 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilThetaRes", vnSoftSoilThetaResEdit->text());
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
+    settings.setValue("rBioSwaleWidth", rBioSwaleWidthEdit->text());
+    settings.setValue("rSystemWidth", rSystemWidthEdit->text());
+    settings.setValue("rBioSwaleDepth", rBioSwaleDepthEdit->text());
+    settings.setValue("rSoilPropsFile", rSoilPropsFileEdit->text());
+    settings.setValue("rLateralCells", rLateralCellsEdit->text());
+    settings.setValue("rLength", rLengthEdit->text());
+    settings.setValue("rStreetWidth", rStreetWidthEdit->text());
+    settings.setValue("rStreetCells", rStreetCellsEdit->text());
+    settings.setValue("rAnisoRatio", rAnisoRatioEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
     settings.setValue("vnFieldSeed", vnFieldSeedEdit->text());

@@ -98,6 +98,17 @@ struct StarterScriptOptions
     QString rBioswaleBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
     QString rBioswaleBaseOhqFile;
 
+    // Optional R_Bioswale SoftReference controls (procedural Rosemead-style soil-block generation).
+    double rBioSwaleWidth = 0.6096;
+    double rSystemWidth = 3.0;
+    double rBioSwaleDepth = 0.9144;
+    double rLength = 8.0;
+    int rLateralCells = 6;
+    double rStreetWidth = 5.0;
+    int rStreetCells = 10;
+    double rAnisoRatio = 5.0;
+    QString rSoilPropsFile;
+
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 16;
     int vnSoftGridYCount = 15;
