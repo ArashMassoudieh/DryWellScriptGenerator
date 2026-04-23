@@ -78,6 +78,14 @@ struct StarterScriptOptions
     //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
     QString hqBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
     QString hqBaseOhqFile;
+    // Optional HQ SoftReference geometry controls (legacy DryWell-style).
+    // Values <= 0 keep embedded/reference geometry for that field.
+    int hqSoftRadialCells = 0;
+    int hqSoftShallowLayers = 0;
+    double hqSoftWellDepth = 0.0;
+    double hqSoftWellRadius = 0.0;
+    double hqSoftPondRadius = 0.0;
+    double hqSoftSurfaceElevation = 0.0;
 
     // ---------------------------------------------------------------------
     // R_Bioswale-specific build mode configuration

@@ -168,6 +168,12 @@ private:
     QLineEdit *vnSoftSoilThetaResEdit;
     QComboBox *vnSoftSoilParamModeCombo;
     QLineEdit *vnSoftSoilParameterFileEdit;
+    QLineEdit *hqSoftRadialCellsEdit;
+    QLineEdit *hqSoftShallowLayersEdit;
+    QLineEdit *hqSoftWellDepthEdit;
+    QLineEdit *hqSoftWellRadiusEdit;
+    QLineEdit *hqSoftPondRadiusEdit;
+    QLineEdit *hqSoftSurfaceElevationEdit;
     QLineEdit *rBioSwaleWidthEdit;
     QLineEdit *rSystemWidthEdit;
     QLineEdit *rBioSwaleDepthEdit;
@@ -223,6 +229,7 @@ private:
     QWidget *vnSoftTopElevationRowWidget = nullptr;
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QWidget *vnSoftSoilParamsRowWidget = nullptr;
+    QWidget *hqSoftGeometryRowWidget = nullptr;
     QWidget *rSoilGeometryRowWidget = nullptr;
     QWidget *rSoilDomainRowWidget = nullptr;
     QWidget *rSoilControlsRowWidget = nullptr;

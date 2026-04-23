@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QHash>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStringList>
 #include <QTextStream>
 #include <QVector>
@@ -3020,6 +3021,29 @@ bool ParseSoilBlockSpec(const QString &line, HqDrywellBuilder::SoilBlockSpec *sp
     return !spec->name.trimmed().isEmpty();
 }
 
+bool ParseSoilNameIndicesLocal(const QString &name, int *layerIndex, int *radialIndex)
+{
+    if (layerIndex == nullptr || radialIndex == nullptr) {
+        return false;
+    }
+    static const QRegularExpression re(QStringLiteral("^\\s*Soil\\s*\\((\\d+)\\$(\\d+)\\)\\s*$"),
+                                       QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = re.match(name.trimmed());
+    if (!m.hasMatch()) {
+        return false;
+    }
+    bool okLayer = false;
+    bool okRadial = false;
+    const int parsedLayer = m.captured(1).toInt(&okLayer);
+    const int parsedRadial = m.captured(2).toInt(&okRadial);
+    if (!okLayer || !okRadial || parsedLayer <= 0 || parsedRadial <= 0) {
+        return false;
+    }
+    *layerIndex = parsedLayer;
+    *radialIndex = parsedRadial;
+    return true;
+}
+
 bool LoadSoilBlockOverridesFromCommandFileLocal(const QString &path,
                                                 QHash<QString, HqDrywellBuilder::SoilBlockSpec> *overrides)
 {
@@ -3060,19 +3084,80 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     QHash<QString, HqDrywellBuilder::SoilBlockSpec> blockOverrides;
     const bool haveBlockOverrides = LoadSoilBlockOverridesFromCommandFileLocal(options.vnSoftSoilParameterFile, &blockOverrides);
     const QString softMode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
+    int detectedLayers = 0;
+    int detectedRadials = 0;
+    double inferredSurfaceElevation = 140.0;
+    bool surfaceInferred = false;
+    for (const QString &rawLine : lines) {
+        HqDrywellBuilder::SoilBlockSpec scanSpec;
+        if (!ParseSoilBlockSpec(rawLine.trimmed(), &scanSpec)) {
+            continue;
+        }
+        int layerIndex = 0;
+        int radialIndex = 0;
+        if (!ParseSoilNameIndicesLocal(scanSpec.name, &layerIndex, &radialIndex)) {
+            continue;
+        }
+        detectedLayers = qMax(detectedLayers, layerIndex);
+        detectedRadials = qMax(detectedRadials, radialIndex);
+        if (!surfaceInferred) {
+            inferredSurfaceElevation = scanSpec.actualY + 0.5 * scanSpec.depth;
+            surfaceInferred = true;
+        }
+    }
+    const int effectiveLayers = options.hqSoftShallowLayers > 0
+        ? options.hqSoftShallowLayers
+        : qMax(1, detectedLayers);
+    const int effectiveRadials = options.hqSoftRadialCells > 0
+        ? options.hqSoftRadialCells
+        : qMax(1, detectedRadials);
+    const bool applyGeometryOverrides =
+        options.hqSoftShallowLayers > 0
+        || options.hqSoftRadialCells > 0
+        || options.hqSoftWellDepth > 0.0
+        || options.hqSoftWellRadius > 0.0
+        || options.hqSoftPondRadius > 0.0
+        || options.hqSoftSurfaceElevation > 0.0;
+    const double effectiveWellDepth = options.hqSoftWellDepth > 0.0 ? options.hqSoftWellDepth : 12.192;
+    const double effectiveWellRadius = options.hqSoftWellRadius > 0.0 ? options.hqSoftWellRadius : 1.2192;
+    const double effectivePondRadius = options.hqSoftPondRadius > 0.0 ? options.hqSoftPondRadius : 20.0;
+    const double effectiveSurfaceElevation = options.hqSoftSurfaceElevation > 0.0
+        ? options.hqSoftSurfaceElevation
+        : inferredSurfaceElevation;
+    QSet<QString> keptSoilBlocks;
 
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             HqDrywellBuilder::SoilBlockSpec spec;
             if (ParseSoilBlockSpec(trimmed, &spec)) {
+                int layerIndex = 0;
+                int radialIndex = 0;
+                const bool hasIndices = ParseSoilNameIndicesLocal(spec.name, &layerIndex, &radialIndex);
+                if (hasIndices && (layerIndex > effectiveLayers || radialIndex > effectiveRadials)) {
+                    continue;
+                }
                 if (haveBlockOverrides) {
                     const auto it = blockOverrides.constFind(spec.name.trimmed());
                     if (it != blockOverrides.constEnd()) {
                         spec = it.value();
                     }
                 }
+                if (applyGeometryOverrides && hasIndices && effectiveLayers > 0 && effectiveRadials > 0) {
+                    const double dy = effectiveWellDepth / static_cast<double>(effectiveLayers);
+                    const double dr = (effectivePondRadius - effectiveWellRadius) / static_cast<double>(effectiveRadials);
+                    const double rIn = effectiveWellRadius + dr * static_cast<double>(radialIndex - 1);
+                    const double rOut = effectiveWellRadius + dr * static_cast<double>(radialIndex);
+                    spec.area = 3.14159265358979323846 * (rOut * rOut - rIn * rIn);
+                    spec.bottomElevation = -dy * static_cast<double>(layerIndex);
+                    spec.depth = dy;
+                    spec.actualX = 0.5 * (rIn + rOut);
+                    spec.actualY = effectiveSurfaceElevation - dy * (static_cast<double>(layerIndex) - 0.5);
+                    spec.x = 200.0 + static_cast<double>(radialIndex - 1) * 300.0;
+                    spec.y = 300.0 + static_cast<double>(layerIndex - 1) * 300.0;
+                }
                 if (softMode == QStringLiteral("File") && haveBlockOverrides && !haveProfile) {
+                    keptSoilBlocks.insert(spec.name.trimmed());
                     ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
                     continue;
                 }
@@ -3096,7 +3181,19 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 spec.n = resolved.n;
                 spec.kSatOriginal = resolved.ksat;
                 spec.alpha = resolved.alpha;
+                keptSoilBlocks.insert(spec.name.trimmed());
                 ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
+                continue;
+            }
+        }
+        if (trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)
+            && !keptSoilBlocks.isEmpty()) {
+            const QString from = ExtractStringLocal(trimmed, QStringLiteral("from"));
+            const QString to = ExtractStringLocal(trimmed, QStringLiteral("to"));
+            const bool fromSoil = from.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
+            const bool toSoil = to.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
+            if ((fromSoil && !keptSoilBlocks.contains(from.trimmed()))
+                || (toSoil && !keptSoilBlocks.contains(to.trimmed()))) {
                 continue;
             }
         }
