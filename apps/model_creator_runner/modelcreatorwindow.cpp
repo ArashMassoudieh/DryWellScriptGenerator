@@ -5112,7 +5112,6 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
     };
 
     QSet<QString> normalizedArtifacts;
-    normalizedArtifacts.reserve(artifacts.size());
     for (const QString &path : artifacts) {
         normalizedArtifacts.insert(normalizePath(path));
     }
