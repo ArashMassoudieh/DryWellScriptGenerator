@@ -1,5 +1,6 @@
 import unittest
 from collections import defaultdict
+from pathlib import Path
 
 
 def interpolate_y_sorted(sorted_series, x):
@@ -128,6 +129,11 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("VN_Drywell_Pro", "R_Bioswale"))
+
+    def test_hq_builder_has_no_kept_soil_blocks_reference(self):
+        source = Path(__file__).resolve().parents[1] / "hq_drywell_builder.cpp"
+        text = source.read_text(encoding="utf-8")
+        self.assertNotIn("keptSoilBlocks", text)
 
 
 if __name__ == "__main__":
