@@ -105,6 +105,9 @@ private:
     void updateFieldVisibilityForContext();
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
+    void updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts);
+    QString vnResultGridRuntimeStatus() const;
+    QString vnErtSnapshotRuntimeStatus() const;
     QString currentEffectiveVnInitTheta() const;
     QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;
@@ -284,6 +287,8 @@ private:
     bool solveProgressObserved = false;
     bool simulationWindowAutoSuggested = true;
     bool inflowAutoSuggested = true;
+    QString vnResultGridStatus = QStringLiteral("not_run_in_current_app");
+    QString vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
 };
 
 #endif // MODELCREATORWINDOW_H
