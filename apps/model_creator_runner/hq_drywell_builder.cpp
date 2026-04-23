@@ -3148,6 +3148,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     const double effectiveSurfaceElevation = options.hqSoftSurfaceElevation > 0.0
         ? options.hqSoftSurfaceElevation
         : inferredSurfaceElevation;
+    QSet<QString> keptSoilBlocks;
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
