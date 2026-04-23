@@ -1539,8 +1539,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     vnBuildModeCombo->addItem(tr("SoftReference"), QStringLiteral("SoftReference"));
     vnBuildModeCombo->addItem(tr("FullReference"), QStringLiteral("FullReference"));
     vnBuildModeCombo->addItem(tr("LoadFromOhq"), QStringLiteral("LoadFromOhq"));
-    vnBuildModeCombo->addItem(tr("Preset"), QStringLiteral("Preset"));
-    vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script. Preset uses the simple preset path."));
+    vnBuildModeCombo->setToolTip(tr("SoftReference is the editable VN mode and is intended to reproduce FullReference exactly when the defaults remain unchanged. FullReference uses the embedded canonical VN reference. LoadFromOhq uses the selected VN base script."));
     vnBuildModeRowWidget = addTextRow(layout, tr("Build mode"), vnBuildModeCombo);
     setupCompactNumericEdit(vnSoftGridXEdit, tr("16"));
     setupCompactNumericEdit(vnSoftGridYEdit, tr("15"));
@@ -2301,6 +2300,17 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
 
     const auto options = StructureRegistry::PresetOptionsForModel(modelType);
     for (const auto &option : options) {
+        const QString optionLabel = option.first.trimmed();
+        const QString optionData = option.second.trimmed();
+        const QString modePresetToken = modePrefix.isEmpty()
+            ? QString()
+            : QStringLiteral("%1:Preset").arg(modePrefix);
+        const bool isGenericPresetUiEntry = optionLabel.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0
+            || optionData.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0
+            || (!modePresetToken.isEmpty() && optionData.compare(modePresetToken, Qt::CaseInsensitive) == 0);
+        if (isGenericPresetUiEntry) {
+            continue;
+        }
         addUniquePresetItem(option.first, option.second);
     }
 
