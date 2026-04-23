@@ -3130,13 +3130,14 @@ bool HqDrywellBuilder::Build(const StarterScriptOptions &options,
     }
 
     const QString mode = options.hqBuildMode.trimmed();
-    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = FullReferenceScript();
         return true;
     }
 
-    if (mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+    if (mode.isEmpty()
+        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
         *scriptText = BuildSoftReferenceScriptLocal(options);
         return true;
     }
