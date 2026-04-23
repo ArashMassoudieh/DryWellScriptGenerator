@@ -5099,35 +5099,41 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
     if (modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) != 0) {
         return;
     }
-
-    auto containsToken = [](const QString &path, const QStringList &tokens) {
-        const QString normalized = QFileInfo(path).fileName().toLower();
-        for (const QString &token : tokens) {
-            if (normalized.contains(token)) {
-                return true;
-            }
+    const QString workingDir = workingDirEdit->text().trimmed();
+    const auto toAbsolutePath = [&workingDir](const QString &candidate) {
+        const QFileInfo info(candidate);
+        if (info.isAbsolute()) {
+            return info.absoluteFilePath();
         }
-        return false;
+        return QDir(workingDir).filePath(candidate);
+    };
+    const auto normalizePath = [](const QString &path) {
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
     };
 
-    bool sawResultGrid = false;
-    bool sawErtSnapshot = false;
+    QSet<QString> normalizedArtifacts;
+    normalizedArtifacts.reserve(artifacts.size());
     for (const QString &path : artifacts) {
-        if (!sawResultGrid
-            && containsToken(path, {QStringLiteral("resultgrid"), QStringLiteral("result_grid")})) {
-            sawResultGrid = true;
-        }
-        if (!sawErtSnapshot
-            && containsToken(path, {QStringLiteral("ert"), QStringLiteral("snapshot")})) {
-            sawErtSnapshot = true;
+        normalizedArtifacts.insert(normalizePath(path));
+    }
+
+    const QString configuredOutputSeries = outputSeriesFileEdit->text().trimmed();
+    if (!configuredOutputSeries.isEmpty()) {
+        const QString outputSeriesPath = normalizePath(toAbsolutePath(configuredOutputSeries));
+        if (normalizedArtifacts.contains(outputSeriesPath)) {
+            vnResultGridStatus = QStringLiteral("detected_output_series_in_run_artifacts");
         }
     }
 
-    if (sawResultGrid) {
-        vnResultGridStatus = QStringLiteral("detected_in_run_artifacts");
+    QString configuredErtPath = vnErtSnapshotExportEdit->text().trimmed();
+    if (configuredErtPath.isEmpty() && !workingDir.isEmpty()) {
+        configuredErtPath = QDir(workingDir).filePath(QStringLiteral("vn_ert_snapshot.csv"));
     }
-    if (sawErtSnapshot) {
-        vnErtSnapshotStatus = QStringLiteral("detected_in_run_artifacts");
+    if (!configuredErtPath.isEmpty()) {
+        const QString ertPath = normalizePath(toAbsolutePath(configuredErtPath));
+        if (normalizedArtifacts.contains(ertPath)) {
+            vnErtSnapshotStatus = QStringLiteral("detected_ert_snapshot_in_run_artifacts");
+        }
     }
 }
 
