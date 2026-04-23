@@ -130,7 +130,7 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
         return QStringLiteral("SoftReference");
     }
     if (trimmedPreset.startsWith(QStringLiteral("VN_"), Qt::CaseInsensitive)) {
-        return QStringLiteral("Preset");
+        return QStringLiteral("SoftReference");
     }
 
     return fallbackBuildMode;
@@ -681,6 +681,66 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftDepthToGroundWater, kDefaultDepthToGw)
         || differs(options.vnSoftTopElevation, kDefaultTopElevation)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
+}
+
+bool IsVnSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return IsVnSoftGridCustomized(options)
+        || !options.vnSoilLayersFile.trimmed().isEmpty()
+        || !options.vnMoistureLayersFile.trimmed().isEmpty()
+        || !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
+bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
+bool IsRBioswaleSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    if (IsHqSoftCustomizationRequested(options)) {
+        return true;
+    }
+    return !options.rSoilPropsFile.trimmed().isEmpty()
+        || differs(options.rBioSwaleWidth, defaults.rBioSwaleWidth)
+        || differs(options.rSystemWidth, defaults.rSystemWidth)
+        || differs(options.rBioSwaleDepth, defaults.rBioSwaleDepth)
+        || differs(options.rLength, defaults.rLength)
+        || options.rLateralCells != defaults.rLateralCells
+        || differs(options.rStreetWidth, defaults.rStreetWidth)
+        || options.rStreetCells != defaults.rStreetCells
+        || differs(options.rAnisoRatio, defaults.rAnisoRatio);
 }
 
 QString AutoDetectVnBuildMode(const StarterScriptOptions &options)
@@ -2345,8 +2405,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
     const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
@@ -3031,8 +3090,13 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("SoftReference");
                 options.vnPreset.clear();
             } else {
-                options.vnBuildMode = QStringLiteral("Preset");
-                options.vnPreset = selectedPreset;
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                options.vnPreset.clear();
+            }
+            if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsVnSoftCustomizationRequested(options)) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3043,7 +3107,12 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.hqBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.hqBuildMode = QStringLiteral("Preset");
+                options.hqBuildMode = QStringLiteral("SoftReference");
+            }
+            if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsHqSoftCustomizationRequested(options)) {
+                options.hqBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3054,7 +3123,21 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.rBioswaleBuildMode = QStringLiteral("Preset");
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            }
+            AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
+            AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
+            AssignDoubleIfProvided(rBioSwaleDepthEdit, &options.rBioSwaleDepth);
+            AssignDoubleIfProvided(rLengthEdit, &options.rLength);
+            AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
+            AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
+            AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+            AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
+            options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+            if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsRBioswaleSoftCustomizationRequested(options)) {
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+                appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
             }
         }
 
@@ -3296,8 +3379,13 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.vnBuildMode = QStringLiteral("SoftReference");
             options.vnPreset.clear();
         } else {
-            options.vnBuildMode = QStringLiteral("Preset");
-            options.vnPreset = selectedPreset;
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            options.vnPreset.clear();
+        }
+        if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsVnSoftCustomizationRequested(options)) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3308,7 +3396,12 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.hqBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.hqBuildMode = QStringLiteral("Preset");
+            options.hqBuildMode = QStringLiteral("SoftReference");
+        }
+        if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsHqSoftCustomizationRequested(options)) {
+            options.hqBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3319,7 +3412,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.rBioswaleBuildMode = QStringLiteral("Preset");
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         }
         AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
         AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
@@ -3330,6 +3423,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
         AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
         options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+        if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsRBioswaleSoftCustomizationRequested(options)) {
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
+        }
 
         QStringList rMetadata;
         rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_width=%1").arg(options.rBioSwaleWidth);
@@ -3475,7 +3573,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString effectiveG = options.ksatScaleG.trimmed().isEmpty() ? QStringLiteral("2.5") : options.ksatScaleG.trimmed();
         const QString effectiveUw = options.ksatScaleUw.trimmed().isEmpty() ? QStringLiteral("35") : options.ksatScaleUw.trimmed();
         appendLog(stamp(tr("VN generation config: buildMode=%1, initTheta=%2, field(points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
-                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("Preset") : options.vnBuildMode,
+                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : options.vnBuildMode,
                                  vnInitThetaModeCombo->currentData().toString(),
                                  vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
                                  vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),

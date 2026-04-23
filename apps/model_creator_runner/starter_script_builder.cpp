@@ -378,9 +378,6 @@ QString NormalizeVnBuildMode(const QString &mode)
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
     }
-    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("Preset");
-    }
     return QStringLiteral("SoftReference");
 }
 
@@ -396,10 +393,7 @@ QString NormalizeStructureBuildMode(const QString &mode)
     if (m.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("LoadFromOhq");
     }
-    if (m.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("Preset");
-    }
-    return QStringLiteral("Preset");
+    return QStringLiteral("SoftReference");
 }
 
 QString ResolveVnPreset(const StarterScriptOptions &options)
@@ -428,13 +422,15 @@ QString EffectiveBuildModeForMetadata(const StarterScriptOptions &options)
     if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         return NormalizeStructureBuildMode(options.rBioswaleBuildMode);
     }
-    return QStringLiteral("Preset");
+    return QStringLiteral("SoftReference");
 }
 
 QString EffectivePresetForMetadata(const StarterScriptOptions &options,
                                    const QString &effectiveBuildMode)
 {
-    if (effectiveBuildMode != QStringLiteral("Preset")) {
+    if (effectiveBuildMode == QStringLiteral("SoftReference")
+        || effectiveBuildMode == QStringLiteral("FullReference")
+        || effectiveBuildMode == QStringLiteral("LoadFromOhq")) {
         return QString();
     }
     if (IsVnModel(options.modelType)) {
@@ -1497,18 +1493,16 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     const bool hqModelType = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
     const bool rBioswaleModelType = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
     const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
-                                       : QStringLiteral("Preset");
+                                       : QStringLiteral("SoftReference");
     const QString hqMode = hqModelType ? NormalizeStructureBuildMode(options.hqBuildMode)
-                                       : QStringLiteral("Preset");
+                                       : QStringLiteral("SoftReference");
     const QString rBioswaleMode = rBioswaleModelType ? NormalizeStructureBuildMode(options.rBioswaleBuildMode)
-                                                     : QStringLiteral("Preset");
+                                                     : QStringLiteral("SoftReference");
 
     const bool directScriptMode = (hqModelType && (hqMode == QStringLiteral("FullReference")
-                                                   || hqMode == QStringLiteral("LoadFromOhq")
-                                                   || hqMode == QStringLiteral("Preset")))
+                                                   || hqMode == QStringLiteral("LoadFromOhq")))
         || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
-                                   || rBioswaleMode == QStringLiteral("LoadFromOhq")
-                                   || rBioswaleMode == QStringLiteral("Preset")));
+                                   || rBioswaleMode == QStringLiteral("LoadFromOhq")));
 
     const QStringList requiredTemplates = directScriptMode
                                               ? QStringList{}
@@ -1673,8 +1667,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     if (hqModelType && (hqMode == QStringLiteral("FullReference")
-                        || hqMode == QStringLiteral("SoftReference")
-                        || hqMode == QStringLiteral("Preset"))) {
+                        || hqMode == QStringLiteral("SoftReference"))) {
         QString out;
         if (!HqDrywellBuilder::Build(options, &out, errorMessage)) {
             return false;
@@ -1702,8 +1695,7 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     }
 
     if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
-                               || rBioswaleMode == QStringLiteral("SoftReference")
-                               || rBioswaleMode == QStringLiteral("Preset"))) {
+                               || rBioswaleMode == QStringLiteral("SoftReference"))) {
         QString out;
         if (!RBioswaleBuilder::Build(options, &out, errorMessage)) {
             return false;

@@ -1,6 +1,7 @@
 #include "hq_drywell_builder.h"
 
 #include <QFile>
+#include <QHash>
 #include <QRegularExpression>
 #include <QStringList>
 #include <QTextStream>
@@ -3019,6 +3020,32 @@ bool ParseSoilBlockSpec(const QString &line, HqDrywellBuilder::SoilBlockSpec *sp
     return !spec->name.trimmed().isEmpty();
 }
 
+bool LoadSoilBlockOverridesFromCommandFileLocal(const QString &path,
+                                                QHash<QString, HqDrywellBuilder::SoilBlockSpec> *overrides)
+{
+    if (overrides == nullptr) {
+        return false;
+    }
+    overrides->clear();
+    const QString trimmedPath = path.trimmed();
+    if (trimmedPath.isEmpty()) {
+        return false;
+    }
+    QFile file(trimmedPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+    QTextStream ts(&file);
+    while (!ts.atEnd()) {
+        HqDrywellBuilder::SoilBlockSpec spec;
+        if (!ParseSoilBlockSpec(ts.readLine().trimmed(), &spec)) {
+            continue;
+        }
+        overrides->insert(spec.name.trimmed(), spec);
+    }
+    return !overrides->isEmpty();
+}
+
 QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
 {
     const QString embedded = HqDrywellBuilder::FullReferenceScript();
@@ -3030,12 +3057,25 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
     QVector<DepthSoilRowLocal> profileRows;
     const bool haveProfile = LoadDepthProfileLocal(options.vnSoftSoilParameterFile, &profileRows);
+    QHash<QString, HqDrywellBuilder::SoilBlockSpec> blockOverrides;
+    const bool haveBlockOverrides = LoadSoilBlockOverridesFromCommandFileLocal(options.vnSoftSoilParameterFile, &blockOverrides);
+    const QString softMode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
 
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             HqDrywellBuilder::SoilBlockSpec spec;
             if (ParseSoilBlockSpec(trimmed, &spec)) {
+                if (haveBlockOverrides) {
+                    const auto it = blockOverrides.constFind(spec.name.trimmed());
+                    if (it != blockOverrides.constEnd()) {
+                        spec = it.value();
+                    }
+                }
+                if (softMode == QStringLiteral("File") && haveBlockOverrides && !haveProfile) {
+                    ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
+                    continue;
+                }
                 const SoftSoilPropsLocal specReferenceDefaults = {
                     spec.kSatOriginal,
                     spec.alpha,
@@ -3130,13 +3170,13 @@ bool HqDrywellBuilder::Build(const StarterScriptOptions &options,
     }
 
     const QString mode = options.hqBuildMode.trimmed();
-    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = FullReferenceScript();
         return true;
     }
 
-    if (mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+    if (mode.isEmpty()
+        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = BuildSoftReferenceScriptLocal(options);
         return true;
     }

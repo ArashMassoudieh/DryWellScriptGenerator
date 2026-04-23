@@ -47,16 +47,14 @@ struct StarterScriptOptions
     //
     // vnBuildMode controls how VN_Drywell scripts are generated:
     //
-    //   "Preset"        -> use vnPreset / enrichmentPreset (default, legacy-friendly)
     //   "FullReference" -> use embedded full VN reference OHQ content
     //   "SoftReference" -> template-based VN scaffold + user-provided VN snippets
     //   "LoadFromOhq"   -> load vnBaseOhqFile as authoritative base script
     //
     // For non-VN model types, these fields are ignored.
-    QString vnBuildMode = "SoftReference";   // SoftReference | FullReference | LoadFromOhq | Preset
+    QString vnBuildMode = "SoftReference";   // SoftReference | FullReference | LoadFromOhq
 
-    // VN preset name used only when vnBuildMode == "Preset".
-    // If empty, falls back to enrichmentPreset, then to "VN_Drywell".
+    // Legacy VN preset name (no dedicated Preset build mode; kept for compatibility).
     QString vnPreset = "VN_Drywell";  // VN_Drywell | VN_Drywell_Pro
 
     // Optional VN-specific source files.
@@ -71,8 +69,6 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // HQ_Drywell-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> delegate to HqDrywellBuilder::Build(...) using the
-    //                      structure's native Drywell-style helper functions
     //   "SoftReference" -> delegate to HqDrywellBuilder::Build(...) using the
     //                      HQ SoftRef path (soil blocks regenerated via
     //                      HqDrywellBuilder::BuildSoilBlockCommand and the
@@ -80,14 +76,12 @@ struct StarterScriptOptions
     //   "FullReference" -> use the embedded HQ full-reference payload through
     //                      HqDrywellBuilder::Build(...)
     //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
-    QString hqBuildMode = "SoftReference"; // Preset | SoftReference | FullReference | LoadFromOhq
+    QString hqBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
     QString hqBaseOhqFile;
 
     // ---------------------------------------------------------------------
     // R_Bioswale-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> delegate to RBioswaleBuilder::Build(...) using the
-    //                      structure's native Bioswale-style helper functions
     //   "SoftReference" -> delegate to RBioswaleBuilder::Build(...) using the
     //                      R SoftRef path (soil blocks regenerated via
     //                      RBioswaleBuilder::BuildSoilBlockCommand and the
@@ -95,7 +89,7 @@ struct StarterScriptOptions
     //   "FullReference" -> use the embedded R_Bioswale full-reference payload
     //                      through RBioswaleBuilder::Build(...)
     //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
-    QString rBioswaleBuildMode = "Preset"; // Preset | SoftReference | FullReference | LoadFromOhq
+    QString rBioswaleBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
     QString rBioswaleBaseOhqFile;
 
     // Optional R_Bioswale SoftReference controls (procedural Rosemead-style soil-block generation).
@@ -158,7 +152,6 @@ struct StarterScriptOptions
     //   "R_Bioswale_SuiteStyle", "R_Bioswale_LegacyStyle"
     //
     // Notes:
-    //   - For VN_Drywell in Preset mode, vnPreset is preferred.
     //   - enrichmentPreset remains supported for backward compatibility.
     QString enrichmentPreset;
 };
