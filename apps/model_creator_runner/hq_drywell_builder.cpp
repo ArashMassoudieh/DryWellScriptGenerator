@@ -3124,8 +3124,6 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     const double effectiveSurfaceElevation = options.hqSoftSurfaceElevation > 0.0
         ? options.hqSoftSurfaceElevation
         : inferredSurfaceElevation;
-    QSet<QString> keptSoilBlocks;
-
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
@@ -3134,9 +3132,6 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 int layerIndex = 0;
                 int radialIndex = 0;
                 const bool hasIndices = ParseSoilNameIndicesLocal(spec.name, &layerIndex, &radialIndex);
-                if (hasIndices && (layerIndex > effectiveLayers || radialIndex > effectiveRadials)) {
-                    continue;
-                }
                 if (haveBlockOverrides) {
                     const auto it = blockOverrides.constFind(spec.name.trimmed());
                     if (it != blockOverrides.constEnd()) {
@@ -3144,20 +3139,21 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                     }
                 }
                 if (applyGeometryOverrides && hasIndices && effectiveLayers > 0 && effectiveRadials > 0) {
+                    const int mappedLayer = qMin(layerIndex, effectiveLayers);
+                    const int mappedRadial = qMin(radialIndex, effectiveRadials);
                     const double dy = effectiveWellDepth / static_cast<double>(effectiveLayers);
                     const double dr = (effectivePondRadius - effectiveWellRadius) / static_cast<double>(effectiveRadials);
-                    const double rIn = effectiveWellRadius + dr * static_cast<double>(radialIndex - 1);
-                    const double rOut = effectiveWellRadius + dr * static_cast<double>(radialIndex);
+                    const double rIn = effectiveWellRadius + dr * static_cast<double>(mappedRadial - 1);
+                    const double rOut = effectiveWellRadius + dr * static_cast<double>(mappedRadial);
                     spec.area = 3.14159265358979323846 * (rOut * rOut - rIn * rIn);
-                    spec.bottomElevation = -dy * static_cast<double>(layerIndex);
+                    spec.bottomElevation = -dy * static_cast<double>(mappedLayer);
                     spec.depth = dy;
                     spec.actualX = 0.5 * (rIn + rOut);
-                    spec.actualY = effectiveSurfaceElevation - dy * (static_cast<double>(layerIndex) - 0.5);
-                    spec.x = 200.0 + static_cast<double>(radialIndex - 1) * 300.0;
-                    spec.y = 300.0 + static_cast<double>(layerIndex - 1) * 300.0;
+                    spec.actualY = effectiveSurfaceElevation - dy * (static_cast<double>(mappedLayer) - 0.5);
+                    spec.x = 200.0 + static_cast<double>(mappedRadial - 1) * 300.0;
+                    spec.y = 300.0 + static_cast<double>(mappedLayer - 1) * 300.0;
                 }
                 if (softMode == QStringLiteral("File") && haveBlockOverrides && !haveProfile) {
-                    keptSoilBlocks.insert(spec.name.trimmed());
                     ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
                     continue;
                 }
