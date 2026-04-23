@@ -71,8 +71,7 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // HQ_Drywell-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> delegate to HqDrywellBuilder::Build(...) using the
-    //                      structure's native Drywell-style helper functions
+    //   "Preset"        -> alias of SoftReference for HQ (kept for backward compatibility)
     //   "SoftReference" -> delegate to HqDrywellBuilder::Build(...) using the
     //                      HQ SoftRef path (soil blocks regenerated via
     //                      HqDrywellBuilder::BuildSoilBlockCommand and the
@@ -86,8 +85,7 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // R_Bioswale-specific build mode configuration
     // ---------------------------------------------------------------------
-    //   "Preset"        -> delegate to RBioswaleBuilder::Build(...) using the
-    //                      structure's native Bioswale-style helper functions
+    //   "Preset"        -> alias of SoftReference for R (kept for backward compatibility)
     //   "SoftReference" -> delegate to RBioswaleBuilder::Build(...) using the
     //                      R SoftRef path (soil blocks regenerated via
     //                      RBioswaleBuilder::BuildSoilBlockCommand and the
