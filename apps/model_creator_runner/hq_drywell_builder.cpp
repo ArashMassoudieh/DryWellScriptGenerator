@@ -3148,7 +3148,23 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     const double effectiveSurfaceElevation = options.hqSoftSurfaceElevation > 0.0
         ? options.hqSoftSurfaceElevation
         : inferredSurfaceElevation;
-    QSet<QString> keptSoilBlocks;
+    const auto nearlyEqual = [](double a, double b) {
+        return std::fabs(a - b) <= 1e-9;
+    };
+    const bool geometryIsReferenceEquivalent =
+        (options.hqSoftShallowLayers <= 0 || options.hqSoftShallowLayers == detectedLayers)
+        && (options.hqSoftRadialCells <= 0 || options.hqSoftRadialCells == detectedRadials)
+        && (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
+        && (options.hqSoftWellRadius <= 0.0 || nearlyEqual(options.hqSoftWellRadius, fallbackWellRadius))
+        && (options.hqSoftPondRadius <= 0.0 || nearlyEqual(options.hqSoftPondRadius, fallbackPondRadius))
+        && (options.hqSoftSurfaceElevation <= 0.0 || nearlyEqual(options.hqSoftSurfaceElevation, inferredSurfaceElevation));
+    const bool usesReferenceSoilDefaults =
+        softMode == QStringLiteral("ReferenceDefaults")
+        && !haveProfile
+        && !haveBlockOverrides;
+    if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
+        return embedded;
+    }
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
