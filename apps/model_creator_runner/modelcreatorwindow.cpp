@@ -2111,6 +2111,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         currentRunOutput.clear();
         suppressedRuntimeNoiseLines = 0;
         solveProgressObserved = false;
+        vnResultGridStatus = QStringLiteral("not_run_in_current_app");
+        vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -2220,6 +2222,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             appendLog(QStringLiteral("  - %1").arg(file));
         }
 
+        updateVnRuntimeStatusFromArtifacts(artifacts);
         copyArtifacts(artifacts);
         writeArtifactManifest(artifacts);
     });
@@ -3158,8 +3161,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
         meta.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
-        meta.insert(QStringLiteral("resultgrid_runtime_status"), QStringLiteral("not_run_in_current_app"));
-        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
+        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
         return meta;
     };
 
@@ -3554,8 +3557,8 @@ void ModelCreatorWindow::runScript()
         meta.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
         meta.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
-        meta.insert(QStringLiteral("resultgrid_runtime_status"), QStringLiteral("not_run_in_current_app"));
-        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), QStringLiteral("not_run_in_current_app"));
+        meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
+        meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
         QJsonArray argsArray;
         for (const QString &arg : args) {
             argsArray.append(arg);
@@ -5091,6 +5094,62 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("additionalCommands", additionalCommandsEdit->toPlainText());
 }
 
+void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts)
+{
+    if (modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) != 0) {
+        return;
+    }
+    const QString workingDir = workingDirEdit->text().trimmed();
+    const auto toAbsolutePath = [&workingDir](const QString &candidate) {
+        const QFileInfo info(candidate);
+        if (info.isAbsolute()) {
+            return info.absoluteFilePath();
+        }
+        return QDir(workingDir).filePath(candidate);
+    };
+    const auto normalizePath = [](const QString &path) {
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    };
+
+    QSet<QString> normalizedArtifacts;
+    for (const QString &path : artifacts) {
+        normalizedArtifacts.insert(normalizePath(path));
+    }
+
+    const QString configuredOutputSeries = outputSeriesFileEdit->text().trimmed();
+    if (!configuredOutputSeries.isEmpty()) {
+        const QString outputSeriesPath = normalizePath(toAbsolutePath(configuredOutputSeries));
+        if (normalizedArtifacts.contains(outputSeriesPath)) {
+            vnResultGridStatus = QStringLiteral("detected_output_series_in_run_artifacts");
+        }
+    }
+
+    QString configuredErtPath = vnErtSnapshotExportEdit->text().trimmed();
+    if (configuredErtPath.isEmpty() && !workingDir.isEmpty()) {
+        configuredErtPath = QDir(workingDir).filePath(QStringLiteral("vn_ert_snapshot.csv"));
+    }
+    if (!configuredErtPath.isEmpty()) {
+        const QString ertPath = normalizePath(toAbsolutePath(configuredErtPath));
+        if (normalizedArtifacts.contains(ertPath)) {
+            vnErtSnapshotStatus = QStringLiteral("detected_ert_snapshot_in_run_artifacts");
+        }
+    }
+}
+
+QString ModelCreatorWindow::vnResultGridRuntimeStatus() const
+{
+    return vnResultGridStatus.trimmed().isEmpty()
+        ? QStringLiteral("not_run_in_current_app")
+        : vnResultGridStatus.trimmed();
+}
+
+QString ModelCreatorWindow::vnErtSnapshotRuntimeStatus() const
+{
+    return vnErtSnapshotStatus.trimmed().isEmpty()
+        ? QStringLiteral("not_run_in_current_app")
+        : vnErtSnapshotStatus.trimmed();
+}
+
 
 QString ModelCreatorWindow::currentEffectiveVnInitTheta() const
 {
@@ -5233,8 +5292,8 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     root.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
     root.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
     root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));
-    root.insert(QStringLiteral("resultgrid_runtime"), QStringLiteral("not_executed_in_current_app"));
-    root.insert(QStringLiteral("ert_snapshot_runtime"), QStringLiteral("not_executed_in_current_app"));
+    root.insert(QStringLiteral("resultgrid_runtime"), vnResultGridRuntimeStatus());
+    root.insert(QStringLiteral("ert_snapshot_runtime"), vnErtSnapshotRuntimeStatus());
     root.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
 
     QSaveFile out(targetPath);
@@ -5660,6 +5719,7 @@ void ModelCreatorWindow::exportVnErtSnapshotCsv()
         return;
     }
 
+    vnErtSnapshotStatus = QStringLiteral("exported_in_app");
     appendLog(stamp(tr("Exported ERT-ready borehole CSV: %1").arg(target)));
     appendLog(stamp(tr("This app-side export uses the currently selected output/depth columns and slice X/R as a borehole-style profile.")));
     saveSettings();
