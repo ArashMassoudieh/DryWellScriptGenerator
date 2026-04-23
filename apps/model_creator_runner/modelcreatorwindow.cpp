@@ -2185,7 +2185,6 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
     const QString previousPreset = enrichmentPresetCombo->currentData().toString().trimmed();
     const QSignalBlocker blocker(enrichmentPresetCombo);
     enrichmentPresetCombo->clear();
-    enrichmentPresetCombo->addItem(tr("None"), "");
 
     QString modePrefix;
     if (modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
@@ -2200,15 +2199,35 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         ? QString()
         : QStringLiteral("%1:SoftReference").arg(modePrefix);
 
+    QSet<QString> seenPresetData;
+    QSet<QString> seenPresetLabels;
+    const auto addUniquePresetItem = [&](const QString &label, const QString &data) {
+        const QString normalizedLabel = label.trimmed();
+        const QString normalizedData = data.trimmed();
+        if ((!normalizedData.isEmpty() && seenPresetData.contains(normalizedData))
+            || (!normalizedLabel.isEmpty() && seenPresetLabels.contains(normalizedLabel))) {
+            return;
+        }
+        enrichmentPresetCombo->addItem(label, data);
+        if (!normalizedData.isEmpty()) {
+            seenPresetData.insert(normalizedData);
+        }
+        if (!normalizedLabel.isEmpty()) {
+            seenPresetLabels.insert(normalizedLabel);
+        }
+    };
+
+    addUniquePresetItem(tr("None"), "");
+
     if (!modePrefix.isEmpty()) {
-        enrichmentPresetCombo->addItem(tr("SoftReference"), defaultModePreset);
-        enrichmentPresetCombo->addItem(tr("LoadFromOhq"), QStringLiteral("%1:LoadFromOhq").arg(modePrefix));
-        enrichmentPresetCombo->addItem(tr("FullReference"), QStringLiteral("%1:FullReference").arg(modePrefix));
+        addUniquePresetItem(tr("SoftReference"), defaultModePreset);
+        addUniquePresetItem(tr("LoadFromOhq"), QStringLiteral("%1:LoadFromOhq").arg(modePrefix));
+        addUniquePresetItem(tr("FullReference"), QStringLiteral("%1:FullReference").arg(modePrefix));
     }
 
     const auto options = StructureRegistry::PresetOptionsForModel(modelType);
     for (const auto &option : options) {
-        enrichmentPresetCombo->addItem(option.first, option.second);
+        addUniquePresetItem(option.first, option.second);
     }
 
     int index = -1;
