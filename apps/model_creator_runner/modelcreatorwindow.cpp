@@ -1661,7 +1661,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soft soil params")));
+        row->addWidget(new QLabel(tr("Soil water retention params")));
         row->addWidget(new QLabel(tr("mode")));
         row->addWidget(vnSoftSoilParamModeCombo);
         row->addWidget(new QLabel(tr("Ksat")));

@@ -1,8 +1,12 @@
 #include "hq_drywell_builder.h"
 
+#include <QFile>
 #include <QRegularExpression>
 #include <QStringList>
 #include <QTextStream>
+#include <QVector>
+
+#include <cmath>
 
 namespace {
 
@@ -2781,6 +2785,7 @@ QString ExtractStringLocal(const QString &line, const QString &key, const QStrin
     return value.isEmpty() ? fallback : value;
 }
 
+
 QString NormalizeSoftSoilModeLocal(const QString &mode)
 {
     const QString m = mode.trimmed();
@@ -2805,9 +2810,162 @@ struct SoftSoilPropsLocal
     double thetaRes = 0.0;
 };
 
+struct DepthSoilRowLocal
+{
+    double depth = 0.0;
+    SoftSoilPropsLocal props;
+};
+
+QStringList SplitCsvLikeLocal(const QString &line)
+{
+    QStringList out;
+    QString cell;
+    bool inQuotes = false;
+    for (const QChar ch : line) {
+        if (ch == QLatin1Char('"')) {
+            inQuotes = !inQuotes;
+            continue;
+        }
+        if (!inQuotes && (ch == QLatin1Char(',') || ch == QLatin1Char('\t') || ch == QLatin1Char(';'))) {
+            out << cell.trimmed();
+            cell.clear();
+            continue;
+        }
+        cell += ch;
+    }
+    out << cell.trimmed();
+    return out;
+}
+
+QString NormalizeHeaderLocal(QString s)
+{
+    s = s.trimmed().toLower();
+    s.remove(QLatin1Char(' '));
+    s.remove(QLatin1Char('_'));
+    s.remove(QLatin1Char('-'));
+    return s;
+}
+
+bool TryGetNamedDoubleLocal(const QStringList &cells,
+                            const QHash<QString, int> &headerIndex,
+                            const QStringList &aliases,
+                            double *valueOut)
+{
+    if (valueOut == nullptr) {
+        return false;
+    }
+    for (const QString &alias : aliases) {
+        const auto it = headerIndex.constFind(NormalizeHeaderLocal(alias));
+        if (it == headerIndex.constEnd()) {
+            continue;
+        }
+        const int idx = it.value();
+        if (idx < 0 || idx >= cells.size()) {
+            continue;
+        }
+        bool ok = false;
+        const double value = cells[idx].trimmed().toDouble(&ok);
+        if (ok && std::isfinite(value)) {
+            *valueOut = value;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool LoadDepthProfileLocal(const QString &path, QVector<DepthSoilRowLocal> *rows)
+{
+    if (rows == nullptr || path.trimmed().isEmpty()) {
+        return false;
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream in(&file);
+    bool headerParsed = false;
+    QHash<QString, int> headerIndex;
+    while (!in.atEnd()) {
+        const QString raw = in.readLine().trimmed();
+        if (raw.isEmpty() || raw.startsWith(QLatin1Char('#'))) {
+            continue;
+        }
+
+        const QStringList cells = SplitCsvLikeLocal(raw);
+        if (!headerParsed) {
+            for (int i = 0; i < cells.size(); ++i) {
+                headerIndex.insert(NormalizeHeaderLocal(cells[i]), i);
+            }
+            headerParsed = true;
+            continue;
+        }
+
+        DepthSoilRowLocal row;
+        if (!TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("depth"), QStringLiteral("depth_m")}, &row.depth)) {
+            continue;
+        }
+        row.props.ksat = 1.0;
+        row.props.alpha = 1.0;
+        row.props.n = 1.41;
+        row.props.thetaSat = 0.4;
+        row.props.thetaRes = 0.05;
+        TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("ksat"), QStringLiteral("k_sat_original")}, &row.props.ksat);
+        TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("alpha")}, &row.props.alpha);
+        TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("n")}, &row.props.n);
+        TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("theta_s"), QStringLiteral("theta_sat")}, &row.props.thetaSat);
+        TryGetNamedDoubleLocal(cells, headerIndex, {QStringLiteral("theta_r"), QStringLiteral("theta_res")}, &row.props.thetaRes);
+        rows->push_back(row);
+    }
+
+    std::sort(rows->begin(), rows->end(), [](const DepthSoilRowLocal &a, const DepthSoilRowLocal &b) {
+        return a.depth < b.depth;
+    });
+    return !rows->isEmpty();
+}
+
+SoftSoilPropsLocal InterpolatePropsLocal(const QVector<DepthSoilRowLocal> &rows, double depth)
+{
+    if (rows.isEmpty() || !std::isfinite(depth)) {
+        return {};
+    }
+    if (depth <= rows.first().depth) {
+        return rows.first().props;
+    }
+    if (depth >= rows.last().depth) {
+        return rows.last().props;
+    }
+
+    for (int i = 1; i < rows.size(); ++i) {
+        const DepthSoilRowLocal &a = rows[i - 1];
+        const DepthSoilRowLocal &b = rows[i];
+        if (depth < a.depth || depth > b.depth) {
+            continue;
+        }
+        const double dx = b.depth - a.depth;
+        if (!(dx > 0.0) || !std::isfinite(dx)) {
+            return b.props;
+        }
+        const double w = (depth - a.depth) / dx;
+        SoftSoilPropsLocal out;
+        out.ksat = a.props.ksat + w * (b.props.ksat - a.props.ksat);
+        out.alpha = a.props.alpha + w * (b.props.alpha - a.props.alpha);
+        out.n = a.props.n + w * (b.props.n - a.props.n);
+        out.thetaSat = a.props.thetaSat + w * (b.props.thetaSat - a.props.thetaSat);
+        out.thetaRes = a.props.thetaRes + w * (b.props.thetaRes - a.props.thetaRes);
+        return out;
+    }
+
+    return rows.last().props;
+}
+
 SoftSoilPropsLocal ResolveSoftSoilOverridesLocal(const StarterScriptOptions &options,
                                                  const SoftSoilPropsLocal &referenceDefaults,
-                                                 const SoftSoilPropsLocal &modelCreatorDefaults)
+                                                 const SoftSoilPropsLocal &modelCreatorDefaults,
+                                                 const SoftSoilPropsLocal &specReferenceDefaults,
+                                                 const QVector<DepthSoilRowLocal> *profileRows,
+                                                 double specDepth)
 {
     const QString mode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
     if (mode == QStringLiteral("Manual")) {
@@ -2821,6 +2979,12 @@ SoftSoilPropsLocal ResolveSoftSoilOverridesLocal(const StarterScriptOptions &opt
     }
     if (mode == QStringLiteral("ModelCreatorDefaults")) {
         return modelCreatorDefaults;
+    }
+    if (mode == QStringLiteral("File") && profileRows != nullptr && !profileRows->isEmpty()) {
+        return InterpolatePropsLocal(*profileRows, std::fabs(specDepth));
+    }
+    if (mode == QStringLiteral("ReferenceDefaults")) {
+        return specReferenceDefaults;
     }
     return referenceDefaults;
 }
@@ -2864,13 +3028,29 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
 
     const SoftSoilPropsLocal referenceDefaults = { 1.0, 1.0, 1.41, 0.4, 0.05 };
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
-    const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(options, referenceDefaults, modelCreatorDefaults);
+    QVector<DepthSoilRowLocal> profileRows;
+    const bool haveProfile = LoadDepthProfileLocal(options.vnSoftSoilParameterFile, &profileRows);
 
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             HqDrywellBuilder::SoilBlockSpec spec;
             if (ParseSoilBlockSpec(trimmed, &spec)) {
+                const SoftSoilPropsLocal specReferenceDefaults = {
+                    spec.kSatOriginal,
+                    spec.alpha,
+                    spec.n,
+                    spec.thetaSat,
+                    spec.thetaRes
+                };
+                const double specMidDepth = std::fabs(spec.bottomElevation + 0.5 * spec.depth);
+                const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(
+                    options,
+                    referenceDefaults,
+                    modelCreatorDefaults,
+                    specReferenceDefaults,
+                    haveProfile ? &profileRows : nullptr,
+                    specMidDepth);
                 spec.thetaSat = resolved.thetaSat;
                 spec.thetaRes = resolved.thetaRes;
                 spec.n = resolved.n;
