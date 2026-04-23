@@ -133,7 +133,7 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
         return QStringLiteral("Preset");
     }
 
-    return fallbackBuildMode.isEmpty() ? QStringLiteral("SoftReference") : fallbackBuildMode;
+    return fallbackBuildMode;
 }
 
 QString InferErtBoreholeName(double radiusM)
@@ -2196,8 +2196,12 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         modePrefix = QStringLiteral("R_MODE");
     }
 
+    const QString defaultModePreset = modePrefix.isEmpty()
+        ? QString()
+        : QStringLiteral("%1:SoftReference").arg(modePrefix);
+
     if (!modePrefix.isEmpty()) {
-        enrichmentPresetCombo->addItem(tr("SoftReference"), QStringLiteral("%1:SoftReference").arg(modePrefix));
+        enrichmentPresetCombo->addItem(tr("SoftReference"), defaultModePreset);
         enrichmentPresetCombo->addItem(tr("LoadFromOhq"), QStringLiteral("%1:LoadFromOhq").arg(modePrefix));
         enrichmentPresetCombo->addItem(tr("FullReference"), QStringLiteral("%1:FullReference").arg(modePrefix));
     }
@@ -2207,10 +2211,16 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         enrichmentPresetCombo->addItem(option.first, option.second);
     }
 
-    const int index = enrichmentPresetCombo->findData(previousPreset);
+    int index = -1;
+    if (!previousPreset.isEmpty()) {
+        index = enrichmentPresetCombo->findData(previousPreset);
+    }
+    if (index < 0 && !defaultModePreset.isEmpty()) {
+        index = enrichmentPresetCombo->findData(defaultModePreset);
+    }
     enrichmentPresetCombo->setCurrentIndex(index >= 0 ? index : 0);
     if (index < 0 && !previousPreset.isEmpty()) {
-        appendLog(stamp(tr("Preset '%1' hidden for model type '%2'; reset to None.")
+        appendLog(stamp(tr("Preset '%1' hidden for model type '%2'; reset to default mode.")
                         .arg(previousPreset, modelType)));
     }
     saveSettings();
@@ -2282,228 +2292,6 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (simulationStartRowWidget) simulationStartRowWidget->setVisible(!loadExistingMode && !usingVnBase);
     if (simulationEndRowWidget) simulationEndRowWidget->setVisible(!loadExistingMode && !usingVnBase);
     if (outputSeriesRowWidget) outputSeriesRowWidget->setVisible(!loadExistingMode && !usingVnBase);
-}
-
-QString ModelCreatorWindow::currentStructureBuildMode() const
-{
-    const QString modelType = modelTypeCombo ? modelTypeCombo->currentText().trimmed() : QString();
-    const QString preset = enrichmentPresetCombo ? enrichmentPresetCombo->currentData().toString().trimmed() : QString();
-    const QString fallbackBuildMode = vnBuildModeCombo != nullptr
-        ? vnBuildModeCombo->currentData().toString().trimmed()
-        : QStringLiteral("SoftReference");
-
-    if (modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        return ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
-    }
-    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-        const QString mode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
-        return mode.isEmpty() ? QStringLiteral("SoftReference") : mode;
-    }
-    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        const QString mode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
-        return mode.isEmpty() ? QStringLiteral("SoftReference") : mode;
-    }
-    return fallbackBuildMode.isEmpty() ? QStringLiteral("SoftReference") : fallbackBuildMode;
-}
-
-QString ModelCreatorWindow::currentStructureSoftSoilProfileLabel() const
-{
-    const QString modelType = modelTypeCombo ? modelTypeCombo->currentText().trimmed() : QString();
-    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("hq_drywell");
-    }
-    if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        return QStringLiteral("r_bioswale");
-    }
-    return QStringLiteral("vn_drywell");
-}
-
-QString ModelCreatorWindow::currentStructureSoftSoilCsv(const QString &currentMode) const
-{
-    const QString compactMode = currentMode.toLower().remove(' ').remove('_').remove('-');
-    const bool fileMode = currentMode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
-        || compactMode == QStringLiteral("file")
-        || compactMode == QStringLiteral("filedepthprofile");
-    const bool vnRefMode = currentMode.compare(QStringLiteral("VnReferenceDefaults"), Qt::CaseInsensitive) == 0
-        || compactMode == QStringLiteral("vnrefdefaults")
-        || compactMode == QStringLiteral("vnreferencedefaults");
-    const bool modelCreatorDefaults = currentMode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0
-        || compactMode == QStringLiteral("modelcreatordefaults");
-
-    if (fileMode && vnSoftSoilParameterFileEdit != nullptr && !vnSoftSoilParameterFileEdit->text().trimmed().isEmpty()) {
-        QFile file(vnSoftSoilParameterFileEdit->text().trimmed());
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            return QString::fromUtf8(file.readAll());
-        }
-    }
-
-    const QString modelType = modelTypeCombo ? modelTypeCombo->currentText().trimmed() : QString();
-    if (vnRefMode && modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        return StarterScriptBuilder::VnReferenceSoilProfileCsv();
-    }
-
-    double ksatDefault = 1.05196;
-    double alphaDefault = 3.47536;
-    double nDefault = 1.74582;
-    double thetaSatDefault = 0.39;
-    double thetaResDefault = 0.049;
-    QString zone1 = QStringLiteral("Soil-g");
-    QString zone2 = QStringLiteral("Soil-uw");
-    double actY1 = -5.0;
-    double depth1 = 5.0;
-    double actY2 = -15.0;
-    double depth2 = 15.0;
-
-    if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-        if (!modelCreatorDefaults) {
-            ksatDefault = 1.0;
-            alphaDefault = 1.0;
-            nDefault = 1.41;
-            thetaSatDefault = 0.4;
-            thetaResDefault = 0.05;
-        }
-    } else if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        zone1 = QStringLiteral("Catchment (1)");
-        zone2 = QStringLiteral("Media");
-        actY1 = 0.0;
-        depth1 = 0.0;
-        actY2 = -0.1016;
-        depth2 = 0.1016;
-        if (!modelCreatorDefaults) {
-            ksatDefault = 0.25;
-            alphaDefault = 3.6;
-            nDefault = 1.56;
-            thetaSatDefault = 0.43;
-            thetaResDefault = 0.078;
-        }
-    }
-
-    const double ksat = modelCreatorDefaults ? 1.05196 : (vnSoftSoilKsatOriginalEdit ? vnSoftSoilKsatOriginalEdit->text().toDouble() : ksatDefault);
-    const double alpha = modelCreatorDefaults ? 3.47536 : (vnSoftSoilAlphaEdit ? vnSoftSoilAlphaEdit->text().toDouble() : alphaDefault);
-    const double n = modelCreatorDefaults ? 1.74582 : (vnSoftSoilNEdit ? vnSoftSoilNEdit->text().toDouble() : nDefault);
-    const double thetaSat = modelCreatorDefaults ? 0.39 : (vnSoftSoilThetaSatEdit ? vnSoftSoilThetaSatEdit->text().toDouble() : thetaSatDefault);
-    const double thetaRes = modelCreatorDefaults ? 0.049 : (vnSoftSoilThetaResEdit ? vnSoftSoilThetaResEdit->text().toDouble() : thetaResDefault);
-
-    return QString::fromLatin1(
-            "zone,act_Y,depth_m,Ksat,alpha,n,theta_sat,theta_res\n"
-            "%1,%2,%3,%4,%5,%6,%7,%8\n"
-            "%9,%10,%11,%4,%5,%6,%7,%8\n"
-        )
-        .arg(zone1)
-        .arg(actY1, 0, 'g', 10)
-        .arg(depth1, 0, 'g', 10)
-        .arg(ksat, 0, 'g', 10)
-        .arg(alpha, 0, 'g', 10)
-        .arg(n, 0, 'g', 10)
-        .arg(thetaSat, 0, 'g', 10)
-        .arg(thetaRes, 0, 'g', 10)
-        .arg(zone2)
-        .arg(actY2, 0, 'g', 10)
-        .arg(depth2, 0, 'g', 10);
-}
-
-void ModelCreatorWindow::populateStarterScriptOptions(StarterScriptOptions *options, bool includeVnMetadata) const
-{
-    if (options == nullptr) {
-        return;
-    }
-    *options = StarterScriptOptions{};
-    options->templateDirectory = templateDirEdit->text().trimmed();
-    options->outputFile = generatedScriptEdit->text().trimmed();
-    options->modelType = modelTypeCombo->currentText();
-    options->enrichmentPreset = enrichmentPresetCombo->currentData().toString();
-    options->inflowFile = inflowFileEdit->text().trimmed();
-    options->simulationStart = simulationStartEdit->text().trimmed();
-    options->simulationEnd = simulationEndEdit->text().trimmed();
-    options->outputSeriesFile = outputSeriesFileEdit->text().trimmed();
-    options->observationFile = observationFileEdit->text().trimmed();
-    options->observationObject = observationObjectEdit->text().trimmed();
-    options->observationExpression = observationExpressionEdit->text().trimmed();
-    options->observationName = observationNameEdit->text().trimmed();
-    options->additionalCommands = additionalCommandsEdit->toPlainText();
-    options->ksatScaleAll = ksatScaleEdit->text().trimmed();
-    options->ksatScaleG = ksatScaleGEdit->text().trimmed();
-    options->ksatScaleUw = ksatScaleUwEdit->text().trimmed();
-    options->vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
-    options->vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
-    options->vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
-    AssignIntIfProvided(vnSoftGridXEdit, &options->vnSoftGridXCount);
-    AssignIntIfProvided(vnSoftGridYEdit, &options->vnSoftGridYCount);
-    AssignIntIfProvided(vnSoftUwGridXEdit, &options->vnSoftUwGridXCount);
-    AssignIntIfProvided(vnSoftUwGridYEdit, &options->vnSoftUwGridYCount);
-    AssignDoubleIfProvided(vnSoftCellSizeEdit, &options->vnSoftCellSize);
-    AssignDoubleIfProvided(vnSoftUwCellSizeEdit, &options->vnSoftUwCellSize);
-    AssignDoubleIfProvided(vnSoftGapSizeEdit, &options->vnSoftGapSize);
-    AssignDoubleIfProvided(vnSoftRwGEdit, &options->vnSoftRwG);
-    AssignDoubleIfProvided(vnSoftRwUwEdit, &options->vnSoftRwUw);
-    AssignDoubleIfProvided(vnSoftRadiusInfluenceEdit, &options->vnSoftRadiusOfInfluence);
-    AssignDoubleIfProvided(vnSoftDepthWellCEdit, &options->vnSoftDepthOfWellC);
-    AssignDoubleIfProvided(vnSoftDepthWellGEdit, &options->vnSoftDepthOfWellG);
-    AssignDoubleIfProvided(vnSoftDepthToGwEdit, &options->vnSoftDepthToGroundWater);
-    AssignDoubleIfProvided(vnSoftTopElevationEdit, &options->vnSoftTopElevation);
-    AssignDoubleIfProvided(vnSoftLayerThicknessEdit, &options->vnSoftLayerThickness);
-    AssignDoubleIfProvided(vnSoftSoilKsatOriginalEdit, &options->vnSoftSoilKsatOriginal);
-    AssignDoubleIfProvided(vnSoftSoilAlphaEdit, &options->vnSoftSoilAlpha);
-    AssignDoubleIfProvided(vnSoftSoilNEdit, &options->vnSoftSoilN);
-    AssignDoubleIfProvided(vnSoftSoilThetaSatEdit, &options->vnSoftSoilThetaSat);
-    AssignDoubleIfProvided(vnSoftSoilThetaResEdit, &options->vnSoftSoilThetaRes);
-    options->vnSoftSoilParamMode = vnSoftSoilParamModeCombo->currentData().toString();
-    options->vnSoftSoilParameterFile = vnSoftSoilParameterFileEdit->text().trimmed();
-
-    if (includeVnMetadata && options->modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        QStringList vnMetadata;
-        vnMetadata << QStringLiteral("# vn_runner_metadata:init_theta_mode=%1").arg(vnInitThetaModeCombo->currentData().toString());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_points=%1").arg(vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_seed=%1").arg(vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_dx=%1").arg(vnFieldDxEdit->text().trimmed().isEmpty() ? QStringLiteral("0.5") : vnFieldDxEdit->text().trimmed());
-        vnMetadata << QStringLiteral("# vn_runner_metadata:field_pdf_mode=%1").arg(vnFieldPdfModeCombo->currentData().toString());
-        const QString vnMetadataBlock = vnMetadata.join(QChar('\n'));
-        if (options->additionalCommands.trimmed().isEmpty()) {
-            options->additionalCommands = vnMetadataBlock;
-        } else {
-            options->additionalCommands = vnMetadataBlock + QStringLiteral("\n") + options->additionalCommands;
-        }
-    }
-
-    const QString modelType = options->modelType.trimmed();
-    if (modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
-        const QString selectedPreset = options->enrichmentPreset.trimmed();
-        const QString selectedVnBuildMode = VnBuildModeFromPresetSelection(selectedPreset);
-        if (!selectedVnBuildMode.isEmpty()) {
-            options->vnBuildMode = selectedVnBuildMode;
-            options->enrichmentPreset.clear();
-        } else if (selectedPreset.isEmpty()) {
-            options->vnBuildMode = QStringLiteral("SoftReference");
-            options->vnPreset.clear();
-        } else {
-            options->vnBuildMode = QStringLiteral("Preset");
-            options->vnPreset = selectedPreset;
-        }
-        options->hqBuildMode.clear();
-        options->rBioswaleBuildMode.clear();
-    } else if (modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-        const QString selectedHqMode = BuildModeFromPresetSelection(options->enrichmentPreset, QStringLiteral("HQ_MODE"));
-        options->hqBuildMode = selectedHqMode.isEmpty() ? QStringLiteral("SoftReference") : selectedHqMode;
-        if (!selectedHqMode.isEmpty()) {
-            options->enrichmentPreset.clear();
-        } else if (!options->enrichmentPreset.trimmed().isEmpty()) {
-            options->hqBuildMode = QStringLiteral("Preset");
-        }
-        options->vnBuildMode.clear();
-        options->vnPreset.clear();
-        options->rBioswaleBuildMode.clear();
-    } else if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        const QString selectedRMode = BuildModeFromPresetSelection(options->enrichmentPreset, QStringLiteral("R_MODE"));
-        options->rBioswaleBuildMode = selectedRMode.isEmpty() ? QStringLiteral("SoftReference") : selectedRMode;
-        if (!selectedRMode.isEmpty()) {
-            options->enrichmentPreset.clear();
-        } else if (!options->enrichmentPreset.trimmed().isEmpty()) {
-            options->rBioswaleBuildMode = QStringLiteral("Preset");
-        }
-        options->vnBuildMode.clear();
-        options->vnPreset.clear();
-        options->hqBuildMode.clear();
-    }
 }
 
 void ModelCreatorWindow::chooseExecutable()
@@ -3116,23 +2904,32 @@ void ModelCreatorWindow::previewScript()
             if (!selectedVnBuildMode.isEmpty()) {
                 options.vnBuildMode = selectedVnBuildMode;
                 options.enrichmentPreset.clear();
+            } else if (selectedPreset.isEmpty()) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                options.vnPreset.clear();
             } else {
                 options.vnBuildMode = QStringLiteral("Preset");
-                options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
+                options.vnPreset = selectedPreset;
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-            const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+            const QString selectedPreset = options.enrichmentPreset.trimmed();
+            const QString selectedHqMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("HQ_MODE"));
             if (!selectedHqMode.isEmpty()) {
                 options.hqBuildMode = selectedHqMode;
                 options.enrichmentPreset.clear();
+            } else if (selectedPreset.isEmpty()) {
+                options.hqBuildMode = QStringLiteral("SoftReference");
             } else {
                 options.hqBuildMode = QStringLiteral("Preset");
             }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-            const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+            const QString selectedPreset = options.enrichmentPreset.trimmed();
+            const QString selectedRMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("R_MODE"));
             if (!selectedRMode.isEmpty()) {
                 options.rBioswaleBuildMode = selectedRMode;
                 options.enrichmentPreset.clear();
+            } else if (selectedPreset.isEmpty()) {
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             } else {
                 options.rBioswaleBuildMode = QStringLiteral("Preset");
             }
@@ -3372,23 +3169,32 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         if (!selectedVnBuildMode.isEmpty()) {
             options.vnBuildMode = selectedVnBuildMode;
             options.enrichmentPreset.clear();
+        } else if (selectedPreset.isEmpty()) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            options.vnPreset.clear();
         } else {
             options.vnBuildMode = QStringLiteral("Preset");
-            options.vnPreset = selectedPreset.isEmpty() ? QStringLiteral("VN_Drywell_Pro") : selectedPreset;
+            options.vnPreset = selectedPreset;
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
-        const QString selectedHqMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("HQ_MODE"));
+        const QString selectedPreset = options.enrichmentPreset.trimmed();
+        const QString selectedHqMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("HQ_MODE"));
         if (!selectedHqMode.isEmpty()) {
             options.hqBuildMode = selectedHqMode;
             options.enrichmentPreset.clear();
+        } else if (selectedPreset.isEmpty()) {
+            options.hqBuildMode = QStringLiteral("SoftReference");
         } else {
             options.hqBuildMode = QStringLiteral("Preset");
         }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
-        const QString selectedRMode = BuildModeFromPresetSelection(options.enrichmentPreset, QStringLiteral("R_MODE"));
+        const QString selectedPreset = options.enrichmentPreset.trimmed();
+        const QString selectedRMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("R_MODE"));
         if (!selectedRMode.isEmpty()) {
             options.rBioswaleBuildMode = selectedRMode;
             options.enrichmentPreset.clear();
+        } else if (selectedPreset.isEmpty()) {
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         } else {
             options.rBioswaleBuildMode = QStringLiteral("Preset");
         }
@@ -4892,7 +4698,19 @@ void ModelCreatorWindow::loadSettings()
     const int workflowIndex = workflowModeCombo->findData(settings.value("workflowMode", "generate").toString());
     workflowModeCombo->setCurrentIndex(workflowIndex >= 0 ? workflowIndex : 0);
     const QString enrichmentPreset = settings.value("enrichmentPreset").toString().trimmed();
-    const int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
+    const QString currentModelType = modelTypeCombo->currentText().trimmed();
+    QString defaultModePreset;
+    if (currentModelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        defaultModePreset = QStringLiteral("VN_MODE:SoftReference");
+    } else if (currentModelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
+        defaultModePreset = QStringLiteral("HQ_MODE:SoftReference");
+    } else if (currentModelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
+        defaultModePreset = QStringLiteral("R_MODE:SoftReference");
+    }
+    int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
+    if (presetIndex < 0 && !defaultModePreset.isEmpty()) {
+        presetIndex = enrichmentPresetCombo->findData(defaultModePreset);
+    }
     enrichmentPresetCombo->setCurrentIndex(presetIndex >= 0 ? presetIndex : 0);
     exePathEdit->setText(settings.value("ohqExecutable", defaultExecutablePath).toString());
     exeArgsEdit->setText(settings.value("ohqExecutableArgs", QStringLiteral("{script}")).toString());

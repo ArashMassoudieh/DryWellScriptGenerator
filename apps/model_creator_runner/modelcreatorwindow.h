@@ -9,8 +9,6 @@
 #include <QStringList>
 #include <QVector>
 
-#include "starter_script_builder.h"
-
 class QComboBox;
 class QLineEdit;
 class QPushButton;
@@ -20,6 +18,7 @@ class QLabel;
 class QCheckBox;
 class OHQProcessRunner;
 class SimpleLinePlotWidget;
+struct StarterScriptOptions;
 
 class ModelCreatorWindow : public QMainWindow
 {
@@ -117,10 +116,6 @@ private:
     QString defaultVnGeneratedFieldFilePath() const;
     void syncVnToolDefaultPaths();
     bool writeVnGeneratedFieldFile(const QString &targetPath, QString *errorMessage = nullptr) const;
-    QString currentStructureBuildMode() const;
-    QString currentStructureSoftSoilProfileLabel() const;
-    QString currentStructureSoftSoilCsv(const QString &currentMode) const;
-    void populateStarterScriptOptions(StarterScriptOptions *options, bool includeVnMetadata) const;
 
     QComboBox *modelTypeCombo;
     QComboBox *workflowModeCombo;
