@@ -130,7 +130,7 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
         return QStringLiteral("SoftReference");
     }
     if (trimmedPreset.startsWith(QStringLiteral("VN_"), Qt::CaseInsensitive)) {
-        return QStringLiteral("Preset");
+        return QStringLiteral("SoftReference");
     }
 
     return fallbackBuildMode;
@@ -2345,8 +2345,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
     const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
@@ -3031,8 +3030,8 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("SoftReference");
                 options.vnPreset.clear();
             } else {
-                options.vnBuildMode = QStringLiteral("Preset");
-                options.vnPreset = selectedPreset;
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                options.vnPreset.clear();
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3043,7 +3042,7 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.hqBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.hqBuildMode = QStringLiteral("Preset");
+                options.hqBuildMode = QStringLiteral("SoftReference");
             }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3054,7 +3053,7 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.rBioswaleBuildMode = QStringLiteral("Preset");
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             }
         }
 
@@ -3296,8 +3295,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.vnBuildMode = QStringLiteral("SoftReference");
             options.vnPreset.clear();
         } else {
-            options.vnBuildMode = QStringLiteral("Preset");
-            options.vnPreset = selectedPreset;
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            options.vnPreset.clear();
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3308,7 +3307,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.hqBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.hqBuildMode = QStringLiteral("Preset");
+            options.hqBuildMode = QStringLiteral("SoftReference");
         }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3319,7 +3318,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.rBioswaleBuildMode = QStringLiteral("Preset");
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         }
         AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
         AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
@@ -3475,7 +3474,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString effectiveG = options.ksatScaleG.trimmed().isEmpty() ? QStringLiteral("2.5") : options.ksatScaleG.trimmed();
         const QString effectiveUw = options.ksatScaleUw.trimmed().isEmpty() ? QStringLiteral("35") : options.ksatScaleUw.trimmed();
         appendLog(stamp(tr("VN generation config: buildMode=%1, initTheta=%2, field(points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
-                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("Preset") : options.vnBuildMode,
+                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : options.vnBuildMode,
                                  vnInitThetaModeCombo->currentData().toString(),
                                  vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
                                  vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),
