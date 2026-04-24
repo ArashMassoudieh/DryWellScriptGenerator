@@ -3947,6 +3947,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
 {
     const SoftSoilPropsLocal referenceDefaults = { 0.25, 3.6, 1.56, 0.43, 0.078 };
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
+    const QString softMode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
     const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(options, referenceDefaults, modelCreatorDefaults);
     const QVector<RBioswaleLayerLocal> layers = ResolveRBioswaleLayersLocal(options, resolved);
     if (layers.isEmpty()) {
@@ -3967,6 +3968,24 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     const double streetWidth = options.rStreetWidth > 0.0 ? options.rStreetWidth : 5.0;
     const int streetCells = options.rStreetCells > 0 ? options.rStreetCells : 10;
     const double anisoRatio = options.rAnisoRatio > 0.0 ? options.rAnisoRatio : 5.0;
+    const auto nearlyEqual = [](double a, double b) {
+        return std::fabs(a - b) <= 1e-9;
+    };
+    const bool geometryIsReferenceEquivalent =
+        (options.rBioSwaleWidth <= 0.0 || nearlyEqual(options.rBioSwaleWidth, 0.6096))
+        && (options.rSystemWidth <= 0.0 || nearlyEqual(options.rSystemWidth, 3.0))
+        && (options.rBioSwaleDepth <= 0.0 || nearlyEqual(options.rBioSwaleDepth, 0.9144))
+        && (options.rLength <= 0.0 || nearlyEqual(options.rLength, 8.0))
+        && (options.rLateralCells <= 0 || options.rLateralCells == 6)
+        && (options.rStreetWidth <= 0.0 || nearlyEqual(options.rStreetWidth, 5.0))
+        && (options.rStreetCells <= 0 || options.rStreetCells == 10)
+        && (options.rAnisoRatio <= 0.0 || nearlyEqual(options.rAnisoRatio, 5.0));
+    const bool usesReferenceSoilDefaults =
+        softMode == QStringLiteral("ReferenceDefaults")
+        && options.rSoilPropsFile.trimmed().isEmpty();
+    if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
+        return RBioswaleBuilder::FullReferenceScript();
+    }
     const double catchmentArea = bioswaleWidth * modelLength;
     const double leftCellWidth = systemWidth / double(lateralCells);
     const double rightCellWidth = streetWidth / double(streetCells);
@@ -4350,13 +4369,13 @@ bool RBioswaleBuilder::Build(const StarterScriptOptions &options,
     }
 
     const QString mode = options.rBioswaleBuildMode.trimmed();
-    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || mode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0) {
+    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = FullReferenceScript();
         return true;
     }
 
-    if (mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+    if (mode.isEmpty()
+        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = BuildSoftReferenceScriptLocal(options);
         return true;
     }

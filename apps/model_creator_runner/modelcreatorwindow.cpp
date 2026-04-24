@@ -130,7 +130,7 @@ QString ResolveVnBuildModeForUi(const QString &modelType,
         return QStringLiteral("SoftReference");
     }
     if (trimmedPreset.startsWith(QStringLiteral("VN_"), Qt::CaseInsensitive)) {
-        return QStringLiteral("Preset");
+        return QStringLiteral("SoftReference");
     }
 
     return fallbackBuildMode;
@@ -681,6 +681,70 @@ bool IsVnSoftGridCustomized(const StarterScriptOptions &options)
         || differs(options.vnSoftDepthToGroundWater, kDefaultDepthToGw)
         || differs(options.vnSoftTopElevation, kDefaultTopElevation)
         || differs(options.vnSoftLayerThickness, kDefaultLayerThickness);
+}
+
+bool IsVnSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return IsVnSoftGridCustomized(options)
+        || !options.vnSoilLayersFile.trimmed().isEmpty()
+        || !options.vnMoistureLayersFile.trimmed().isEmpty()
+        || !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
+bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    const QString mode = options.vnSoftSoilParamMode.trimmed();
+    const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
+    return !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+        || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
+        || options.hqSoftWellDepth > 0.0
+        || options.hqSoftWellRadius > 0.0
+        || options.hqSoftPondRadius > 0.0
+        || options.hqSoftSurfaceElevation > 0.0
+        || differs(options.vnSoftSoilKsatOriginal, defaults.vnSoftSoilKsatOriginal)
+        || differs(options.vnSoftSoilAlpha, defaults.vnSoftSoilAlpha)
+        || differs(options.vnSoftSoilN, defaults.vnSoftSoilN)
+        || differs(options.vnSoftSoilThetaSat, defaults.vnSoftSoilThetaSat)
+        || differs(options.vnSoftSoilThetaRes, defaults.vnSoftSoilThetaRes);
+}
+
+bool IsRBioswaleSoftCustomizationRequested(const StarterScriptOptions &options)
+{
+    const StarterScriptOptions defaults;
+    constexpr double kEpsilon = 1e-9;
+    const auto differs = [](double lhs, double rhs) {
+        return std::fabs(lhs - rhs) > kEpsilon;
+    };
+    if (IsHqSoftCustomizationRequested(options)) {
+        return true;
+    }
+    return !options.rSoilPropsFile.trimmed().isEmpty()
+        || differs(options.rBioSwaleWidth, defaults.rBioSwaleWidth)
+        || differs(options.rSystemWidth, defaults.rSystemWidth)
+        || differs(options.rBioSwaleDepth, defaults.rBioSwaleDepth)
+        || differs(options.rLength, defaults.rLength)
+        || options.rLateralCells != defaults.rLateralCells
+        || differs(options.rStreetWidth, defaults.rStreetWidth)
+        || options.rStreetCells != defaults.rStreetCells
+        || differs(options.rAnisoRatio, defaults.rAnisoRatio);
 }
 
 QString AutoDetectVnBuildMode(const StarterScriptOptions &options)
@@ -1368,6 +1432,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       vnSoftSoilThetaResEdit(new QLineEdit(this)),
       vnSoftSoilParamModeCombo(new QComboBox(this)),
       vnSoftSoilParameterFileEdit(new QLineEdit(this)),
+      hqSoftRadialCellsEdit(new QLineEdit(this)),
+      hqSoftShallowLayersEdit(new QLineEdit(this)),
+      hqSoftWellDepthEdit(new QLineEdit(this)),
+      hqSoftWellRadiusEdit(new QLineEdit(this)),
+      hqSoftPondRadiusEdit(new QLineEdit(this)),
+      hqSoftSurfaceElevationEdit(new QLineEdit(this)),
       rBioSwaleWidthEdit(new QLineEdit(this)),
       rSystemWidthEdit(new QLineEdit(this)),
       rBioSwaleDepthEdit(new QLineEdit(this)),
@@ -1685,6 +1755,33 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addStretch(1);
         layout->addWidget(container);
         vnSoftSoilParamsRowWidget = container;
+    }
+    {
+        setupCompactNumericEdit(hqSoftRadialCellsEdit, tr("10"));
+        setupCompactNumericEdit(hqSoftShallowLayersEdit, tr("1"));
+        setupCompactNumericEdit(hqSoftWellDepthEdit, tr("20"));
+        setupCompactNumericEdit(hqSoftWellRadiusEdit, tr("0.381"));
+        setupCompactNumericEdit(hqSoftPondRadiusEdit, tr("6"));
+        setupCompactNumericEdit(hqSoftSurfaceElevationEdit, tr("140"));
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("HQ soft geometry")));
+        row->addWidget(new QLabel(tr("nr")));
+        row->addWidget(hqSoftRadialCellsEdit);
+        row->addWidget(new QLabel(tr("layers")));
+        row->addWidget(hqSoftShallowLayersEdit);
+        row->addWidget(new QLabel(tr("well_depth[m]")));
+        row->addWidget(hqSoftWellDepthEdit);
+        row->addWidget(new QLabel(tr("well_r[m]")));
+        row->addWidget(hqSoftWellRadiusEdit);
+        row->addWidget(new QLabel(tr("pond_r[m]")));
+        row->addWidget(hqSoftPondRadiusEdit);
+        row->addWidget(new QLabel(tr("surface_z[m]")));
+        row->addWidget(hqSoftSurfaceElevationEdit);
+        row->addStretch(1);
+        layout->addWidget(container);
+        hqSoftGeometryRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -2077,6 +2174,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(vnSoftSoilThetaSatEdit);
     saveOnEdit(vnSoftSoilThetaResEdit);
     saveOnEdit(vnSoftSoilParameterFileEdit);
+    saveOnEdit(hqSoftRadialCellsEdit);
+    saveOnEdit(hqSoftShallowLayersEdit);
+    saveOnEdit(hqSoftWellDepthEdit);
+    saveOnEdit(hqSoftWellRadiusEdit);
+    saveOnEdit(hqSoftPondRadiusEdit);
+    saveOnEdit(hqSoftSurfaceElevationEdit);
     saveOnEdit(rBioSwaleWidthEdit);
     saveOnEdit(rSystemWidthEdit);
     saveOnEdit(rBioSwaleDepthEdit);
@@ -2345,8 +2448,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
     const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0
-        || vnBuildMode.compare(QStringLiteral("Preset"), Qt::CaseInsensitive) == 0;
+        || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
@@ -2377,6 +2479,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
+    if (hqSoftGeometryRowWidget) hqSoftGeometryRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
@@ -3031,8 +3134,17 @@ void ModelCreatorWindow::previewScript()
                 options.vnBuildMode = QStringLiteral("SoftReference");
                 options.vnPreset.clear();
             } else {
-                options.vnBuildMode = QStringLiteral("Preset");
-                options.vnPreset = selectedPreset;
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                options.vnPreset.clear();
+            }
+            if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsVnSoftCustomizationRequested(options)) {
+                options.vnBuildMode = QStringLiteral("SoftReference");
+                const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("VN_MODE:SoftReference"));
+                if (softIndex >= 0) {
+                    enrichmentPresetCombo->setCurrentIndex(softIndex);
+                }
+                appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3043,7 +3155,22 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.hqBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.hqBuildMode = QStringLiteral("Preset");
+                options.hqBuildMode = QStringLiteral("SoftReference");
+            }
+            AssignIntIfProvided(hqSoftRadialCellsEdit, &options.hqSoftRadialCells);
+            AssignIntIfProvided(hqSoftShallowLayersEdit, &options.hqSoftShallowLayers);
+            AssignDoubleIfProvided(hqSoftWellDepthEdit, &options.hqSoftWellDepth);
+            AssignDoubleIfProvided(hqSoftWellRadiusEdit, &options.hqSoftWellRadius);
+            AssignDoubleIfProvided(hqSoftPondRadiusEdit, &options.hqSoftPondRadius);
+            AssignDoubleIfProvided(hqSoftSurfaceElevationEdit, &options.hqSoftSurfaceElevation);
+            if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsHqSoftCustomizationRequested(options)) {
+                options.hqBuildMode = QStringLiteral("SoftReference");
+                const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("HQ_MODE:SoftReference"));
+                if (softIndex >= 0) {
+                    enrichmentPresetCombo->setCurrentIndex(softIndex);
+                }
+                appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
             }
         } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
             const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3054,7 +3181,25 @@ void ModelCreatorWindow::previewScript()
             } else if (selectedPreset.isEmpty()) {
                 options.rBioswaleBuildMode = QStringLiteral("SoftReference");
             } else {
-                options.rBioswaleBuildMode = QStringLiteral("Preset");
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            }
+            AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
+            AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
+            AssignDoubleIfProvided(rBioSwaleDepthEdit, &options.rBioSwaleDepth);
+            AssignDoubleIfProvided(rLengthEdit, &options.rLength);
+            AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
+            AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
+            AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+            AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
+            options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+            if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+                && IsRBioswaleSoftCustomizationRequested(options)) {
+                options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+                const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("R_MODE:SoftReference"));
+                if (softIndex >= 0) {
+                    enrichmentPresetCombo->setCurrentIndex(softIndex);
+                }
+                appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
             }
         }
 
@@ -3296,8 +3441,17 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
             options.vnBuildMode = QStringLiteral("SoftReference");
             options.vnPreset.clear();
         } else {
-            options.vnBuildMode = QStringLiteral("Preset");
-            options.vnPreset = selectedPreset;
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            options.vnPreset.clear();
+        }
+        if (options.vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsVnSoftCustomizationRequested(options)) {
+            options.vnBuildMode = QStringLiteral("SoftReference");
+            const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("VN_MODE:SoftReference"));
+            if (softIndex >= 0) {
+                enrichmentPresetCombo->setCurrentIndex(softIndex);
+            }
+            appendLog(stamp(tr("VN mode auto-switched to SoftReference because VN soft controls/snippets were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3308,7 +3462,22 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.hqBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.hqBuildMode = QStringLiteral("Preset");
+            options.hqBuildMode = QStringLiteral("SoftReference");
+        }
+        AssignIntIfProvided(hqSoftRadialCellsEdit, &options.hqSoftRadialCells);
+        AssignIntIfProvided(hqSoftShallowLayersEdit, &options.hqSoftShallowLayers);
+        AssignDoubleIfProvided(hqSoftWellDepthEdit, &options.hqSoftWellDepth);
+        AssignDoubleIfProvided(hqSoftWellRadiusEdit, &options.hqSoftWellRadius);
+        AssignDoubleIfProvided(hqSoftPondRadiusEdit, &options.hqSoftPondRadius);
+        AssignDoubleIfProvided(hqSoftSurfaceElevationEdit, &options.hqSoftSurfaceElevation);
+        if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsHqSoftCustomizationRequested(options)) {
+            options.hqBuildMode = QStringLiteral("SoftReference");
+            const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("HQ_MODE:SoftReference"));
+            if (softIndex >= 0) {
+                enrichmentPresetCombo->setCurrentIndex(softIndex);
+            }
+            appendLog(stamp(tr("HQ mode auto-switched to SoftReference because HQ soft-soil controls were customized.")));
         }
     } else if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         const QString selectedPreset = options.enrichmentPreset.trimmed();
@@ -3319,7 +3488,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else if (selectedPreset.isEmpty()) {
             options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         } else {
-            options.rBioswaleBuildMode = QStringLiteral("Preset");
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
         }
         AssignDoubleIfProvided(rBioSwaleWidthEdit, &options.rBioSwaleWidth);
         AssignDoubleIfProvided(rSystemWidthEdit, &options.rSystemWidth);
@@ -3330,6 +3499,15 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
         AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
         options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
+        if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
+            && IsRBioswaleSoftCustomizationRequested(options)) {
+            options.rBioswaleBuildMode = QStringLiteral("SoftReference");
+            const int softIndex = enrichmentPresetCombo->findData(QStringLiteral("R_MODE:SoftReference"));
+            if (softIndex >= 0) {
+                enrichmentPresetCombo->setCurrentIndex(softIndex);
+            }
+            appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
+        }
 
         QStringList rMetadata;
         rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_width=%1").arg(options.rBioSwaleWidth);
@@ -3475,7 +3653,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString effectiveG = options.ksatScaleG.trimmed().isEmpty() ? QStringLiteral("2.5") : options.ksatScaleG.trimmed();
         const QString effectiveUw = options.ksatScaleUw.trimmed().isEmpty() ? QStringLiteral("35") : options.ksatScaleUw.trimmed();
         appendLog(stamp(tr("VN generation config: buildMode=%1, initTheta=%2, field(points=%3, seed=%4, dx=%5, pdf=%6), Ksat(all=%7, g=%8, uw=%9)")
-                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("Preset") : options.vnBuildMode,
+                            .arg(options.vnBuildMode.isEmpty() ? QStringLiteral("SoftReference") : options.vnBuildMode,
                                  vnInitThetaModeCombo->currentData().toString(),
                                  vnFieldPointsEdit->text().trimmed().isEmpty() ? QStringLiteral("200") : vnFieldPointsEdit->text().trimmed(),
                                  vnFieldSeedEdit->text().trimmed().isEmpty() ? QStringLiteral("42") : vnFieldSeedEdit->text().trimmed(),
@@ -4943,6 +5121,12 @@ void ModelCreatorWindow::loadSettings()
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
+    hqSoftRadialCellsEdit->setText(settingTextOrDefault("hqSoftRadialCells", "10"));
+    hqSoftShallowLayersEdit->setText(settingTextOrDefault("hqSoftShallowLayers", "1"));
+    hqSoftWellDepthEdit->setText(settingTextOrDefault("hqSoftWellDepth", "20"));
+    hqSoftWellRadiusEdit->setText(settingTextOrDefault("hqSoftWellRadius", "0.381"));
+    hqSoftPondRadiusEdit->setText(settingTextOrDefault("hqSoftPondRadius", "6"));
+    hqSoftSurfaceElevationEdit->setText(settingTextOrDefault("hqSoftSurfaceElevation", "140"));
     rBioSwaleWidthEdit->setText(settingTextOrDefault("rBioSwaleWidth", "0.6096"));
     rSystemWidthEdit->setText(settingTextOrDefault("rSystemWidth", "3"));
     rBioSwaleDepthEdit->setText(settingTextOrDefault("rBioSwaleDepth", "0.9144"));
@@ -5061,6 +5245,12 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("vnSoftSoilThetaRes", vnSoftSoilThetaResEdit->text());
     settings.setValue("vnSoftSoilParamMode", vnSoftSoilParamModeCombo->currentData().toString());
     settings.setValue("vnSoftSoilParameterFile", vnSoftSoilParameterFileEdit->text());
+    settings.setValue("hqSoftRadialCells", hqSoftRadialCellsEdit->text());
+    settings.setValue("hqSoftShallowLayers", hqSoftShallowLayersEdit->text());
+    settings.setValue("hqSoftWellDepth", hqSoftWellDepthEdit->text());
+    settings.setValue("hqSoftWellRadius", hqSoftWellRadiusEdit->text());
+    settings.setValue("hqSoftPondRadius", hqSoftPondRadiusEdit->text());
+    settings.setValue("hqSoftSurfaceElevation", hqSoftSurfaceElevationEdit->text());
     settings.setValue("rBioSwaleWidth", rBioSwaleWidthEdit->text());
     settings.setValue("rSystemWidth", rSystemWidthEdit->text());
     settings.setValue("rBioSwaleDepth", rBioSwaleDepthEdit->text());
