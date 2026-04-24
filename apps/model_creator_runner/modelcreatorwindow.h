@@ -44,6 +44,7 @@ private slots:
     void chooseVnSoilLayersFile();
     void chooseVnMoistureLayersFile();
     void chooseVnSoftSoilParameterFile();
+    void chooseHqSoilPropsFile();
     void chooseRBioswaleSoilPropsFile();
     void showRBioswaleSoilPropsTable();
     void showHqSoilPropsTable();
@@ -176,6 +177,7 @@ private:
     QLineEdit *hqSoftWellRadiusEdit;
     QLineEdit *hqSoftPondRadiusEdit;
     QLineEdit *hqSoftSurfaceElevationEdit;
+    QLineEdit *hqSoilPropsFileEdit;
     QLineEdit *rBioSwaleWidthEdit;
     QLineEdit *rSystemWidthEdit;
     QLineEdit *rBioSwaleDepthEdit;
@@ -233,6 +235,7 @@ private:
     QWidget *vnSoftLayerThicknessRowWidget = nullptr;
     QWidget *vnSoftSoilParamsRowWidget = nullptr;
     QWidget *hqSoftGeometryRowWidget = nullptr;
+    QWidget *hqSoilControlsRowWidget = nullptr;
     QWidget *rSoilGeometryRowWidget = nullptr;
     QWidget *rSoilDomainRowWidget = nullptr;
     QWidget *rSoilControlsRowWidget = nullptr;

@@ -78,6 +78,10 @@ struct StarterScriptOptions
     //   "LoadFromOhq"   -> load hqBaseOhqFile as authoritative script
     QString hqBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
     QString hqBaseOhqFile;
+    // Optional HQ SoftReference soil-property file. When provided, HQ soil
+    // block parameters are taken from this layer table while geometry remains
+    // controlled by the HQ SoftReference geometry fields.
+    QString hqSoilPropsFile;
     // Optional HQ SoftReference geometry controls (legacy DryWell-style).
     // Values <= 0 keep embedded/reference geometry for that field.
     int hqSoftRadialCells = 0;

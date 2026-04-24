@@ -3173,10 +3173,14 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     const SoftSoilPropsLocal referenceDefaults = { 1.0, 1.0, 1.41, 0.4, 0.05 };
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
     QVector<DepthSoilRowLocal> profileRows;
-    const bool haveProfile = LoadDepthProfileLocal(options.vnSoftSoilParameterFile, &profileRows);
+    const QString hqSoilFile = options.hqSoilPropsFile.trimmed();
+    const QString sharedSoilFile = options.vnSoftSoilParameterFile.trimmed();
+    const bool useHqSoilFile = !hqSoilFile.isEmpty();
+    const QString effectiveSoilFile = useHqSoilFile ? hqSoilFile : sharedSoilFile;
+    const bool haveProfile = LoadDepthProfileLocal(effectiveSoilFile, &profileRows);
     QHash<QString, HqDrywellBuilder::SoilBlockSpec> blockOverrides;
-    const bool haveBlockOverrides = LoadSoilBlockOverridesFromCommandFileLocal(options.vnSoftSoilParameterFile, &blockOverrides);
-    const QString softMode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
+    const bool haveBlockOverrides = LoadSoilBlockOverridesFromCommandFileLocal(effectiveSoilFile, &blockOverrides);
+    const QString softMode = useHqSoilFile ? QStringLiteral("File") : NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
     int detectedLayers = 0;
     int detectedRadials = 0;
     int detectedDeepRadials = 0;
@@ -3358,6 +3362,24 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         }
         if (softMode == QStringLiteral("File") && haveBlockOverrides && !haveProfile) {
             return;
+        }
+        if (useHqSoilFile && haveProfile) {
+            int layerIndex = 0;
+            int radialIndex = 0;
+            int deepLayerIndex = 0;
+            int deepRadialIndex = 0;
+            if (ParseSoilNameIndicesLocal(spec->name, &layerIndex, &radialIndex)
+                || ParseSoilDeepNameIndicesLocal(spec->name, &deepLayerIndex, &deepRadialIndex)) {
+                const int effectiveLayerIndex = layerIndex > 0 ? layerIndex : deepLayerIndex;
+                const int rowIndex = qBound(0, effectiveLayerIndex - 1, profileRows.size() - 1);
+                const SoftSoilPropsLocal rowProps = profileRows.at(rowIndex).props;
+                spec->thetaSat = rowProps.thetaSat;
+                spec->thetaRes = rowProps.thetaRes;
+                spec->n = rowProps.n;
+                spec->kSatOriginal = rowProps.ksat;
+                spec->alpha = rowProps.alpha;
+                return;
+            }
         }
         const SoftSoilPropsLocal specReferenceDefaults = {
             spec->kSatOriginal,

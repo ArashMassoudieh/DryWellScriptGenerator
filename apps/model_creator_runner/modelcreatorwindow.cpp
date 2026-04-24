@@ -714,7 +714,8 @@ bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
     };
     const QString mode = options.vnSoftSoilParamMode.trimmed();
     const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
-    return !options.vnSoftSoilParameterFile.trimmed().isEmpty()
+    return !options.hqSoilPropsFile.trimmed().isEmpty()
+        || !options.vnSoftSoilParameterFile.trimmed().isEmpty()
         || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
         || options.hqSoftWellDepth > 0.0
         || options.hqSoftWellRadius > 0.0
@@ -1439,6 +1440,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       hqSoftWellRadiusEdit(new QLineEdit(this)),
       hqSoftPondRadiusEdit(new QLineEdit(this)),
       hqSoftSurfaceElevationEdit(new QLineEdit(this)),
+      hqSoilPropsFileEdit(new QLineEdit(this)),
       rBioSwaleWidthEdit(new QLineEdit(this)),
       rSystemWidthEdit(new QLineEdit(this)),
       rBioSwaleDepthEdit(new QLineEdit(this)),
@@ -1648,6 +1650,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(rStreetCellsEdit, tr("10"));
     setupCompactNumericEdit(rVerticalLayersEdit, tr("Auto"));
     setupCompactNumericEdit(rAnisoRatioEdit, tr("5"));
+    hqSoilPropsFileEdit->setPlaceholderText(tr("Optional HQ soil layer file (*.txt, *.csv)"));
+    hqSoilPropsFileEdit->setToolTip(tr("Optional HQ/DryWell soil layer table. If provided, HQ SoftReference uses these per-layer soil parameters while keeping HQ geometry controls."));
     rSoilPropsFileEdit->setPlaceholderText(tr("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt"));
     rVerticalLayersEdit->setPlaceholderText(tr("Auto"));
     rVerticalLayersEdit->setToolTip(tr("R/Rosemead nz. Auto uses all selected soil-file rows. If entered, the builder trims/extends to that row count and moves bottom/GW links to the last effective layer."));
@@ -1787,6 +1791,22 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addStretch(1);
         layout->addWidget(container);
         hqSoftGeometryRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("HQ soil props")));
+        row->addWidget(hqSoilPropsFileEdit, 1);
+        auto *browseBtn = new QPushButton(tr("Browse"), container);
+        connect(browseBtn, &QPushButton::clicked, this, &ModelCreatorWindow::chooseHqSoilPropsFile);
+        row->addWidget(browseBtn);
+        auto *checkBtn = new QPushButton(tr("Check"), container);
+        connect(checkBtn, &QPushButton::clicked, this, &ModelCreatorWindow::showHqSoilPropsTable);
+        row->addWidget(checkBtn);
+        row->addStretch(1);
+        layout->addWidget(container);
+        hqSoilControlsRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -2190,6 +2210,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(hqSoftWellRadiusEdit);
     saveOnEdit(hqSoftPondRadiusEdit);
     saveOnEdit(hqSoftSurfaceElevationEdit);
+    saveOnEdit(hqSoilPropsFileEdit);
     saveOnEdit(rBioSwaleWidthEdit);
     saveOnEdit(rSystemWidthEdit);
     saveOnEdit(rBioSwaleDepthEdit);
@@ -2494,6 +2515,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
     if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
     if (hqSoftGeometryRowWidget) hqSoftGeometryRowWidget->setVisible(!loadExistingMode && hqSoftContext);
+    if (hqSoilControlsRowWidget) hqSoilControlsRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
@@ -2867,6 +2889,22 @@ void ModelCreatorWindow::chooseVnSoftSoilParameterFile()
     }
 }
 
+void ModelCreatorWindow::chooseHqSoilPropsFile()
+{
+    const QString startDir = hqSoilPropsFileEdit->text().trimmed().isEmpty()
+        ? workingDirEdit->text().trimmed()
+        : QFileInfo(hqSoilPropsFileEdit->text().trimmed()).absolutePath();
+    const QString fileName = QFileDialog::getOpenFileName(this,
+                                                          tr("Select HQ/DryWell soil properties file"),
+                                                          startDir,
+                                                          tr("Data files (*.txt *.csv *.dat);;All files (*.*)"));
+    if (!fileName.isEmpty()) {
+        hqSoilPropsFileEdit->setText(fileName);
+        SetAutoSuggestedField(hqSoilPropsFileEdit, false);
+        saveSettings();
+    }
+}
+
 
 void ModelCreatorWindow::chooseRBioswaleSoilPropsFile()
 {
@@ -3035,11 +3073,11 @@ void ModelCreatorWindow::showRBioswaleSoilPropsTable()
 
 void ModelCreatorWindow::showHqSoilPropsTable()
 {
-    const QString mode = vnSoftSoilParamModeCombo ? vnSoftSoilParamModeCombo->currentData().toString().trimmed() : QString();
+    const QString hqFilePath = hqSoilPropsFileEdit ? hqSoilPropsFileEdit->text().trimmed() : QString();
+    const QString mode = !hqFilePath.isEmpty() ? QStringLiteral("HQ soil file")
+                                               : (vnSoftSoilParamModeCombo ? vnSoftSoilParamModeCombo->currentData().toString().trimmed() : QString());
     const QString compactMode = QString(mode).toLower().remove(' ').remove('_').remove('-');
-    const bool fileMode = mode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
-        || compactMode == QStringLiteral("file")
-        || compactMode == QStringLiteral("filedepthprofile");
+    const bool fileMode = !hqFilePath.isEmpty();
     const bool modelCreatorDefaults = mode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0
         || compactMode == QStringLiteral("modelcreatordefaults");
     const bool referenceDefaults = mode.compare(QStringLiteral("ReferenceDefaults"), Qt::CaseInsensitive) == 0
@@ -3100,7 +3138,7 @@ void ModelCreatorWindow::showHqSoilPropsTable()
     };
 
     QVector<Row> fileRows;
-    QString filePath = vnSoftSoilParameterFileEdit ? vnSoftSoilParameterFileEdit->text().trimmed() : QString();
+    QString filePath = hqFilePath;
     QString note;
     if (fileMode) {
         if (filePath.isEmpty()) {
@@ -3134,12 +3172,11 @@ void ModelCreatorWindow::showHqSoilPropsTable()
             getValue(cells, idx, {QStringLiteral("theta_r"), QStringLiteral("theta_res")}, &row.thetaRes);
             fileRows.push_back(row);
         }
-        std::sort(fileRows.begin(), fileRows.end(), [](const Row &a, const Row &b) { return a.sourceDepth < b.sourceDepth; });
         if (fileRows.isEmpty()) {
             QMessageBox::warning(this, tr("HQ soil table"), tr("No valid depth rows were found in the selected file."));
             return;
         }
-        note = tr("File mode: shown values are interpolated at each HQ layer midpoint.");
+        note = tr("HQ soil-file mode: each layer uses the matching file row; if layers exceed file rows, the last row is repeated.");
     } else if (modelCreatorDefaults) {
         note = tr("ModelCreatorDefaults mode: all HQ layers use ModelCreator defaults.");
     } else if (referenceDefaults) {
@@ -3185,11 +3222,12 @@ void ModelCreatorWindow::showHqSoilPropsTable()
 
     bool nrOk = false;
     const int nr = hqSoftRadialCellsEdit ? hqSoftRadialCellsEdit->text().trimmed().toInt(&nrOk) : 0;
-    auto *summary = new QLabel(tr("Mode: %1\nFile: %2\nHQ nr: %3\nHQ layers/nz: %4\nWell depth: %5 m\nLayer dz: %6 m\n%7")
+    auto *summary = new QLabel(tr("Mode: %1\nFile: %2\nHQ nr: %3\nHQ layers/nz: %4\nFile nz: %5\nWell depth: %6 m\nLayer dz: %7 m\n%8")
                                    .arg(mode.isEmpty() ? QStringLiteral("Manual") : mode)
                                    .arg(filePath.isEmpty() ? QStringLiteral("(none)") : filePath)
                                    .arg((nrOk && nr > 0) ? QString::number(nr) : QStringLiteral("10"))
                                    .arg(layers)
+                                   .arg(fileMode ? QString::number(fileRows.size()) : QStringLiteral("(not used)"))
                                    .arg(effectiveWellDepth, 0, 'g', 10)
                                    .arg(dz, 0, 'g', 10)
                                    .arg(note), dialog);
@@ -3212,8 +3250,11 @@ void ModelCreatorWindow::showHqSoilPropsTable()
         Row row;
         QString source;
         if (fileMode) {
-            row = resolveFile(midDepth);
-            source = tr("file/interpolated row %1").arg(row.sourceRow);
+            const int sourceIndex = fileRows.isEmpty() ? 0 : qMin(i, fileRows.size() - 1);
+            if (!fileRows.isEmpty()) {
+                row = fileRows.at(sourceIndex);
+            }
+            source = fileRows.isEmpty() ? tr("file row unavailable") : tr("file row %1%2").arg(sourceIndex + 1).arg(i >= fileRows.size() ? tr(" (repeated last row)") : QString());
         } else if (modelCreatorDefaults) {
             row.ksat = 1.05196; row.alpha = 3.47536; row.n = 1.74582; row.thetaSat = 0.39; row.thetaRes = 0.049;
             source = tr("ModelCreatorDefaults");
@@ -3545,6 +3586,7 @@ void ModelCreatorWindow::previewScript()
             AssignDoubleIfProvided(hqSoftWellRadiusEdit, &options.hqSoftWellRadius);
             AssignDoubleIfProvided(hqSoftPondRadiusEdit, &options.hqSoftPondRadius);
             AssignDoubleIfProvided(hqSoftSurfaceElevationEdit, &options.hqSoftSurfaceElevation);
+            options.hqSoilPropsFile = hqSoilPropsFileEdit ? hqSoilPropsFileEdit->text().trimmed() : QString();
             if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
                 && IsHqSoftCustomizationRequested(options)) {
                 options.hqBuildMode = QStringLiteral("SoftReference");
@@ -3853,6 +3895,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignDoubleIfProvided(hqSoftWellRadiusEdit, &options.hqSoftWellRadius);
         AssignDoubleIfProvided(hqSoftPondRadiusEdit, &options.hqSoftPondRadius);
         AssignDoubleIfProvided(hqSoftSurfaceElevationEdit, &options.hqSoftSurfaceElevation);
+        options.hqSoilPropsFile = hqSoilPropsFileEdit ? hqSoilPropsFileEdit->text().trimmed() : QString();
         if (options.hqBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
             && IsHqSoftCustomizationRequested(options)) {
             options.hqBuildMode = QStringLiteral("SoftReference");
@@ -5515,6 +5558,7 @@ void ModelCreatorWindow::loadSettings()
     hqSoftWellRadiusEdit->setText(settingTextOrDefault("hqSoftWellRadius", "0.381"));
     hqSoftPondRadiusEdit->setText(settingTextOrDefault("hqSoftPondRadius", "6"));
     hqSoftSurfaceElevationEdit->setText(settingTextOrDefault("hqSoftSurfaceElevation", "140"));
+    hqSoilPropsFileEdit->setText(settings.value("hqSoilPropsFile").toString());
     rBioSwaleWidthEdit->setText(settingTextOrDefault("rBioSwaleWidth", "0.6096"));
     rSystemWidthEdit->setText(settingTextOrDefault("rSystemWidth", "3"));
     rBioSwaleDepthEdit->setText(settingTextOrDefault("rBioSwaleDepth", "0.9144"));
@@ -5640,6 +5684,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("hqSoftWellRadius", hqSoftWellRadiusEdit->text());
     settings.setValue("hqSoftPondRadius", hqSoftPondRadiusEdit->text());
     settings.setValue("hqSoftSurfaceElevation", hqSoftSurfaceElevationEdit->text());
+    settings.setValue("hqSoilPropsFile", hqSoilPropsFileEdit->text());
     settings.setValue("rBioSwaleWidth", rBioSwaleWidthEdit->text());
     settings.setValue("rSystemWidth", rSystemWidthEdit->text());
     settings.setValue("rBioSwaleDepth", rBioSwaleDepthEdit->text());
