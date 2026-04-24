@@ -1635,12 +1635,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(vnSoftSoilNEdit, tr("1.74582"));
     setupCompactNumericEdit(vnSoftSoilThetaSatEdit, tr("0.39"));
     setupCompactNumericEdit(vnSoftSoilThetaResEdit, tr("0.049"));
-    vnSoftSoilParamModeCombo->addItem(tr("Reference defaults"), QStringLiteral("VnReferenceDefaults"));
+    vnSoftSoilParamModeCombo->addItem(tr("VN reference defaults"), QStringLiteral("VnReferenceDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("Manual"), QStringLiteral("Manual"));
     vnSoftSoilParamModeCombo->addItem(tr("ModelCreator defaults"), QStringLiteral("ModelCreatorDefaults"));
     vnSoftSoilParamModeCombo->addItem(tr("File (depth profile)"), QStringLiteral("File"));
-    vnSoftSoilParamModeCombo->setToolTip(tr("Applies to VN soft reference and to HQ/R SoftReference soil blocks. For HQ/R, non-Manual modes use each model's reference defaults."));
-    vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional: CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
+    vnSoftSoilParamModeCombo->setToolTip(tr("Soil-parameter source for VN SoftReference. HQ and R have their own soil-file rows below; manual values can still be reused by builders where supported."));
+    vnSoftSoilParameterFileEdit->setPlaceholderText(tr("Optional VN CSV depth profile for Ksat/alpha/n/theta_s/theta_r"));
     setupCompactNumericEdit(rBioSwaleWidthEdit, tr("0.6096"));
     setupCompactNumericEdit(rSystemWidthEdit, tr("3"));
     setupCompactNumericEdit(rBioSwaleDepthEdit, tr("0.9144"));
@@ -1740,7 +1740,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("Soil water retention params")));
+        row->addWidget(new QLabel(tr("VN soil props")));
         row->addWidget(new QLabel(tr("mode")));
         row->addWidget(vnSoftSoilParamModeCombo);
         row->addWidget(new QLabel(tr("Ksat")));
@@ -1758,8 +1758,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *soilFileBrowseButton = new QPushButton(tr("Browse"), container);
         connect(soilFileBrowseButton, &QPushButton::clicked, this, &ModelCreatorWindow::chooseVnSoftSoilParameterFile);
         row->addWidget(soilFileBrowseButton);
-        auto *vnRefTableButton = new QPushButton(tr("Soil params table"), container);
-        connect(vnRefTableButton, &QPushButton::clicked, this, [this]() { showVnReferenceDefaultsTable(); });
+        auto *vnRefTableButton = new QPushButton(tr("Check"), container);
+        connect(vnRefTableButton, &QPushButton::clicked, this, &ModelCreatorWindow::showVnSoilPropsTable);
         row->addWidget(vnRefTableButton);
         row->addStretch(1);
         layout->addWidget(container);
@@ -1796,7 +1796,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("HQ soil props")));
+        row->addWidget(new QLabel(tr("HQ soil file")));
         row->addWidget(hqSoilPropsFileEdit, 1);
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, &ModelCreatorWindow::chooseHqSoilPropsFile);
@@ -1848,7 +1848,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
         row->setContentsMargins(0, 0, 0, 0);
-        row->addWidget(new QLabel(tr("R soil props")));
+        row->addWidget(new QLabel(tr("R soil file")));
         row->addWidget(rSoilPropsFileEdit, 1);
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, &ModelCreatorWindow::chooseRBioswaleSoilPropsFile);
@@ -3215,6 +3215,13 @@ void ModelCreatorWindow::showHqSoilPropsTable()
         return fileRows.last();
     };
 
+    QString displayMode = mode;
+    if (compactMode == QStringLiteral("vnrefdefaults") || compactMode == QStringLiteral("vnreferencedefaults")) {
+        displayMode = QStringLiteral("Reference defaults");
+    } else if (compactMode == QStringLiteral("modelcreatordefaults")) {
+        displayMode = QStringLiteral("ModelCreator defaults");
+    }
+
     auto *dialog = new QDialog(this);
     dialog->setWindowTitle(tr("HQ soil parameters by layer"));
     dialog->resize(940, 560);
@@ -3223,7 +3230,7 @@ void ModelCreatorWindow::showHqSoilPropsTable()
     bool nrOk = false;
     const int nr = hqSoftRadialCellsEdit ? hqSoftRadialCellsEdit->text().trimmed().toInt(&nrOk) : 0;
     auto *summary = new QLabel(tr("Mode: %1\nFile: %2\nHQ nr: %3\nHQ layers/nz: %4\nFile nz: %5\nWell depth: %6 m\nLayer dz: %7 m\n%8")
-                                   .arg(mode.isEmpty() ? QStringLiteral("Manual") : mode)
+                                   .arg(displayMode.isEmpty() ? QStringLiteral("Manual") : displayMode)
                                    .arg(filePath.isEmpty() ? QStringLiteral("(none)") : filePath)
                                    .arg((nrOk && nr > 0) ? QString::number(nr) : QStringLiteral("10"))
                                    .arg(layers)
@@ -3290,6 +3297,11 @@ void ModelCreatorWindow::showHqSoilPropsTable()
     dialog->show();
 }
 
+void ModelCreatorWindow::showVnSoilPropsTable()
+{
+    showVnReferenceDefaultsTable();
+}
+
 void ModelCreatorWindow::showVnReferenceDefaultsTable()
 {
     const QString currentMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -3330,19 +3342,19 @@ void ModelCreatorWindow::showVnReferenceDefaultsTable()
     }
 
     if (csv.trimmed().isEmpty()) {
-        QMessageBox::warning(this, tr("Soil params table"), tr("Could not load soil-parameter profile for current mode."));
+        QMessageBox::warning(this, tr("VN soil table"), tr("Could not load VN soil-parameter profile for the current mode."));
         return;
     }
 
     const QStringList lines = csv.split('\n', Qt::SkipEmptyParts);
     if (lines.isEmpty()) {
-        QMessageBox::warning(this, tr("Soil params table"), tr("Soil-parameter table is empty."));
+        QMessageBox::warning(this, tr("VN soil table"), tr("VN soil-parameter table is empty."));
         return;
     }
 
     const QStringList headers = lines.first().split(',', Qt::KeepEmptyParts);
     auto *dialog = new QDialog(this);
-    dialog->setWindowTitle(tr("Soil params matrix (%1)").arg(currentMode.isEmpty() ? QStringLiteral("Manual") : currentMode));
+    dialog->setWindowTitle(tr("VN soil parameters (%1)").arg(currentMode.isEmpty() ? QStringLiteral("Manual") : currentMode));
     dialog->resize(760, 520);
     auto *layout = new QVBoxLayout(dialog);
     auto *table = new QTableWidget(dialog);

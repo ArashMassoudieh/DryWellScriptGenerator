@@ -48,6 +48,7 @@ private slots:
     void chooseRBioswaleSoilPropsFile();
     void showRBioswaleSoilPropsTable();
     void showHqSoilPropsTable();
+    void showVnSoilPropsTable();
     void showVnReferenceDefaultsTable();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
