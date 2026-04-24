@@ -3933,23 +3933,56 @@ static QVector<RBioswaleLayerLocal> BuildReferenceLayersLocal(const SoftSoilProp
     return layers;
 }
 
-static QVector<RBioswaleLayerLocal> ResolveRBioswaleLayersLocal(const StarterScriptOptions &options,
-                                                                const SoftSoilPropsLocal &resolved)
+static int MinimumRBioswaleLayerCountForBottomLocal(const QVector<RBioswaleLayerLocal> &layers,
+                                                        double bioswaleDepth)
 {
-    QVector<RBioswaleLayerLocal> layers;
-    if (!LoadRBioswaleLayersFromFileLocal(options.rSoilPropsFile, &layers)) {
-        layers = BuildReferenceLayersLocal(resolved);
+    if (layers.isEmpty()) {
+        return 0;
     }
 
-    const int requestedNz = options.rVerticalLayers;
-    if (requestedNz > 0 && !layers.isEmpty()) {
-        if (layers.size() > requestedNz) {
-            layers.resize(requestedNz);
-        } else {
-            const RBioswaleLayerLocal last = layers.last();
-            while (layers.size() < requestedNz) {
-                layers.push_back(last);
-            }
+    double cumulativeDepth = 0.0;
+    for (int i = 0; i < layers.size(); ++i) {
+        cumulativeDepth += layers[i].depth;
+        // Rosemead creates Bottom/UEngineered blocks only after cumulative
+        // depth passes the bioswale depth. Keep at least one bottom layer;
+        // otherwise GW and bottom links point to blocks that do not exist
+        // when the user enters a small nz such as 5.
+        if (cumulativeDepth > bioswaleDepth + 1e-9) {
+            return i + 1;
+        }
+    }
+    return layers.size();
+}
+
+static QVector<RBioswaleLayerLocal> ResolveRBioswaleLayersLocal(const StarterScriptOptions &options,
+                                                                const SoftSoilPropsLocal &resolved,
+                                                                double bioswaleDepth)
+{
+    QVector<RBioswaleLayerLocal> sourceLayers;
+    if (!LoadRBioswaleLayersFromFileLocal(options.rSoilPropsFile, &sourceLayers)) {
+        sourceLayers = BuildReferenceLayersLocal(resolved);
+    }
+
+    if (sourceLayers.isEmpty()) {
+        return sourceLayers;
+    }
+
+    int effectiveNz = sourceLayers.size();
+
+    if (options.rVerticalLayers > 0) {
+        // User-entered nz is authoritative. Keep at least two rows so the
+        // last row can become the bottom/GW-connected layer when the cut is
+        // shallower than the Rosemead bioswale-depth split.
+        effectiveNz = qMax(options.rVerticalLayers, 2);
+    }
+
+    QVector<RBioswaleLayerLocal> layers = sourceLayers;
+    if (layers.size() > effectiveNz) {
+        layers.resize(effectiveNz);
+    } else {
+        const RBioswaleLayerLocal last = layers.last();
+        while (layers.size() < effectiveNz) {
+            layers.push_back(last);
         }
     }
 
@@ -3962,10 +3995,37 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     const SoftSoilPropsLocal modelCreatorDefaults = { 1.05196, 3.47536, 1.74582, 0.39, 0.049 };
     const QString softMode = NormalizeSoftSoilModeLocal(options.vnSoftSoilParamMode);
     const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(options, referenceDefaults, modelCreatorDefaults);
-    const QVector<RBioswaleLayerLocal> layers = ResolveRBioswaleLayersLocal(options, resolved);
+
+    const double bioswaleWidth = options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096;
+    const double systemWidth = options.rSystemWidth > 0.0 ? options.rSystemWidth : 3.0;
+    const double bioswaleDepth = options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144;
+    const QVector<RBioswaleLayerLocal> layers = ResolveRBioswaleLayersLocal(options, resolved, bioswaleDepth);
     if (layers.isEmpty()) {
         return RBioswaleBuilder::FullReferenceScript();
     }
+
+    // Rosemead uses the soil-file row number as the vertical layer index.
+    // When the user trims nz (for example nz=5), all link counters must trim
+    // with it as well: GW must connect to layer 5, not the old file/reference
+    // last layer. If the requested cut is shallower than the bioswale-depth
+    // split, force the last effective row to be the bottom layer so
+    // UEngineered/LeftBottom/RightBottom and GW links still exist.
+    int topLastLayer = -1; // 0-based index of the last Top/Engineered row.
+    double splitBottomElevation = 0.0;
+    for (int i = 0; i < layers.size(); ++i) {
+        splitBottomElevation -= layers[i].depth;
+        if (splitBottomElevation >= -bioswaleDepth) {
+            topLastLayer = i;
+        } else {
+            break;
+        }
+    }
+    if (topLastLayer >= layers.size() - 1) {
+        topLastLayer = qMax(0, layers.size() - 2);
+    }
+    const int bottomFirstLayer = topLastLayer + 1;
+    auto isTopLayer = [&](int layer) { return layer <= topLastLayer; };
+    auto isBottomLayer = [&](int layer) { return layer >= bottomFirstLayer; };
 
     const QString templateDir = options.templateDirectory.trimmed();
     const auto tf = [&](const QString &name) { return QDir(templateDir).filePath(name).replace('\\', '/'); };
@@ -3973,9 +4033,6 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         ? QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt")
         : options.inflowFile.trimmed();
 
-    const double bioswaleWidth = options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096;
-    const double systemWidth = options.rSystemWidth > 0.0 ? options.rSystemWidth : 3.0;
-    const double bioswaleDepth = options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144;
     const double modelLength = options.rLength > 0.0 ? options.rLength : 8.0;
     const int lateralCells = options.rLateralCells > 0 ? options.rLateralCells : 6;
     const double streetWidth = options.rStreetWidth > 0.0 ? options.rStreetWidth : 5.0;
@@ -3992,7 +4049,6 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         && (options.rLateralCells <= 0 || options.rLateralCells == 6)
         && (options.rStreetWidth <= 0.0 || nearlyEqual(options.rStreetWidth, 5.0))
         && (options.rStreetCells <= 0 || options.rStreetCells == 10)
-        && (options.rVerticalLayers <= 0 || options.rVerticalLayers == BuildReferenceLayersLocal(resolved).size())
         && (options.rAnisoRatio <= 0.0 || nearlyEqual(options.rAnisoRatio, 5.0));
     const bool usesReferenceSoilDefaults =
         softMode == QStringLiteral("ReferenceDefaults")
@@ -4006,6 +4062,11 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
 
     QString out;
     QTextStream ts(&out);
+    if (options.rVerticalLayers > 0) {
+        ts << "# r_bioswale_note: requested nz=" << options.rVerticalLayers
+           << "; effective nz=" << layers.size()
+           << "; bottom/GW links use layer " << layers.size() << ".\n";
+    }
     ts << "loadtemplate; filename=" << tf(QStringLiteral("main_components.json")) << '\n';
     ts << "addtemplate; filename=" << tf(QStringLiteral("Pond_Plugin.json")) << '\n';
     ts << "addtemplate; filename=" << tf(QStringLiteral("unsaturated_soil.json")) << '\n';
@@ -4039,20 +4100,19 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     ts << "create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2\n";
     ts << "create block;type=Catchment,_width=200,_height=200,name=Catchment (1),loss_coefficient=0[1/day],x=0,Evapotranspiration=,Precipitation=,ManningCoeff=0.01,inflow=" << inflow << ",Slope=0.02,Width=" << bioswaleWidth << "[m],y=-200,area=" << catchmentArea << "[m~^2],depression_storage=0[m],depth=0[m],elevation=0[m]\n";
 
-    int lowestUp = -1;
+    int lowestUp = topLastLayer;
     double gwElevation = -10.668;
     double bottomElevation = 0.0;
 
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             RBioswaleBuilder::SoilBlockSpec spec;
             spec.name = QStringLiteral("EngineeredSoil (%1)").arg(layer + 1);
             spec.thetaSat = 0.4; spec.thetaRes = 0.08; spec.n = 1.80; spec.kSatOriginal = 50.0; spec.alpha = 1.0;
             spec.area = catchmentArea; spec.x = 0.0; spec.y = y; spec.bottomElevation = bottomElevation; spec.depth = layers[layer].depth; spec.actualX = 0.0; spec.actualY = bottomElevation + layers[layer].depth / 2.0;
             ts << RBioswaleBuilder::BuildSoilBlockCommand(spec);
-            lowestUp = layer;
         }
     }
 
@@ -4061,7 +4121,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
         const double area = systemWidth * modelLength / double(lateralCells);
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             for (int column = 0; column < lateralCells; ++column) {
                 RBioswaleBuilder::SoilBlockSpec spec;
                 spec.name = QStringLiteral("LeftTop (%1$%2)").arg(layer + 1).arg(column + 1);
@@ -4082,7 +4142,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     for (int layer = 1; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             for (int column = 0; column < streetCells; ++column) {
                 RBioswaleBuilder::SoilBlockSpec spec;
                 spec.name = QStringLiteral("RightTop (%1$%2)").arg(layer + 1).arg(column + 1);
@@ -4099,7 +4159,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
-        if (bottomElevation < -bioswaleDepth) {
+        if (isBottomLayer(layer)) {
             RBioswaleBuilder::SoilBlockSpec spec;
             spec.name = QStringLiteral("UEngineered (%1)").arg(layer + 1);
             spec.thetaSat = layers[layer].thetaSat; spec.thetaRes = layers[layer].thetaRes; spec.n = layers[layer].n; spec.kSatOriginal = layers[layer].ksat; spec.alpha = layers[layer].alpha;
@@ -4113,7 +4173,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
         const double area = systemWidth * modelLength / double(lateralCells);
-        if (bottomElevation < -bioswaleDepth) {
+        if (isBottomLayer(layer)) {
             for (int column = 0; column < lateralCells; ++column) {
                 RBioswaleBuilder::SoilBlockSpec spec;
                 spec.name = QStringLiteral("LeftBottom (%1$%2)").arg(layer + 1).arg(column + 1);
@@ -4131,7 +4191,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
         const double y = layer * 200.0;
-        if (bottomElevation < -bioswaleDepth) {
+        if (isBottomLayer(layer)) {
             for (int column = 0; column < streetCells; ++column) {
                 RBioswaleBuilder::SoilBlockSpec spec;
                 spec.name = QStringLiteral("RightBottom (%1$%2)").arg(layer + 1).arg(column + 1);
@@ -4149,7 +4209,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = 0.0;
     for (int layer = 0; layer + 1 < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation - layers[layer + 1].depth >= -bioswaleDepth) {
+        if (isTopLayer(layer + 1)) {
             ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=EngineeredSoil (" << (layer + 2) << "),type=soil_to_soil_link,name=EngineeredSoil_V (" << (layer + 1) << ")\n";
         } else {
             break;
@@ -4161,7 +4221,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         const double length = bioswaleWidth / 2.0 + leftCellWidth / 2.0;
         const double area = layers[layer].depth * modelLength;
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=LeftTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
         } else {
             break;
@@ -4174,7 +4234,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = -layers[0].depth;
     for (int layer = 1; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=RightTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
         } else {
             break;
@@ -4186,7 +4246,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         const double hLength = leftCellWidth;
         const double hArea = layers[layer].depth * modelLength;
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             for (int column = 0; column < lateralCells - 1; ++column) {
                 ts << "create link;from=LeftTop (" << (layer + 1) << "$" << (column + 1) << "),to=LeftTop (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=LeftTopH (" << (layer + 1) << "$" << (column + 1) << "),length=" << hLength << "[m],area=" << hArea << "[m~^2]\n";
             }
@@ -4196,12 +4256,14 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     }
 
     bottomElevation = -layers[0].depth;
-    for (int column = 0; column < streetCells; ++column) {
-        ts << "create link;from=Subbase (" << (column + 1) << "),to=RightTop (2$" << (column + 1) << "),type=aggregate_to_soil_link,name=Subbase (" << (column + 1) << ") - RightTop (2$" << (column + 1) << ")\n";
+    if (isTopLayer(1)) {
+        for (int column = 0; column < streetCells; ++column) {
+            ts << "create link;from=Subbase (" << (column + 1) << "),to=RightTop (2$" << (column + 1) << "),type=aggregate_to_soil_link,name=Subbase (" << (column + 1) << ") - RightTop (2$" << (column + 1) << ")\n";
+        }
     }
     for (int layer = 1; layer + 1 < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation - layers[layer + 1].depth >= -bioswaleDepth) {
+        if (isTopLayer(layer + 1)) {
             for (int column = 0; column < streetCells; ++column) {
                 ts << "create link;from=RightTop (" << (layer + 1) << "$" << (column + 1) << "),to=RightTop (" << (layer + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=RightTop_V (" << (layer + 1) << "$" << (column + 1) << ")\n";
             }
@@ -4257,7 +4319,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = 0.0;
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             for (int column = 0; column < lateralCells; ++column) {
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
@@ -4270,7 +4332,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = -layers[0].depth;
     for (int layer = 1; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation >= -bioswaleDepth) {
+        if (isTopLayer(layer)) {
             for (int column = 0; column < streetCells; ++column) {
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
@@ -4283,7 +4345,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = 0.0;
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation < -bioswaleDepth) {
+        if (isBottomLayer(layer)) {
             ts << "setasparameter; object=UEngineered (" << (layer + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
             ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
             ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
@@ -4297,7 +4359,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     bottomElevation = 0.0;
     for (int layer = 0; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
-        if (bottomElevation < -bioswaleDepth) {
+        if (isBottomLayer(layer)) {
             for (int column = 0; column < lateralCells; ++column) {
                 ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
