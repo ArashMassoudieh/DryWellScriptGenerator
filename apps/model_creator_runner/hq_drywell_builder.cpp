@@ -3070,6 +3070,7 @@ bool LoadSoilBlockOverridesFromCommandFileLocal(const QString &path,
     return !overrides->isEmpty();
 }
 
+
 HqDrywellBuilder::SoilBlockSpec MakeGeneratedHqSoilSpecLocal(int layerIndex,
                                                             int radialIndex,
                                                             int effectiveLayers,
@@ -3082,10 +3083,12 @@ HqDrywellBuilder::SoilBlockSpec MakeGeneratedHqSoilSpecLocal(int layerIndex,
 {
     HqDrywellBuilder::SoilBlockSpec spec = defaults;
     spec.name = QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex);
+
     const double dy = effectiveWellDepth / static_cast<double>(qMax(1, effectiveLayers));
     const double dr = (effectivePondRadius - effectiveWellRadius) / static_cast<double>(qMax(1, effectiveRadials));
     const double rIn = effectiveWellRadius + dr * static_cast<double>(radialIndex - 1);
     const double rOut = effectiveWellRadius + dr * static_cast<double>(radialIndex);
+
     spec.area = 3.14159265358979323846 * (rOut * rOut - rIn * rIn);
     spec.bottomElevation = -dy * static_cast<double>(layerIndex);
     spec.depth = dy;
@@ -3094,11 +3097,6 @@ HqDrywellBuilder::SoilBlockSpec MakeGeneratedHqSoilSpecLocal(int layerIndex,
     spec.x = 200.0 + static_cast<double>(radialIndex - 1) * 300.0;
     spec.y = 300.0 + static_cast<double>(layerIndex - 1) * 300.0;
     return spec;
-}
-
-QString HqSoilLinkCommandLocal(const QString &from, const QString &to)
-{
-    return QStringLiteral("create link;from=%1,to=%2,type=soil_to_soil_link,name=%1 - %2\n").arg(from, to);
 }
 
 QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
@@ -3175,10 +3173,15 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     }
     const int fallbackLayers = qMax(1, detectedLayers);
     const int fallbackRadials = qMax(1, detectedRadials);
-    const int effectiveLayers = options.hqSoftShallowLayers > 0 ? options.hqSoftShallowLayers : fallbackLayers;
+    // hqSoftShallowLayers is optional. Older UI/settings used "1" as a placeholder,
+    // which accidentally collapsed the 34-layer HQ reference to one layer. Treat <=1
+    // as "use the reference layer count" unless the reference itself has only one layer.
+    const int effectiveLayers = (options.hqSoftShallowLayers > 1 || fallbackLayers <= 1)
+        ? options.hqSoftShallowLayers
+        : fallbackLayers;
     const int effectiveRadials = options.hqSoftRadialCells > 0 ? options.hqSoftRadialCells : fallbackRadials;
     const bool applyGeometryOverrides =
-        options.hqSoftShallowLayers > 0
+        (options.hqSoftShallowLayers > 1 || (options.hqSoftShallowLayers > 0 && fallbackLayers <= 1))
         || options.hqSoftRadialCells > 0
         || options.hqSoftWellDepth > 0.0
         || options.hqSoftWellRadius > 0.0
@@ -3197,7 +3200,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         return std::fabs(a - b) <= 1e-9;
     };
     const bool geometryIsReferenceEquivalent =
-        (options.hqSoftShallowLayers <= 0 || options.hqSoftShallowLayers == fallbackLayers)
+        (options.hqSoftShallowLayers <= 1 || options.hqSoftShallowLayers == fallbackLayers)
         && (options.hqSoftRadialCells <= 0 || options.hqSoftRadialCells == fallbackRadials)
         && (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
         && (options.hqSoftWellRadius <= 0.0 || nearlyEqual(options.hqSoftWellRadius, fallbackWellRadius))
@@ -3210,18 +3213,6 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
         return embedded;
     }
-    QSet<QString> existingLinkNames;
-    for (const QString &rawLine : lines) {
-        const QString trimmed = rawLine.trimmed();
-        if (!trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)) {
-            continue;
-        }
-        const QString linkName = ExtractStringLocal(trimmed, QStringLiteral("name"));
-        if (!linkName.trimmed().isEmpty()) {
-            existingLinkNames.insert(linkName.trimmed());
-        }
-    }
-
     const auto defaultSpecFor = [&](int layerIndex, int radialIndex) -> HqDrywellBuilder::SoilBlockSpec {
         const QString name = QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex);
         const auto byName = referenceByName.constFind(name);
@@ -3284,6 +3275,9 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     };
 
     QSet<QString> keptSoilBlocks;
+    QSet<QString> skippedSoilBlocks;
+    QSet<QString> emittedReferenceLinkNames;
+    QSet<QString> skippedLinkNames;
 
     const auto appendMissingGeometry = [&]() {
         for (int radialIndex = 1; radialIndex <= effectiveRadials; ++radialIndex) {
@@ -3308,8 +3302,8 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
             }
         }
 
-        QSet<QString> emittedLinkNames = existingLinkNames;
-        const auto appendSoilLinkIfNeeded = [&](const QString &from, const QString &to) {
+        QSet<QString> emittedLinkNames = emittedReferenceLinkNames;
+        const auto appendSoilLinkIfNeeded = [&](const QString &from, const QString &to, const QString &type) {
             if (!keptSoilBlocks.contains(from) || !keptSoilBlocks.contains(to)) {
                 return;
             }
@@ -3318,21 +3312,25 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 return;
             }
             emittedLinkNames.insert(linkName);
-            ts << HqSoilLinkCommandLocal(from, to);
+            ts << QStringLiteral("create link;from=%1,to=%2,type=%3,name=%4\n")
+                      .arg(from, to, type, linkName);
         };
         for (int radialIndex = 1; radialIndex <= effectiveRadials; ++radialIndex) {
             for (int layerIndex = 1; layerIndex < effectiveLayers; ++layerIndex) {
                 appendSoilLinkIfNeeded(QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex),
-                                       QStringLiteral("Soil (%1$%2)").arg(layerIndex + 1).arg(radialIndex));
+                                       QStringLiteral("Soil (%1$%2)").arg(layerIndex + 1).arg(radialIndex),
+                                       QStringLiteral("soil_to_soil_link"));
             }
         }
         for (int radialIndex = 1; radialIndex < effectiveRadials; ++radialIndex) {
             for (int layerIndex = 1; layerIndex <= effectiveLayers; ++layerIndex) {
                 appendSoilLinkIfNeeded(QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex),
-                                       QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex + 1));
+                                       QStringLiteral("Soil (%1$%2)").arg(layerIndex).arg(radialIndex + 1),
+                                       QStringLiteral("soil_to_soil_H_link"));
             }
         }
     };
+
     bool missingGeometryAppended = false;
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
@@ -3343,76 +3341,57 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 int radialIndex = 0;
                 const bool hasIndices = ParseSoilNameIndicesLocal(spec.name, &layerIndex, &radialIndex);
                 if (hasIndices && (layerIndex > effectiveLayers || radialIndex > effectiveRadials)) {
+                    skippedSoilBlocks.insert(spec.name.trimmed());
                     continue;
-                }
-                if (haveBlockOverrides) {
-                    const auto it = blockOverrides.constFind(spec.name.trimmed());
-                    if (it != blockOverrides.constEnd()) {
-                        spec = it.value();
-                    }
                 }
                 if (applyGeometryOverrides && hasIndices && effectiveLayers > 0 && effectiveRadials > 0) {
-                    const int mappedLayer = qMin(layerIndex, effectiveLayers);
-                    const int mappedRadial = qMin(radialIndex, effectiveRadials);
-                    const double dy = effectiveWellDepth / static_cast<double>(effectiveLayers);
-                    const double dr = (effectivePondRadius - effectiveWellRadius) / static_cast<double>(effectiveRadials);
-                    const double rIn = effectiveWellRadius + dr * static_cast<double>(mappedRadial - 1);
-                    const double rOut = effectiveWellRadius + dr * static_cast<double>(mappedRadial);
-                    spec.area = 3.14159265358979323846 * (rOut * rOut - rIn * rIn);
-                    spec.bottomElevation = -dy * static_cast<double>(mappedLayer);
-                    spec.depth = dy;
-                    spec.actualX = 0.5 * (rIn + rOut);
-                    spec.actualY = effectiveSurfaceElevation - dy * (static_cast<double>(mappedLayer) - 0.5);
-                    spec.x = 200.0 + static_cast<double>(mappedRadial - 1) * 300.0;
-                    spec.y = 300.0 + static_cast<double>(mappedLayer - 1) * 300.0;
+                    spec = MakeGeneratedHqSoilSpecLocal(
+                        layerIndex,
+                        radialIndex,
+                        effectiveLayers,
+                        effectiveRadials,
+                        effectiveWellDepth,
+                        effectiveWellRadius,
+                        effectivePondRadius,
+                        effectiveSurfaceElevation,
+                        spec);
                 }
-                if (softMode == QStringLiteral("File") && haveBlockOverrides && !haveProfile) {
-                    keptSoilBlocks.insert(spec.name.trimmed());
-                    ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
-                    continue;
-                }
-                const SoftSoilPropsLocal specReferenceDefaults = {
-                    spec.kSatOriginal,
-                    spec.alpha,
-                    spec.n,
-                    spec.thetaSat,
-                    spec.thetaRes
-                };
-                const double specMidDepth = std::fabs(spec.bottomElevation + 0.5 * spec.depth);
-                const SoftSoilPropsLocal resolved = ResolveSoftSoilOverridesLocal(
-                    options,
-                    referenceDefaults,
-                    modelCreatorDefaults,
-                    specReferenceDefaults,
-                    haveProfile ? &profileRows : nullptr,
-                    specMidDepth);
-                spec.thetaSat = resolved.thetaSat;
-                spec.thetaRes = resolved.thetaRes;
-                spec.n = resolved.n;
-                spec.kSatOriginal = resolved.ksat;
-                spec.alpha = resolved.alpha;
+                resolveSpecProps(&spec);
                 keptSoilBlocks.insert(spec.name.trimmed());
                 ts << HqDrywellBuilder::BuildSoilBlockCommand(spec);
                 continue;
             }
         }
+
         if (trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)) {
             if (!missingGeometryAppended) {
                 appendMissingGeometry();
                 missingGeometryAppended = true;
             }
-        }
-        if (trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)
-            && !keptSoilBlocks.isEmpty()) {
-            const QString from = ExtractStringLocal(trimmed, QStringLiteral("from"));
-            const QString to = ExtractStringLocal(trimmed, QStringLiteral("to"));
+            const QString from = ExtractStringLocal(trimmed, QStringLiteral("from")).trimmed();
+            const QString to = ExtractStringLocal(trimmed, QStringLiteral("to")).trimmed();
+            const QString linkName = ExtractStringLocal(trimmed, QStringLiteral("name")).trimmed();
             const bool fromSoil = from.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
             const bool toSoil = to.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
-            if ((fromSoil && !keptSoilBlocks.contains(from.trimmed()))
-                || (toSoil && !keptSoilBlocks.contains(to.trimmed()))) {
+            if ((fromSoil && !keptSoilBlocks.contains(from))
+                || (toSoil && !keptSoilBlocks.contains(to))) {
+                if (!linkName.isEmpty()) {
+                    skippedLinkNames.insert(linkName);
+                }
+                continue;
+            }
+            if (!linkName.isEmpty()) {
+                emittedReferenceLinkNames.insert(linkName);
+            }
+        }
+
+        if (trimmed.startsWith(QStringLiteral("setasparameter;"), Qt::CaseInsensitive)) {
+            const QString objectName = ExtractStringLocal(trimmed, QStringLiteral("object")).trimmed();
+            if (skippedSoilBlocks.contains(objectName) || skippedLinkNames.contains(objectName)) {
                 continue;
             }
         }
+
         ts << rawLine << '\n';
     }
     if (!missingGeometryAppended) {
