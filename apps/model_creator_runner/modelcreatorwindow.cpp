@@ -3540,9 +3540,13 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         }
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
-    const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
+    const bool hqModel = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
+    const bool rModel = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+    const bool usingLoadFromOhqBase = (vnModel && options.vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0 && !options.vnBaseOhqFile.isEmpty())
+        || (hqModel && options.hqBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0 && !options.hqBaseOhqFile.isEmpty())
+        || (rModel && options.rBioswaleBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0 && !options.rBioswaleBaseOhqFile.isEmpty());
 
-    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
+    if (!usingLoadFromOhqBase && options.templateDirectory.isEmpty()) {
         QStringList hintRoots;
         hintRoots << workingDirEdit->text().trimmed()
                   << exePathEdit->text().trimmed();
@@ -3558,7 +3562,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         }
     }
 
-    if (!usingExplicitVnBase && options.templateDirectory.isEmpty()) {
+    if (!usingLoadFromOhqBase && options.templateDirectory.isEmpty()) {
         QMessageBox::warning(this, tr("Missing template directory"),
                              tr("Could not auto-detect an OHQ template directory for this machine/context."));
         return false;
@@ -3569,7 +3573,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (options.inflowFile.isEmpty()) {
+    if (!usingLoadFromOhqBase && options.inflowFile.isEmpty()) {
         if (vnModel) {
             options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"),
                                                            options.templateDirectory);
@@ -3582,7 +3586,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         }
     }
 
-    if (!usingExplicitVnBase && options.outputSeriesFile.isEmpty()) {
+    if (!usingLoadFromOhqBase && options.outputSeriesFile.isEmpty()) {
         QMessageBox::warning(this, tr("Missing output filename"), tr("Please provide the OHQ output series filename."));
         return false;
     }

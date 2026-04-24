@@ -1481,14 +1481,6 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    const QFileInfo templateInfo(options.templateDirectory);
-    if (!templateInfo.exists() || !templateInfo.isDir()) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral("Template resources directory is not valid.");
-        }
-        return false;
-    }
-
     const bool vnModelType = IsVnModel(options.modelType);
     const bool hqModelType = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
     const bool rBioswaleModelType = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
@@ -1504,11 +1496,25 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
                                    || rBioswaleMode == QStringLiteral("LoadFromOhq")));
 
-    const QStringList requiredTemplates = directScriptMode
+    const bool loadFromOhqMode = (vnModelType && vnMode == QStringLiteral("LoadFromOhq"))
+        || (hqModelType && hqMode == QStringLiteral("LoadFromOhq"))
+        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("LoadFromOhq"));
+
+    const QStringList requiredTemplates = directScriptMode || loadFromOhqMode
                                               ? QStringList{}
                                               : ((vnModelType && vnMode == QStringLiteral("FullReference"))
                                                      ? RequiredVnFullReferenceTemplates()
                                                      : RequiredTemplates());
+
+    if (!requiredTemplates.isEmpty()) {
+        const QFileInfo templateInfo(options.templateDirectory);
+        if (!templateInfo.exists() || !templateInfo.isDir()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("Template resources directory is not valid.");
+            }
+            return false;
+        }
+    }
 
     for (const QString &templateFile : requiredTemplates) {
         const QFileInfo fileInfo(TemplateFile(options.templateDirectory, templateFile));
