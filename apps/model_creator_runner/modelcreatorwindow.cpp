@@ -2513,7 +2513,9 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (vnSoftDepthRowWidget) vnSoftDepthRowWidget->setVisible(showSoftRows);
     if (vnSoftTopElevationRowWidget) vnSoftTopElevationRowWidget->setVisible(showSoftRows);
     if (vnSoftLayerThicknessRowWidget) vnSoftLayerThicknessRowWidget->setVisible(showSoftRows);
-    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows || (!loadExistingMode && (hqSoftContext || rSoftContext)));
+    // VN soil properties are structure-based for now.
+    // R_Bioswale and HQ_Drywell use their own soil controls below; keep this VN row turned off there.
+    if (vnSoftSoilParamsRowWidget) vnSoftSoilParamsRowWidget->setVisible(showSoftRows);
     if (hqSoftGeometryRowWidget) hqSoftGeometryRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (hqSoilControlsRowWidget) hqSoilControlsRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
