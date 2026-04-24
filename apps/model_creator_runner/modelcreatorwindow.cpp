@@ -1601,7 +1601,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     observationFileEdit->setPlaceholderText(tr("Suggested: <repo>/observation.csv"));
     depthProfileRowWidget = addFileRow(layout, tr("Depth profile file (optional)"), depthProfileFileEdit, tr("Browse"), [this]() { chooseDepthProfileFile(); });
     depthProfileFileEdit->setPlaceholderText(tr("Suggested: <repo>/depth_profile.csv"));
-    vnBaseRowWidget = nullptr;
+    vnBaseRowWidget = addFileRow(layout, tr("Base OHQ script (LoadFromOhq)"), vnBaseOhqFileEdit, tr("Browse"), [this]() { chooseVnBaseOhqFile(); });
+    vnBaseOhqFileEdit->setPlaceholderText(tr("Required for LoadFromOhq: existing .ohq script"));
     vnSoilRowWidget = addFileRow(layout, tr("Soil layers snippet (optional)"), vnSoilLayersFileEdit, tr("Browse"), [this]() { chooseVnSoilLayersFile(); });
     vnSoilLayersFileEdit->setPlaceholderText(tr("Optional: .txt/.ohq/.csv with soil-layer commands"));
     vnMoistureRowWidget = addFileRow(layout, tr("Moisture layers snippet (optional)"), vnMoistureLayersFileEdit, tr("Browse"), [this]() { chooseVnMoistureLayersFile(); });
@@ -2443,7 +2444,10 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString preset = enrichmentPresetCombo->currentData().toString().trimmed();
     const bool vnContext = modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0
         || preset.startsWith(QStringLiteral("VN_"));
-    const bool usingVnBase = vnContext && !vnBaseOhqFileEdit->text().trimmed().isEmpty();
+    const QString selectedBuildMode = BuildModeFromPresetSelection(preset, modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0 ? QStringLiteral("HQ_MODE") : (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0 ? QStringLiteral("R_MODE") : QStringLiteral("VN_MODE")));
+    const bool usingLoadFromOhq = selectedBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
+    const bool usingVnBase = !vnBaseOhqFileEdit->text().trimmed().isEmpty()
+        && (vnContext || usingLoadFromOhq);
     const QString fallbackBuildMode = vnBuildModeCombo != nullptr
         ? vnBuildModeCombo->currentData().toString().trimmed()
         : QStringLiteral("SoftReference");
@@ -2466,7 +2470,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (generatedScriptRowWidget) generatedScriptRowWidget->setVisible(!loadExistingMode);
 
     if (vnBuildModeRowWidget) vnBuildModeRowWidget->setVisible(false);
-    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && vnContext);
+    if (vnBaseRowWidget) vnBaseRowWidget->setVisible(!loadExistingMode && (vnContext || usingLoadFromOhq));
     if (vnSoilRowWidget) vnSoilRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnMoistureRowWidget) vnMoistureRowWidget->setVisible(!loadExistingMode && vnContext);
     const bool showSoftRows = !loadExistingMode && vnContext && !explicitNonSoftMode;
@@ -3103,6 +3107,8 @@ void ModelCreatorWindow::previewScript()
         options.ksatScaleG = ksatScaleGEdit->text().trimmed();
         options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
         options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+    options.hqBaseOhqFile = options.vnBaseOhqFile;
+    options.rBioswaleBaseOhqFile = options.vnBaseOhqFile;
         options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
         options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
         AssignIntIfProvided(vnSoftGridXEdit, &options.vnSoftGridXCount);
@@ -3410,6 +3416,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.ksatScaleG = ksatScaleGEdit->text().trimmed();
     options.ksatScaleUw = ksatScaleUwEdit->text().trimmed();
     options.vnBaseOhqFile = vnBaseOhqFileEdit->text().trimmed();
+    options.hqBaseOhqFile = options.vnBaseOhqFile;
+    options.rBioswaleBaseOhqFile = options.vnBaseOhqFile;
     options.vnSoilLayersFile = vnSoilLayersFileEdit->text().trimmed();
     options.vnMoistureLayersFile = vnMoistureLayersFileEdit->text().trimmed();
     AssignIntIfProvided(vnSoftGridXEdit, &options.vnSoftGridXCount);

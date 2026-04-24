@@ -3126,10 +3126,14 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
             }
         }
     }
-    const int effectiveLayers = qMax(1, detectedLayers);
-    const int effectiveRadials = qMax(1, detectedRadials);
+    const int fallbackLayers = qMax(1, detectedLayers);
+    const int fallbackRadials = qMax(1, detectedRadials);
+    const int effectiveLayers = options.hqSoftShallowLayers > 0 ? options.hqSoftShallowLayers : fallbackLayers;
+    const int effectiveRadials = options.hqSoftRadialCells > 0 ? options.hqSoftRadialCells : fallbackRadials;
     const bool applyGeometryOverrides =
-        options.hqSoftWellDepth > 0.0
+        options.hqSoftShallowLayers > 0
+        || options.hqSoftRadialCells > 0
+        || options.hqSoftWellDepth > 0.0
         || options.hqSoftWellRadius > 0.0
         || options.hqSoftPondRadius > 0.0
         || options.hqSoftSurfaceElevation > 0.0;
@@ -3146,7 +3150,9 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         return std::fabs(a - b) <= 1e-9;
     };
     const bool geometryIsReferenceEquivalent =
-        (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
+        (options.hqSoftShallowLayers <= 0 || options.hqSoftShallowLayers == fallbackLayers)
+        && (options.hqSoftRadialCells <= 0 || options.hqSoftRadialCells == fallbackRadials)
+        && (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
         && (options.hqSoftWellRadius <= 0.0 || nearlyEqual(options.hqSoftWellRadius, fallbackWellRadius))
         && (options.hqSoftPondRadius <= 0.0 || nearlyEqual(options.hqSoftPondRadius, fallbackPondRadius))
         && (options.hqSoftSurfaceElevation <= 0.0 || nearlyEqual(options.hqSoftSurfaceElevation, inferredSurfaceElevation));
@@ -3166,6 +3172,9 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 int layerIndex = 0;
                 int radialIndex = 0;
                 const bool hasIndices = ParseSoilNameIndicesLocal(spec.name, &layerIndex, &radialIndex);
+                if (hasIndices && (layerIndex > effectiveLayers || radialIndex > effectiveRadials)) {
+                    continue;
+                }
                 if (haveBlockOverrides) {
                     const auto it = blockOverrides.constFind(spec.name.trimmed());
                     if (it != blockOverrides.constEnd()) {
