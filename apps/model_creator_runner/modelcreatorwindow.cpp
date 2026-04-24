@@ -1757,11 +1757,11 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         vnSoftSoilParamsRowWidget = container;
     }
     {
-        setupCompactNumericEdit(hqSoftRadialCellsEdit, tr("20"));
-        setupCompactNumericEdit(hqSoftShallowLayersEdit, tr("5"));
-        setupCompactNumericEdit(hqSoftWellDepthEdit, tr("12.192"));
-        setupCompactNumericEdit(hqSoftWellRadiusEdit, tr("1.2192"));
-        setupCompactNumericEdit(hqSoftPondRadiusEdit, tr("20"));
+        setupCompactNumericEdit(hqSoftRadialCellsEdit, tr("10"));
+        setupCompactNumericEdit(hqSoftShallowLayersEdit, tr("1"));
+        setupCompactNumericEdit(hqSoftWellDepthEdit, tr("20"));
+        setupCompactNumericEdit(hqSoftWellRadiusEdit, tr("0.381"));
+        setupCompactNumericEdit(hqSoftPondRadiusEdit, tr("6"));
         setupCompactNumericEdit(hqSoftSurfaceElevationEdit, tr("140"));
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -5124,12 +5124,12 @@ void ModelCreatorWindow::loadSettings()
     const int vnSoftSoilParamModeIndex = vnSoftSoilParamModeCombo->findData(vnSoftSoilParamMode);
     vnSoftSoilParamModeCombo->setCurrentIndex(vnSoftSoilParamModeIndex >= 0 ? vnSoftSoilParamModeIndex : 0);
     vnSoftSoilParameterFileEdit->setText(settings.value("vnSoftSoilParameterFile").toString());
-    hqSoftRadialCellsEdit->setText(settings.value("hqSoftRadialCells").toString());
-    hqSoftShallowLayersEdit->setText(settings.value("hqSoftShallowLayers").toString());
-    hqSoftWellDepthEdit->setText(settings.value("hqSoftWellDepth").toString());
-    hqSoftWellRadiusEdit->setText(settings.value("hqSoftWellRadius").toString());
-    hqSoftPondRadiusEdit->setText(settings.value("hqSoftPondRadius").toString());
-    hqSoftSurfaceElevationEdit->setText(settings.value("hqSoftSurfaceElevation").toString());
+    hqSoftRadialCellsEdit->setText(settingTextOrDefault("hqSoftRadialCells", "10"));
+    hqSoftShallowLayersEdit->setText(settingTextOrDefault("hqSoftShallowLayers", "1"));
+    hqSoftWellDepthEdit->setText(settingTextOrDefault("hqSoftWellDepth", "20"));
+    hqSoftWellRadiusEdit->setText(settingTextOrDefault("hqSoftWellRadius", "0.381"));
+    hqSoftPondRadiusEdit->setText(settingTextOrDefault("hqSoftPondRadius", "6"));
+    hqSoftSurfaceElevationEdit->setText(settingTextOrDefault("hqSoftSurfaceElevation", "140"));
     rBioSwaleWidthEdit->setText(settingTextOrDefault("rBioSwaleWidth", "0.6096"));
     rSystemWidthEdit->setText(settingTextOrDefault("rSystemWidth", "3"));
     rBioSwaleDepthEdit->setText(settingTextOrDefault("rBioSwaleDepth", "0.9144"));

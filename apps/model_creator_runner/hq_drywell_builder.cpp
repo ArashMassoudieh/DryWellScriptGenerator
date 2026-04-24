@@ -3133,9 +3133,9 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         || options.hqSoftWellRadius > 0.0
         || options.hqSoftPondRadius > 0.0
         || options.hqSoftSurfaceElevation > 0.0;
-    const double fallbackWellDepth = inferredWellDepth > 0.0 ? inferredWellDepth : 12.192;
-    const double fallbackWellRadius = radialExtentInferred ? inferredWellRadius : 1.2192;
-    const double fallbackPondRadius = radialExtentInferred ? inferredPondRadius : 20.0;
+    const double fallbackWellDepth = inferredWellDepth > 0.0 ? inferredWellDepth : 20.0;
+    const double fallbackWellRadius = radialExtentInferred ? inferredWellRadius : 0.381;
+    const double fallbackPondRadius = radialExtentInferred ? inferredPondRadius : 6.0;
     const double effectiveWellDepth = options.hqSoftWellDepth > 0.0 ? options.hqSoftWellDepth : fallbackWellDepth;
     const double effectiveWellRadius = options.hqSoftWellRadius > 0.0 ? options.hqSoftWellRadius : fallbackWellRadius;
     const double effectivePondRadius = options.hqSoftPondRadius > 0.0 ? options.hqSoftPondRadius : fallbackPondRadius;
@@ -3157,8 +3157,8 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
         return embedded;
     }
-    QSet<QString> keptSoilBlocks;
     for (const QString &rawLine : lines) {
+    QSet<QString> keptSoilBlocks;
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
             HqDrywellBuilder::SoilBlockSpec spec;
