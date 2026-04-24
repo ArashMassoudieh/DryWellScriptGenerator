@@ -3154,6 +3154,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     QHash<QString, HqDrywellBuilder::SoilBlockSpec> referenceByName;
     QHash<int, HqDrywellBuilder::SoilBlockSpec> referenceByLayer;
     QHash<int, HqDrywellBuilder::SoilBlockSpec> referenceByRadial;
+    QSet<QString> availableReferenceLinkNames;
     HqDrywellBuilder::SoilBlockSpec firstReferenceSpec;
     bool haveFirstReferenceSpec = false;
     double inferredSurfaceElevation = 140.0;
@@ -3163,6 +3164,13 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     double inferredPondRadius = 0.0;
     bool radialExtentInferred = false;
     for (const QString &rawLine : lines) {
+        const QString scanTrimmed = rawLine.trimmed();
+        if (scanTrimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)) {
+            const QString referenceLinkName = ExtractStringLocal(scanTrimmed, QStringLiteral("name")).trimmed();
+            if (!referenceLinkName.isEmpty()) {
+                availableReferenceLinkNames.insert(referenceLinkName);
+            }
+        }
         HqDrywellBuilder::SoilBlockSpec scanSpec;
         if (!ParseSoilBlockSpec(rawLine.trimmed(), &scanSpec)) {
             continue;
@@ -3338,16 +3346,18 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
             }
         }
 
-        QSet<QString> emittedLinkNames = emittedReferenceLinkNames;
         const auto appendSoilLinkIfNeeded = [&](const QString &from, const QString &to, const QString &type) {
             if (!keptSoilBlocks.contains(from) || !keptSoilBlocks.contains(to)) {
                 return;
             }
             const QString linkName = QStringLiteral("%1 - %2").arg(from, to);
-            if (emittedLinkNames.contains(linkName)) {
+            if (emittedReferenceLinkNames.contains(linkName)) {
                 return;
             }
-            emittedLinkNames.insert(linkName);
+            if (availableReferenceLinkNames.contains(linkName)) {
+                return;
+            }
+            emittedReferenceLinkNames.insert(linkName);
             ts << QStringLiteral("create link;from=%1,to=%2,type=%3,name=%4\n")
                       .arg(from, to, type, linkName);
         };
@@ -3420,6 +3430,9 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 continue;
             }
             if (!linkName.isEmpty()) {
+                if (emittedReferenceLinkNames.contains(linkName)) {
+                    continue;
+                }
                 emittedReferenceLinkNames.insert(linkName);
             }
         }
