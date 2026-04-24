@@ -1758,7 +1758,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     }
     {
         setupCompactNumericEdit(hqSoftRadialCellsEdit, tr("10"));
-        setupCompactNumericEdit(hqSoftShallowLayersEdit, QString());
+        setupCompactNumericEdit(hqSoftShallowLayersEdit, tr("34"));
         setupCompactNumericEdit(hqSoftWellDepthEdit, tr("20"));
         setupCompactNumericEdit(hqSoftWellRadiusEdit, tr("0.381"));
         setupCompactNumericEdit(hqSoftPondRadiusEdit, tr("6"));
@@ -5128,7 +5128,7 @@ void ModelCreatorWindow::loadSettings()
     {
         const QString savedHqLayers = settings.value("hqSoftShallowLayers").toString().trimmed();
         // Older builds saved "1" as a placeholder. Blank means: use the HQ reference layer count.
-        hqSoftShallowLayersEdit->setText(savedHqLayers == QStringLiteral("1") ? QString() : savedHqLayers);
+        hqSoftShallowLayersEdit->setText((savedHqLayers.isEmpty() || savedHqLayers == QStringLiteral("1")) ? QStringLiteral("34") : savedHqLayers);
     }
     hqSoftWellDepthEdit->setText(settingTextOrDefault("hqSoftWellDepth", "20"));
     hqSoftWellRadiusEdit->setText(settingTextOrDefault("hqSoftWellRadius", "0.381"));

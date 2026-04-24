@@ -3044,6 +3044,42 @@ bool ParseSoilNameIndicesLocal(const QString &name, int *layerIndex, int *radial
     return true;
 }
 
+bool ParseSoilDeepNameIndicesLocal(const QString &name, int *layerIndex, int *radialIndex)
+{
+    if (layerIndex == nullptr || radialIndex == nullptr) {
+        return false;
+    }
+    static const QRegularExpression re(QStringLiteral("^\\s*SoilDeep\\s*\\((\\d+)\\$(\\d+)\\)\\s*$"),
+                                       QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = re.match(name.trimmed());
+    if (!m.hasMatch()) {
+        return false;
+    }
+    bool okLayer = false;
+    bool okRadial = false;
+    const int parsedLayer = m.captured(1).toInt(&okLayer);
+    const int parsedRadial = m.captured(2).toInt(&okRadial);
+    if (!okLayer || !okRadial || parsedLayer <= 0 || parsedRadial < 0) {
+        return false;
+    }
+    *layerIndex = parsedLayer;
+    *radialIndex = parsedRadial;
+    return true;
+}
+
+bool IsHqSoilObjectOutsideSoftGridLocal(const QString &name, int effectiveLayers, int effectiveRadials)
+{
+    int layerIndex = 0;
+    int radialIndex = 0;
+    if (ParseSoilNameIndicesLocal(name, &layerIndex, &radialIndex)) {
+        return layerIndex > effectiveLayers || radialIndex > effectiveRadials;
+    }
+    if (ParseSoilDeepNameIndicesLocal(name, &layerIndex, &radialIndex)) {
+        return radialIndex > effectiveRadials;
+    }
+    return false;
+}
+
 bool LoadSoilBlockOverridesFromCommandFileLocal(const QString &path,
                                                 QHash<QString, HqDrywellBuilder::SoilBlockSpec> *overrides)
 {
@@ -3340,7 +3376,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
                 int layerIndex = 0;
                 int radialIndex = 0;
                 const bool hasIndices = ParseSoilNameIndicesLocal(spec.name, &layerIndex, &radialIndex);
-                if (hasIndices && (layerIndex > effectiveLayers || radialIndex > effectiveRadials)) {
+                if (IsHqSoilObjectOutsideSoftGridLocal(spec.name, effectiveLayers, effectiveRadials)) {
                     skippedSoilBlocks.insert(spec.name.trimmed());
                     continue;
                 }
@@ -3371,10 +3407,13 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
             const QString from = ExtractStringLocal(trimmed, QStringLiteral("from")).trimmed();
             const QString to = ExtractStringLocal(trimmed, QStringLiteral("to")).trimmed();
             const QString linkName = ExtractStringLocal(trimmed, QStringLiteral("name")).trimmed();
-            const bool fromSoil = from.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
-            const bool toSoil = to.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
-            if ((fromSoil && !keptSoilBlocks.contains(from))
-                || (toSoil && !keptSoilBlocks.contains(to))) {
+            const bool fromRegularSoil = from.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
+            const bool toRegularSoil = to.startsWith(QStringLiteral("Soil ("), Qt::CaseInsensitive);
+            const bool outsideSoftGrid = IsHqSoilObjectOutsideSoftGridLocal(from, effectiveLayers, effectiveRadials)
+                || IsHqSoilObjectOutsideSoftGridLocal(to, effectiveLayers, effectiveRadials);
+            if (outsideSoftGrid
+                || (fromRegularSoil && !keptSoilBlocks.contains(from))
+                || (toRegularSoil && !keptSoilBlocks.contains(to))) {
                 if (!linkName.isEmpty()) {
                     skippedLinkNames.insert(linkName);
                 }
@@ -3387,7 +3426,10 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
 
         if (trimmed.startsWith(QStringLiteral("setasparameter;"), Qt::CaseInsensitive)) {
             const QString objectName = ExtractStringLocal(trimmed, QStringLiteral("object")).trimmed();
-            if (skippedSoilBlocks.contains(objectName) || skippedLinkNames.contains(objectName)) {
+            if (skippedSoilBlocks.contains(objectName)
+                || skippedLinkNames.contains(objectName)
+                || IsHqSoilObjectOutsideSoftGridLocal(objectName, effectiveLayers, effectiveRadials)
+                || (objectName.contains(QLatin1Char('-')) && !emittedReferenceLinkNames.contains(objectName))) {
                 continue;
             }
         }
