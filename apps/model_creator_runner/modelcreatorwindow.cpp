@@ -2943,18 +2943,38 @@ void ModelCreatorWindow::showRBioswaleSoilPropsTable()
         }
     }
 
+    const int fileNz = sourceRows.size();
+
+    QString nzText = rVerticalLayersEdit ? rVerticalLayersEdit->text().trimmed() : QString();
+    const bool nzWasBlankOrAuto = nzText.isEmpty()
+        || nzText.compare(QStringLiteral("auto"), Qt::CaseInsensitive) == 0;
+
+    // Check should make Auto explicit: show the file-driven nz in the window,
+    // but do not overwrite a user-entered nz such as 5.
+    if (rVerticalLayersEdit) {
+        rVerticalLayersEdit->setPlaceholderText(QString::number(fileNz));
+        if (nzWasBlankOrAuto) {
+            const QSignalBlocker blocker(rVerticalLayersEdit);
+            rVerticalLayersEdit->setText(QString::number(fileNz));
+            SetAutoSuggestedField(rVerticalLayersEdit, true);
+            nzText = rVerticalLayersEdit->text().trimmed();
+        }
+    }
+
     bool nzOk = false;
-    const int requestedNz = rVerticalLayersEdit->text().trimmed().toInt(&nzOk);
-    const int effectiveNz = (nzOk && requestedNz > 0) ? qMax(requestedNz, 2) : sourceRows.size();
+    const int requestedNz = nzText.toInt(&nzOk);
+    const int effectiveNz = (nzOk && requestedNz > 0) ? qMax(requestedNz, 2) : fileNz;
 
     auto *dialog = new QDialog(this);
-    dialog->setWindowTitle(tr("R/Rosemead soil layers: effective nz=%1, file rows=%2").arg(effectiveNz).arg(sourceRows.size()));
+    dialog->setWindowTitle(tr("R/Rosemead soil layers: effective nz=%1, file nz=%2").arg(effectiveNz).arg(fileNz));
     dialog->resize(900, 560);
     auto *layout = new QVBoxLayout(dialog);
 
     QString note;
     if (!nzOk || requestedNz <= 0) {
-        note = tr("nz is Auto/blank: using all rows from the soil file.");
+        note = tr("nz was not valid: using all rows from the soil file.");
+    } else if (nzWasBlankOrAuto && requestedNz == fileNz) {
+        note = tr("nz was Auto/blank. Check filled it with the file nz (%1).").arg(fileNz);
     } else if (minimumNz > requestedNz) {
         note = tr("Requested nz=%1 is shallower than the Rosemead depth split (%2 rows). Generation will still use nz=%3 and will force the last effective row to be the Bottom/UEngineered/GW-connected layer.")
                    .arg(requestedNz).arg(minimumNz).arg(effectiveNz);
@@ -2966,7 +2986,12 @@ void ModelCreatorWindow::showRBioswaleSoilPropsTable()
         note = tr("nz matches the file row count.");
     }
 
-    auto *summary = new QLabel(tr("File: %1\nMinimum safe nz for current bioswale depth: %2\n%3").arg(path).arg(minimumNz).arg(note), dialog);
+    auto *summary = new QLabel(tr("File: %1\nFile nz: %2\nEffective nz: %3\nMinimum Rosemead split row for current bioswale depth: %4\n%5")
+                                   .arg(path)
+                                   .arg(fileNz)
+                                   .arg(effectiveNz)
+                                   .arg(minimumNz)
+                                   .arg(note), dialog);
     summary->setWordWrap(true);
     layout->addWidget(summary);
 
