@@ -108,6 +108,7 @@ struct StarterScriptOptions
     int rLateralCells = 6;
     double rStreetWidth = 5.0;
     int rStreetCells = 10;
+    int rVerticalLayers = 0; // R/Bioswale nz override; 0 = use file/reference row count.
     double rAnisoRatio = 5.0;
     QString rSoilPropsFile;
 

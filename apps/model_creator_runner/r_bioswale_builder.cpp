@@ -3937,10 +3937,23 @@ static QVector<RBioswaleLayerLocal> ResolveRBioswaleLayersLocal(const StarterScr
                                                                 const SoftSoilPropsLocal &resolved)
 {
     QVector<RBioswaleLayerLocal> layers;
-    if (LoadRBioswaleLayersFromFileLocal(options.rSoilPropsFile, &layers)) {
-        return layers;
+    if (!LoadRBioswaleLayersFromFileLocal(options.rSoilPropsFile, &layers)) {
+        layers = BuildReferenceLayersLocal(resolved);
     }
-    return BuildReferenceLayersLocal(resolved);
+
+    const int requestedNz = options.rVerticalLayers;
+    if (requestedNz > 0 && !layers.isEmpty()) {
+        if (layers.size() > requestedNz) {
+            layers.resize(requestedNz);
+        } else {
+            const RBioswaleLayerLocal last = layers.last();
+            while (layers.size() < requestedNz) {
+                layers.push_back(last);
+            }
+        }
+    }
+
+    return layers;
 }
 
 static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
@@ -3979,6 +3992,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         && (options.rLateralCells <= 0 || options.rLateralCells == 6)
         && (options.rStreetWidth <= 0.0 || nearlyEqual(options.rStreetWidth, 5.0))
         && (options.rStreetCells <= 0 || options.rStreetCells == 10)
+        && (options.rVerticalLayers <= 0 || options.rVerticalLayers == BuildReferenceLayersLocal(resolved).size())
         && (options.rAnisoRatio <= 0.0 || nearlyEqual(options.rAnisoRatio, 5.0));
     const bool usesReferenceSoilDefaults =
         softMode == QStringLiteral("ReferenceDefaults")

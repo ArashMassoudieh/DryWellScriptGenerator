@@ -744,6 +744,7 @@ bool IsRBioswaleSoftCustomizationRequested(const StarterScriptOptions &options)
         || options.rLateralCells != defaults.rLateralCells
         || differs(options.rStreetWidth, defaults.rStreetWidth)
         || options.rStreetCells != defaults.rStreetCells
+        || options.rVerticalLayers != defaults.rVerticalLayers
         || differs(options.rAnisoRatio, defaults.rAnisoRatio);
 }
 
@@ -1446,6 +1447,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       rLengthEdit(new QLineEdit(this)),
       rStreetWidthEdit(new QLineEdit(this)),
       rStreetCellsEdit(new QLineEdit(this)),
+      rVerticalLayersEdit(new QLineEdit(this)),
       rAnisoRatioEdit(new QLineEdit(this)),
       vnInitThetaModeCombo(new QComboBox(this)),
       vnFieldPointsEdit(new QLineEdit(this)),
@@ -1644,6 +1646,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(rLengthEdit, tr("8"));
     setupCompactNumericEdit(rStreetWidthEdit, tr("5"));
     setupCompactNumericEdit(rStreetCellsEdit, tr("10"));
+    setupCompactNumericEdit(rVerticalLayersEdit, tr("Auto"));
     setupCompactNumericEdit(rAnisoRatioEdit, tr("5"));
     rSoilPropsFileEdit->setPlaceholderText(tr("Optional: Rosemead soil properties file (.txt/.csv); blank uses embedded old Bioswale defaults"));
     rBioSwaleWidthEdit->setToolTip(tr("Old Rosemead dialog: lineEditBioSwaleWidth. Controls Catchment/EngineeredSoil width and center-to-side link length."));
@@ -1653,6 +1656,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     rLateralCellsEdit->setToolTip(tr("Old Rosemead dialog: spinBoxLateralCells. Controls LeftTop/LeftBottom columns."));
     rStreetWidthEdit->setToolTip(tr("Old Rosemead dialog: StreetWidth. Controls RightTop/RightBottom/Subbase spacing and area."));
     rStreetCellsEdit->setToolTip(tr("Old Rosemead dialog: spinBox. Controls RightTop/RightBottom/Subbase columns."));
+    rVerticalLayersEdit->setPlaceholderText(tr("Auto = file/reference rows"));
+    rVerticalLayersEdit->setToolTip(tr("R/Rosemead nz. Blank/Auto uses all rows from the selected soil file, or all embedded reference layers if no file is selected. Positive value trims or extends the layer list; extension repeats the last valid layer."));
     rAnisoRatioEdit->setToolTip(tr("Old Rosemead dialog: AnisoRatioLineEdit. Sets Anisotropy_ratio parameter."));
     {
         auto *container = new QWidget(this);
@@ -1819,6 +1824,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(rStreetWidthEdit);
         row->addWidget(new QLabel(tr("Number of cells under street")));
         row->addWidget(rStreetCellsEdit);
+        row->addWidget(new QLabel(tr("Vertical layers (nz)")));
+        row->addWidget(rVerticalLayersEdit);
         row->addWidget(new QLabel(tr("Anisotropy ratio")));
         row->addWidget(rAnisoRatioEdit);
         row->addStretch(1);
@@ -1834,6 +1841,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         auto *browseBtn = new QPushButton(tr("Browse"), container);
         connect(browseBtn, &QPushButton::clicked, this, &ModelCreatorWindow::chooseRBioswaleSoilPropsFile);
         row->addWidget(browseBtn);
+        auto *checkBtn = new QPushButton(tr("Check table"), container);
+        connect(checkBtn, &QPushButton::clicked, this, &ModelCreatorWindow::showRBioswaleSoilPropsTable);
+        row->addWidget(checkBtn);
         row->addStretch(1);
         layout->addWidget(container);
         rSoilControlsRowWidget = container;
@@ -2196,6 +2206,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(rLengthEdit);
     saveOnEdit(rStreetWidthEdit);
     saveOnEdit(rStreetCellsEdit);
+    saveOnEdit(rVerticalLayersEdit);
     saveOnEdit(rAnisoRatioEdit);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
@@ -2881,6 +2892,110 @@ void ModelCreatorWindow::chooseRBioswaleSoilPropsFile()
     }
 }
 
+void ModelCreatorWindow::showRBioswaleSoilPropsTable()
+{
+    const QString path = rSoilPropsFileEdit->text().trimmed();
+    if (path.isEmpty()) {
+        QMessageBox::information(this, tr("R soil props table"),
+                                 tr("No Rosemead soil file is selected. R SoftReference will use the embedded old-Bioswale/reference soil layers.\n\nSelect a soil file to preview/check file-driven nz."));
+        return;
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("R soil props table"), tr("Could not open:\n%1").arg(path));
+        return;
+    }
+
+    const QString text = QString::fromUtf8(file.readAll());
+    QStringList lines = text.split('\n', Qt::SkipEmptyParts);
+    for (QString &line : lines) {
+        line = line.trimmed();
+    }
+    lines.removeAll(QString());
+    if (lines.isEmpty()) {
+        QMessageBox::warning(this, tr("R soil props table"), tr("Selected soil file is empty."));
+        return;
+    }
+
+    const QStringList sourceHeaders = lines.first().split(QRegularExpression(QStringLiteral("[,;\\t]")), Qt::KeepEmptyParts);
+    QStringList headers;
+    headers << tr("effective_layer") << tr("source_row") << tr("source_note");
+    for (const QString &h : sourceHeaders) {
+        headers << h.trimmed();
+    }
+
+    QVector<QStringList> sourceRows;
+    for (int i = 1; i < lines.size(); ++i) {
+        const QString line = lines.at(i).trimmed();
+        if (line.isEmpty()) {
+            continue;
+        }
+        sourceRows.push_back(line.split(QRegularExpression(QStringLiteral("[,;\\t]")), Qt::KeepEmptyParts));
+    }
+    if (sourceRows.isEmpty()) {
+        QMessageBox::warning(this, tr("R soil props table"), tr("Selected soil file has no data rows after the header."));
+        return;
+    }
+
+    bool nzOk = false;
+    const int requestedNz = rVerticalLayersEdit->text().trimmed().toInt(&nzOk);
+    const int effectiveNz = (nzOk && requestedNz > 0) ? requestedNz : sourceRows.size();
+
+    auto *dialog = new QDialog(this);
+    dialog->setWindowTitle(tr("R/Rosemead soil layers: %1 effective, %2 file rows").arg(effectiveNz).arg(sourceRows.size()));
+    dialog->resize(860, 560);
+    auto *layout = new QVBoxLayout(dialog);
+
+    auto *summary = new QLabel(dialog);
+    summary->setWordWrap(true);
+    QString note;
+    if (!nzOk || requestedNz <= 0) {
+        note = tr("nz is Auto/blank: using all rows from the soil file.");
+    } else if (requestedNz < sourceRows.size()) {
+        note = tr("nz is smaller than the file row count: generation will trim after row %1.").arg(requestedNz);
+    } else if (requestedNz > sourceRows.size()) {
+        note = tr("nz is larger than the file row count: generation will repeat the last valid row to fill extra layers.");
+    } else {
+        note = tr("nz matches the file row count.");
+    }
+    summary->setText(tr("File: %1\n%2").arg(path, note));
+    layout->addWidget(summary);
+
+    auto *table = new QTableWidget(dialog);
+    table->setColumnCount(headers.size());
+    table->setHorizontalHeaderLabels(headers);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setAlternatingRowColors(true);
+
+    for (int row = 0; row < effectiveNz; ++row) {
+        const bool repeated = row >= sourceRows.size();
+        const int sourceIndex = repeated ? sourceRows.size() - 1 : row;
+        const QStringList cells = sourceRows.at(sourceIndex);
+        table->insertRow(row);
+        table->setItem(row, 0, new QTableWidgetItem(QString::number(row + 1)));
+        table->setItem(row, 1, new QTableWidgetItem(QString::number(sourceIndex + 1)));
+        table->setItem(row, 2, new QTableWidgetItem(repeated ? tr("repeated last row") : tr("file row")));
+        for (int c = 0; c < sourceHeaders.size(); ++c) {
+            const QString value = c < cells.size() ? cells.at(c).trimmed() : QString();
+            table->setItem(row, c + 3, new QTableWidgetItem(value));
+        }
+    }
+    table->resizeColumnsToContents();
+    layout->addWidget(table);
+
+    auto *closeBtn = new QPushButton(tr("Close"), dialog);
+    connect(closeBtn, &QPushButton::clicked, dialog, &QDialog::accept);
+    auto *row = new QHBoxLayout();
+    row->addStretch(1);
+    row->addWidget(closeBtn);
+    layout->addLayout(row);
+
+    dialog->exec();
+    dialog->deleteLater();
+}
+
 void ModelCreatorWindow::showVnReferenceDefaultsTable()
 {
     const QString currentMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -3204,6 +3319,7 @@ void ModelCreatorWindow::previewScript()
             AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
             AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
             AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+            AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
             AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
             options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
             if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
@@ -3511,6 +3627,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignIntIfProvided(rLateralCellsEdit, &options.rLateralCells);
         AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
         AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
+        AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
         AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
         options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
         if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
@@ -3531,6 +3648,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         rMetadata << QStringLiteral("# r_bioswale_ui:lateral_cells=%1").arg(options.rLateralCells);
         rMetadata << QStringLiteral("# r_bioswale_ui:street_width=%1").arg(options.rStreetWidth);
         rMetadata << QStringLiteral("# r_bioswale_ui:street_cells=%1").arg(options.rStreetCells);
+        rMetadata << QStringLiteral("# r_bioswale_ui:vertical_layers_nz=%1").arg(options.rVerticalLayers);
         rMetadata << QStringLiteral("# r_bioswale_ui:anisotropy_ratio=%1").arg(options.rAnisoRatio);
         if (!options.rSoilPropsFile.isEmpty()) {
             rMetadata << QStringLiteral("# r_bioswale_ui:soil_props_file=%1").arg(options.rSoilPropsFile);
@@ -5153,6 +5271,7 @@ void ModelCreatorWindow::loadSettings()
     rLengthEdit->setText(settingTextOrDefault("rLength", "8"));
     rStreetWidthEdit->setText(settingTextOrDefault("rStreetWidth", "5"));
     rStreetCellsEdit->setText(settingTextOrDefault("rStreetCells", "10"));
+    rVerticalLayersEdit->setText(settingTextOrDefault("rVerticalLayers", ""));
     rAnisoRatioEdit->setText(settingTextOrDefault("rAnisoRatio", "5"));
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
@@ -5277,6 +5396,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("rLength", rLengthEdit->text());
     settings.setValue("rStreetWidth", rStreetWidthEdit->text());
     settings.setValue("rStreetCells", rStreetCellsEdit->text());
+    settings.setValue("rVerticalLayers", rVerticalLayersEdit->text());
     settings.setValue("rAnisoRatio", rAnisoRatioEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
