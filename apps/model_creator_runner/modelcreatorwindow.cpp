@@ -715,8 +715,6 @@ bool IsHqSoftCustomizationRequested(const StarterScriptOptions &options)
     const QString defaultMode = defaults.vnSoftSoilParamMode.trimmed();
     return !options.vnSoftSoilParameterFile.trimmed().isEmpty()
         || mode.compare(defaultMode, Qt::CaseInsensitive) != 0
-        || options.hqSoftRadialCells > 0
-        || options.hqSoftShallowLayers > 0
         || options.hqSoftWellDepth > 0.0
         || options.hqSoftWellRadius > 0.0
         || options.hqSoftPondRadius > 0.0

@@ -3126,16 +3126,10 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
             }
         }
     }
-    const int effectiveLayers = options.hqSoftShallowLayers > 0
-        ? options.hqSoftShallowLayers
-        : qMax(1, detectedLayers);
-    const int effectiveRadials = options.hqSoftRadialCells > 0
-        ? options.hqSoftRadialCells
-        : qMax(1, detectedRadials);
+    const int effectiveLayers = qMax(1, detectedLayers);
+    const int effectiveRadials = qMax(1, detectedRadials);
     const bool applyGeometryOverrides =
-        options.hqSoftShallowLayers > 0
-        || options.hqSoftRadialCells > 0
-        || options.hqSoftWellDepth > 0.0
+        options.hqSoftWellDepth > 0.0
         || options.hqSoftWellRadius > 0.0
         || options.hqSoftPondRadius > 0.0
         || options.hqSoftSurfaceElevation > 0.0;
@@ -3152,9 +3146,7 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
         return std::fabs(a - b) <= 1e-9;
     };
     const bool geometryIsReferenceEquivalent =
-        (options.hqSoftShallowLayers <= 0 || options.hqSoftShallowLayers == detectedLayers)
-        && (options.hqSoftRadialCells <= 0 || options.hqSoftRadialCells == detectedRadials)
-        && (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
+        (options.hqSoftWellDepth <= 0.0 || nearlyEqual(options.hqSoftWellDepth, fallbackWellDepth))
         && (options.hqSoftWellRadius <= 0.0 || nearlyEqual(options.hqSoftWellRadius, fallbackWellRadius))
         && (options.hqSoftPondRadius <= 0.0 || nearlyEqual(options.hqSoftPondRadius, fallbackPondRadius))
         && (options.hqSoftSurfaceElevation <= 0.0 || nearlyEqual(options.hqSoftSurfaceElevation, inferredSurfaceElevation));
@@ -3165,7 +3157,6 @@ QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options)
     if (geometryIsReferenceEquivalent && usesReferenceSoilDefaults) {
         return embedded;
     }
-    QSet<QString> keptSoilBlocks;
     for (const QString &rawLine : lines) {
         const QString trimmed = rawLine.trimmed();
         if (trimmed.startsWith(QStringLiteral("create block;type=Soil"), Qt::CaseInsensitive)) {
