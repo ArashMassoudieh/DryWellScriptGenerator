@@ -46,6 +46,7 @@ private slots:
     void chooseVnSoftSoilParameterFile();
     void chooseRBioswaleSoilPropsFile();
     void showRBioswaleSoilPropsTable();
+    void showHqSoilPropsTable();
     void showVnReferenceDefaultsTable();
     void loadAdditionalCommandsFromFile();
     void applySuggestedDefaults();
@@ -179,11 +180,11 @@ private:
     QLineEdit *rSystemWidthEdit;
     QLineEdit *rBioSwaleDepthEdit;
     QLineEdit *rSoilPropsFileEdit;
+    QLineEdit *rVerticalLayersEdit;
     QLineEdit *rLateralCellsEdit;
     QLineEdit *rLengthEdit;
     QLineEdit *rStreetWidthEdit;
     QLineEdit *rStreetCellsEdit;
-    QLineEdit *rVerticalLayersEdit;
     QLineEdit *rAnisoRatioEdit;
     QComboBox *vnInitThetaModeCombo;
     QLineEdit *vnFieldPointsEdit;

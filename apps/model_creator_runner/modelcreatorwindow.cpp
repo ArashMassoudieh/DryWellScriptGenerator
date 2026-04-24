@@ -3032,6 +3032,223 @@ void ModelCreatorWindow::showRBioswaleSoilPropsTable()
     dialog->show();
 }
 
+
+void ModelCreatorWindow::showHqSoilPropsTable()
+{
+    const QString mode = vnSoftSoilParamModeCombo ? vnSoftSoilParamModeCombo->currentData().toString().trimmed() : QString();
+    const QString compactMode = QString(mode).toLower().remove(' ').remove('_').remove('-');
+    const bool fileMode = mode.compare(QStringLiteral("File"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("file")
+        || compactMode == QStringLiteral("filedepthprofile");
+    const bool modelCreatorDefaults = mode.compare(QStringLiteral("ModelCreatorDefaults"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("modelcreatordefaults");
+    const bool referenceDefaults = mode.compare(QStringLiteral("ReferenceDefaults"), Qt::CaseInsensitive) == 0
+        || compactMode == QStringLiteral("referencedefaults")
+        || compactMode == QStringLiteral("vnrefdefaults")
+        || compactMode == QStringLiteral("vnreferencedefaults");
+
+    bool layersOk = false;
+    int layers = hqSoftShallowLayersEdit ? hqSoftShallowLayersEdit->text().trimmed().toInt(&layersOk) : 0;
+    if (!layersOk || layers <= 0) {
+        layers = 34;
+        if (hqSoftShallowLayersEdit) {
+            const QSignalBlocker blocker(hqSoftShallowLayersEdit);
+            hqSoftShallowLayersEdit->setText(QString::number(layers));
+            SetAutoSuggestedField(hqSoftShallowLayersEdit, true);
+        }
+    }
+
+    bool wellDepthOk = false;
+    const double wellDepth = hqSoftWellDepthEdit ? hqSoftWellDepthEdit->text().trimmed().toDouble(&wellDepthOk) : 0.0;
+    const double effectiveWellDepth = (wellDepthOk && wellDepth > 0.0) ? wellDepth : 20.0;
+    const double dz = effectiveWellDepth / static_cast<double>(qMax(1, layers));
+
+    struct Row {
+        int sourceRow = 0;
+        double sourceDepth = 0.0;
+        double ksat = 1.0;
+        double alpha = 1.0;
+        double n = 1.41;
+        double thetaSat = 0.4;
+        double thetaRes = 0.05;
+    };
+
+    auto norm = [](QString h) {
+        h = h.trimmed().toLower();
+        h.remove(QLatin1Char(' '));
+        h.remove(QLatin1Char('_'));
+        h.remove(QLatin1Char('-'));
+        return h;
+    };
+    auto split = [](const QString &line) {
+        return line.split(QRegularExpression(QStringLiteral("[,;\\t]")), Qt::KeepEmptyParts);
+    };
+    auto getValue = [&](const QStringList &cells, const QHash<QString, int> &index, std::initializer_list<QString> names, double *value) {
+        for (const QString &name : names) {
+            const auto it = index.constFind(norm(name));
+            if (it == index.constEnd()) continue;
+            const int c = it.value();
+            if (c < 0 || c >= cells.size()) continue;
+            bool ok = false;
+            const double v = cells.at(c).trimmed().toDouble(&ok);
+            if (ok && std::isfinite(v)) {
+                *value = v;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    QVector<Row> fileRows;
+    QString filePath = vnSoftSoilParameterFileEdit ? vnSoftSoilParameterFileEdit->text().trimmed() : QString();
+    QString note;
+    if (fileMode) {
+        if (filePath.isEmpty()) {
+            QMessageBox::warning(this, tr("HQ soil table"), tr("HQ soil mode is File, but no soil-parameter file is selected."));
+            return;
+        }
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QMessageBox::warning(this, tr("HQ soil table"), tr("Could not open:\n%1").arg(filePath));
+            return;
+        }
+        QStringList lines = QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
+        for (QString &line : lines) line = line.trimmed();
+        lines.removeAll(QString());
+        if (lines.size() < 2) {
+            QMessageBox::warning(this, tr("HQ soil table"), tr("Selected soil-parameter file has no data rows."));
+            return;
+        }
+        const QStringList headers = split(lines.first());
+        QHash<QString, int> idx;
+        for (int c = 0; c < headers.size(); ++c) idx.insert(norm(headers.at(c)), c);
+        for (int i = 1; i < lines.size(); ++i) {
+            const QStringList cells = split(lines.at(i));
+            Row row;
+            row.sourceRow = i;
+            if (!getValue(cells, idx, {QStringLiteral("depth"), QStringLiteral("depth_m")}, &row.sourceDepth)) continue;
+            getValue(cells, idx, {QStringLiteral("ksat"), QStringLiteral("k_sat_original")}, &row.ksat);
+            getValue(cells, idx, {QStringLiteral("alpha")}, &row.alpha);
+            getValue(cells, idx, {QStringLiteral("n")}, &row.n);
+            getValue(cells, idx, {QStringLiteral("theta_s"), QStringLiteral("theta_sat")}, &row.thetaSat);
+            getValue(cells, idx, {QStringLiteral("theta_r"), QStringLiteral("theta_res")}, &row.thetaRes);
+            fileRows.push_back(row);
+        }
+        std::sort(fileRows.begin(), fileRows.end(), [](const Row &a, const Row &b) { return a.sourceDepth < b.sourceDepth; });
+        if (fileRows.isEmpty()) {
+            QMessageBox::warning(this, tr("HQ soil table"), tr("No valid depth rows were found in the selected file."));
+            return;
+        }
+        note = tr("File mode: shown values are interpolated at each HQ layer midpoint.");
+    } else if (modelCreatorDefaults) {
+        note = tr("ModelCreatorDefaults mode: all HQ layers use ModelCreator defaults.");
+    } else if (referenceDefaults) {
+        note = tr("ReferenceDefaults mode: preview shows embedded reference defaults; actual existing blocks can keep their original block parameters.");
+    } else {
+        note = tr("Manual mode: all HQ layers use the current manual UI values.");
+    }
+
+    auto resolveFile = [&](double depth) {
+        Row out;
+        out.sourceDepth = depth;
+        if (fileRows.isEmpty()) return out;
+        if (depth <= fileRows.first().sourceDepth) {
+            out = fileRows.first();
+            return out;
+        }
+        if (depth >= fileRows.last().sourceDepth) {
+            out = fileRows.last();
+            return out;
+        }
+        for (int i = 1; i < fileRows.size(); ++i) {
+            const Row &a = fileRows.at(i - 1);
+            const Row &b = fileRows.at(i);
+            if (depth < a.sourceDepth || depth > b.sourceDepth) continue;
+            const double span = b.sourceDepth - a.sourceDepth;
+            const double w = (span > 0.0) ? (depth - a.sourceDepth) / span : 1.0;
+            out.sourceRow = b.sourceRow;
+            out.sourceDepth = depth;
+            out.ksat = a.ksat + w * (b.ksat - a.ksat);
+            out.alpha = a.alpha + w * (b.alpha - a.alpha);
+            out.n = a.n + w * (b.n - a.n);
+            out.thetaSat = a.thetaSat + w * (b.thetaSat - a.thetaSat);
+            out.thetaRes = a.thetaRes + w * (b.thetaRes - a.thetaRes);
+            return out;
+        }
+        return fileRows.last();
+    };
+
+    auto *dialog = new QDialog(this);
+    dialog->setWindowTitle(tr("HQ soil parameters by layer"));
+    dialog->resize(940, 560);
+    auto *layout = new QVBoxLayout(dialog);
+
+    bool nrOk = false;
+    const int nr = hqSoftRadialCellsEdit ? hqSoftRadialCellsEdit->text().trimmed().toInt(&nrOk) : 0;
+    auto *summary = new QLabel(tr("Mode: %1\nFile: %2\nHQ nr: %3\nHQ layers/nz: %4\nWell depth: %5 m\nLayer dz: %6 m\n%7")
+                                   .arg(mode.isEmpty() ? QStringLiteral("Manual") : mode)
+                                   .arg(filePath.isEmpty() ? QStringLiteral("(none)") : filePath)
+                                   .arg((nrOk && nr > 0) ? QString::number(nr) : QStringLiteral("10"))
+                                   .arg(layers)
+                                   .arg(effectiveWellDepth, 0, 'g', 10)
+                                   .arg(dz, 0, 'g', 10)
+                                   .arg(note), dialog);
+    summary->setWordWrap(true);
+    layout->addWidget(summary);
+
+    QStringList headers;
+    headers << tr("layer") << tr("mid_depth_m") << tr("source") << tr("Ksat") << tr("alpha") << tr("n") << tr("theta_sat") << tr("theta_res");
+    auto *table = new QTableWidget(dialog);
+    table->setColumnCount(headers.size());
+    table->setHorizontalHeaderLabels(headers);
+    table->setRowCount(layers);
+    table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setAlternatingRowColors(true);
+
+    for (int i = 0; i < layers; ++i) {
+        const int layer = i + 1;
+        const double midDepth = (static_cast<double>(i) + 0.5) * dz;
+        Row row;
+        QString source;
+        if (fileMode) {
+            row = resolveFile(midDepth);
+            source = tr("file/interpolated row %1").arg(row.sourceRow);
+        } else if (modelCreatorDefaults) {
+            row.ksat = 1.05196; row.alpha = 3.47536; row.n = 1.74582; row.thetaSat = 0.39; row.thetaRes = 0.049;
+            source = tr("ModelCreatorDefaults");
+        } else if (referenceDefaults) {
+            row.ksat = 1.0; row.alpha = 1.0; row.n = 1.41; row.thetaSat = 0.4; row.thetaRes = 0.05;
+            source = tr("reference/default preview");
+        } else {
+            row.ksat = vnSoftSoilKsatOriginalEdit ? vnSoftSoilKsatOriginalEdit->text().toDouble() : 1.0;
+            row.alpha = vnSoftSoilAlphaEdit ? vnSoftSoilAlphaEdit->text().toDouble() : 1.0;
+            row.n = vnSoftSoilNEdit ? vnSoftSoilNEdit->text().toDouble() : 1.41;
+            row.thetaSat = vnSoftSoilThetaSatEdit ? vnSoftSoilThetaSatEdit->text().toDouble() : 0.4;
+            row.thetaRes = vnSoftSoilThetaResEdit ? vnSoftSoilThetaResEdit->text().toDouble() : 0.05;
+            source = tr("manual UI values");
+        }
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(layer)));
+        table->setItem(i, 1, new QTableWidgetItem(QString::number(midDepth, 'g', 10)));
+        table->setItem(i, 2, new QTableWidgetItem(source));
+        table->setItem(i, 3, new QTableWidgetItem(QString::number(row.ksat, 'g', 10)));
+        table->setItem(i, 4, new QTableWidgetItem(QString::number(row.alpha, 'g', 10)));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(row.n, 'g', 10)));
+        table->setItem(i, 6, new QTableWidgetItem(QString::number(row.thetaSat, 'g', 10)));
+        table->setItem(i, 7, new QTableWidgetItem(QString::number(row.thetaRes, 'g', 10)));
+    }
+
+    table->resizeColumnsToContents();
+    layout->addWidget(table, 1);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, dialog);
+    connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
+}
+
 void ModelCreatorWindow::showVnReferenceDefaultsTable()
 {
     const QString currentMode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
