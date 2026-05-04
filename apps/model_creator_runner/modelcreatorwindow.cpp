@@ -6641,6 +6641,69 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
 }
 
 
+
+QStringList ModelCreatorWindow::createVnPvdSidecars(const QString &vtkDir,
+                                                    const QStringList &prefixes,
+                                                    int timestepCount,
+                                                    const QVector<double> &times)
+{
+    QStringList created;
+    if (vtkDir.trimmed().isEmpty() || timestepCount <= 0) {
+        return created;
+    }
+
+    QDir dir(vtkDir);
+    if (!dir.exists()) {
+        return created;
+    }
+
+    const auto xmlEscape = [](QString value) {
+        value.replace('&', QStringLiteral("&amp;"));
+        value.replace('<', QStringLiteral("&lt;"));
+        value.replace('>', QStringLiteral("&gt;"));
+        value.replace('"', QStringLiteral("&quot;"));
+        value.replace('\'', QStringLiteral("&apos;"));
+        return value;
+    };
+
+    for (const QString &prefix : prefixes) {
+        const QStringList files = dir.entryList(QStringList() << QStringLiteral("%1_*.vtp").arg(prefix),
+                                                QDir::Files | QDir::NoSymLinks,
+                                                QDir::Name);
+        if (files.isEmpty()) {
+            continue;
+        }
+
+        const QString pvdPath = dir.filePath(QStringLiteral("%1.pvd").arg(prefix));
+        QSaveFile out(pvdPath);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            appendLog(stamp(tr("VN VTK PVD export warning: could not open %1 for writing.").arg(pvdPath)));
+            continue;
+        }
+
+        QTextStream ts(&out);
+        ts << "<?xml version=\"1.0\"?>\n";
+        ts << "<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+        ts << "  <Collection>\n";
+        const int n = qMin(files.size(), timestepCount);
+        for (int i = 0; i < n; ++i) {
+            const double t = (i < times.size()) ? times.at(i) : static_cast<double>(i);
+            ts << "    <DataSet timestep=\"" << QString::number(t, 'g', 15)
+               << "\" group=\"\" part=\"0\" file=\"" << xmlEscape(files.at(i)) << "\"/>\n";
+        }
+        ts << "  </Collection>\n";
+        ts << "</VTKFile>\n";
+
+        if (out.commit()) {
+            created << pvdPath;
+        } else {
+            appendLog(stamp(tr("VN VTK PVD export warning: could not finalize %1.").arg(pvdPath)));
+        }
+    }
+
+    return created;
+}
+
 QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
 {
     QStringList created;
@@ -6749,6 +6812,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     QDir().mkpath(vtkDir);
     int rowIndex = 0;
     int written = 0;
+    QVector<double> times;
     while (!in.atEnd()) {
         const QString line = in.readLine().trimmed();
         if (line.isEmpty()) {
@@ -6766,7 +6830,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
                 t = parsedT;
             }
         }
-        Q_UNUSED(t);
+        times.push_back(t);
 
         for (const QuantitySpec &spec : quantities) {
             if (spec.blockToColumn.isEmpty()) {
@@ -6807,9 +6871,27 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     }
 
     if (written > 0) {
+        QStringList prefixes;
+        for (const QuantitySpec &spec : quantities) {
+            if (!spec.blockToColumn.isEmpty()) {
+                prefixes << spec.filePrefix;
+            }
+        }
+        const QStringList pvdFiles = createVnPvdSidecars(vtkDir, prefixes, rowIndex, times);
+        for (const QString &path : pvdFiles) {
+            if (!created.contains(path)) {
+                created << path;
+            }
+        }
+
         vnResultGridStatus = QStringLiteral("created_vtp_from_output_series");
-        vnVtkInventoryStatus = QStringLiteral("created_vtp_from_output_series");
+        vnVtkInventoryStatus = pvdFiles.isEmpty()
+            ? QStringLiteral("created_vtp_from_output_series")
+            : QStringLiteral("created_vtp_and_pvd_from_output_series");
         appendLog(stamp(tr("VN VTK export created %1 VTP snapshot file(s) in %2").arg(written).arg(vtkDir)));
+        if (!pvdFiles.isEmpty()) {
+            appendLog(stamp(tr("VN VTK export created %1 PVD time-series file(s).").arg(pvdFiles.size())));
+        }
     } else {
         vnResultGridStatus = QStringLiteral("vtk_skipped_no_matching_theta_or_age_series");
         appendLog(stamp(tr("VN VTK export skipped: no matching theta or mean-age output columns were found for Soil blocks.")));
