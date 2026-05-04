@@ -110,6 +110,7 @@ private:
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
     void updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts);
+    QStringList createVnVtkOutputsFromRunArtifacts();
     QString vnResultGridRuntimeStatus() const;
     QString vnErtSnapshotRuntimeStatus() const;
     QString vnVtkInventoryRuntimeStatus() const;

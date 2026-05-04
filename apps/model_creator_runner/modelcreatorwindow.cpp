@@ -1384,6 +1384,156 @@ bool WriteJsonFile(const QString &path, const QJsonObject &object)
     out.write(QJsonDocument(object).toJson(QJsonDocument::Indented));
     return out.commit();
 }
+
+struct VnVtkBlockPoint
+{
+    QString name;
+    double x = 0.0;
+    double y = 0.0;
+};
+
+QString VnXmlEscape(const QString &text)
+{
+    QString out = text;
+    out.replace('&', QStringLiteral("&amp;"));
+    out.replace('<', QStringLiteral("&lt;"));
+    out.replace('>', QStringLiteral("&gt;"));
+    out.replace('"', QStringLiteral("&quot;"));
+    out.replace('\'', QStringLiteral("&apos;"));
+    return out;
+}
+
+QString VnScriptCommandValue(const QString &line, const QString &key)
+{
+    const QRegularExpression re(QStringLiteral("(?:^|[;,\\s])%1=([^,;\\r\\n]*)").arg(QRegularExpression::escape(key)),
+                                QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = re.match(line);
+    return match.hasMatch() ? match.captured(1).trimmed() : QString();
+}
+
+QVector<VnVtkBlockPoint> VnReadSoilBlockGeometryForVtk(const QString &scriptPath)
+{
+    QVector<VnVtkBlockPoint> blocks;
+    QFile file(scriptPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return blocks;
+    }
+
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        const QString line = in.readLine().trimmed();
+        if (!line.startsWith(QStringLiteral("create block"), Qt::CaseInsensitive)
+            || !line.contains(QStringLiteral("type=Soil"), Qt::CaseInsensitive)) {
+            continue;
+        }
+
+        bool okX = false;
+        bool okY = false;
+        const QString name = VnScriptCommandValue(line, QStringLiteral("name"));
+        const double x = VnScriptCommandValue(line, QStringLiteral("act_X")).toDouble(&okX);
+        const double y = VnScriptCommandValue(line, QStringLiteral("act_Y")).toDouble(&okY);
+        if (name.isEmpty() || !okX || !okY || !std::isfinite(x) || !std::isfinite(y)) {
+            continue;
+        }
+        VnVtkBlockPoint pt;
+        pt.name = name;
+        pt.x = x;
+        pt.y = y;
+        blocks.push_back(pt);
+    }
+    return blocks;
+}
+
+QStringList VnSplitDelimitedLine(const QString &line)
+{
+    if (line.contains(',')) {
+        return line.split(',', Qt::KeepEmptyParts);
+    }
+    if (line.contains('\t')) {
+        return line.split('\t', Qt::KeepEmptyParts);
+    }
+    return line.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+}
+
+int VnFindTimeColumn(const QStringList &header)
+{
+    for (int i = 0; i < header.size(); ++i) {
+        const QString h = header.at(i).trimmed();
+        if (h.compare(QStringLiteral("time"), Qt::CaseInsensitive) == 0
+            || h.compare(QStringLiteral("t"), Qt::CaseInsensitive) == 0
+            || h.contains(QStringLiteral("time"), Qt::CaseInsensitive)) {
+            return i;
+        }
+    }
+    return header.isEmpty() ? -1 : 0;
+}
+
+QString VnSanitizeFileToken(QString token)
+{
+    token.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9_+.-]+")), QStringLiteral("_"));
+    while (token.contains(QStringLiteral("__"))) {
+        token.replace(QStringLiteral("__"), QStringLiteral("_"));
+    }
+    return token.trimmed().isEmpty() ? QStringLiteral("quantity") : token;
+}
+
+bool VnWritePointCloudVtp(const QString &path,
+                          const QString &scalarName,
+                          const QVector<VnVtkBlockPoint> &points,
+                          const QVector<double> &values,
+                          QString *errorMessage)
+{
+    if (points.isEmpty() || points.size() != values.size()) {
+        if (errorMessage) *errorMessage = QObject::tr("Invalid VTP point/value array sizes.");
+        return false;
+    }
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile out(path);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (errorMessage) *errorMessage = QObject::tr("Unable to open VTP output: %1").arg(path);
+        return false;
+    }
+
+    QTextStream ts(&out);
+    ts.setRealNumberPrecision(15);
+    const int n = points.size();
+    ts << "<?xml version=\"1.0\"?>\n";
+    ts << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+    ts << "  <PolyData>\n";
+    ts << "    <Piece NumberOfPoints=\"" << n << "\" NumberOfVerts=\"" << n << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+    ts << "      <PointData Scalars=\"" << VnXmlEscape(scalarName) << "\">\n";
+    ts << "        <DataArray type=\"Float64\" Name=\"" << VnXmlEscape(scalarName) << "\" format=\"ascii\">\n          ";
+    for (double v : values) {
+        ts << (std::isfinite(v) ? v : 0.0) << ' ';
+    }
+    ts << "\n        </DataArray>\n";
+    ts << "      </PointData>\n";
+    ts << "      <Points>\n";
+    ts << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n          ";
+    for (const auto &pt : points) {
+        ts << pt.x << ' ' << pt.y << " 0 ";
+    }
+    ts << "\n        </DataArray>\n";
+    ts << "      </Points>\n";
+    ts << "      <Verts>\n";
+    ts << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (int i = 0; i < n; ++i) ts << i << ' ';
+    ts << "\n        </DataArray>\n";
+    ts << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+    for (int i = 0; i < n; ++i) ts << (i + 1) << ' ';
+    ts << "\n        </DataArray>\n";
+    ts << "      </Verts>\n";
+    ts << "    </Piece>\n";
+    ts << "  </PolyData>\n";
+    ts << "</VTKFile>\n";
+
+    if (!out.commit()) {
+        if (errorMessage) *errorMessage = QObject::tr("Unable to finalize VTP output: %1").arg(path);
+        return false;
+    }
+    return true;
+}
+
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -2347,7 +2497,14 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
 
         refreshPlots();
 
-        const QStringList artifacts = collectRunArtifacts();
+        const QStringList generatedVtkArtifacts = createVnVtkOutputsFromRunArtifacts();
+        QStringList artifacts = collectRunArtifacts();
+        for (const QString &file : generatedVtkArtifacts) {
+            if (!artifacts.contains(file)) {
+                artifacts << file;
+            }
+        }
+        artifacts.sort();
         if (artifacts.isEmpty()) {
             appendLog(stamp(tr("No new artifacts detected in working directory.")));
             return;
@@ -5789,7 +5946,7 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
     for (const QString &path : artifacts) {
         const QString ext = QFileInfo(path).suffix().toLower();
         if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
-            ext == QStringLiteral("vti") || ext == QStringLiteral("pvd")) {
+            ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb") || ext == QStringLiteral("pvd")) {
             foundVtkFamilyFile = true;
             break;
         }
@@ -6417,7 +6574,7 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         const QFileInfo fi = it.fileInfo();
         const QString ext = fi.suffix().toLower();
         if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
-            ext == QStringLiteral("vti") || ext == QStringLiteral("pvd")) {
+            ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb") || ext == QStringLiteral("pvd")) {
             vtkFiles << fi.absoluteFilePath();
         }
     }
@@ -6483,6 +6640,184 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
     saveSettings();
 }
 
+
+QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
+{
+    QStringList created;
+    if (modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) != 0) {
+        return created;
+    }
+
+    const QString scriptPath = scriptPathEdit->text().trimmed();
+    const QString workingDirectory = workingDirEdit->text().trimmed();
+    if (scriptPath.isEmpty() || workingDirectory.isEmpty()) {
+        return created;
+    }
+
+    const QVector<VnVtkBlockPoint> geometry = VnReadSoilBlockGeometryForVtk(scriptPath);
+    if (geometry.isEmpty()) {
+        vnResultGridStatus = QStringLiteral("vtk_skipped_no_soil_geometry");
+        appendLog(stamp(tr("VN VTK export skipped: no Soil block geometry was found in the generated script.")));
+        return created;
+    }
+
+    QString outputPath = outputSeriesFileEdit->text().trimmed();
+    if (outputPath.isEmpty()) {
+        outputPath = QDir(workingDirectory).filePath(QStringLiteral("OHQ_output.txt"));
+    } else if (QFileInfo(outputPath).isRelative()) {
+        outputPath = QDir(workingDirectory).filePath(outputPath);
+    }
+    QFile outputFile(outputPath);
+    if (!outputFile.exists()) {
+        const QString fallback1 = QDir(workingDirectory).filePath(QStringLiteral("output.txt"));
+        const QString fallback2 = QDir(workingDirectory).filePath(QStringLiteral("Output_LR.txt"));
+        if (QFileInfo::exists(fallback1)) {
+            outputPath = fallback1;
+        } else if (QFileInfo::exists(fallback2)) {
+            outputPath = fallback2;
+        } else {
+            vnResultGridStatus = QStringLiteral("vtk_skipped_no_output_series_file");
+            appendLog(stamp(tr("VN VTK export skipped: output time-series file was not found.")));
+            return created;
+        }
+    }
+
+    QFile file(outputPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        vnResultGridStatus = QStringLiteral("vtk_skipped_output_series_unreadable");
+        appendLog(stamp(tr("VN VTK export skipped: could not read output file %1").arg(outputPath)));
+        return created;
+    }
+
+    QTextStream in(&file);
+    QString headerLine;
+    while (!in.atEnd() && headerLine.trimmed().isEmpty()) {
+        headerLine = in.readLine();
+    }
+    if (headerLine.trimmed().isEmpty()) {
+        vnResultGridStatus = QStringLiteral("vtk_skipped_empty_output_series_file");
+        appendLog(stamp(tr("VN VTK export skipped: output file is empty.")));
+        return created;
+    }
+
+    const QStringList header = VnSplitDelimitedLine(headerLine);
+    if (header.size() < 2) {
+        vnResultGridStatus = QStringLiteral("vtk_skipped_unrecognized_output_series_header");
+        appendLog(stamp(tr("VN VTK export skipped: output header was not recognized.")));
+        return created;
+    }
+
+    const int timeColumn = VnFindTimeColumn(header);
+    struct QuantitySpec {
+        QString seriesQuantity;
+        QString scalarName;
+        QString filePrefix;
+        QMap<int, int> blockToColumn;
+    };
+
+    QVector<QuantitySpec> quantities;
+    QuantitySpec theta;
+    theta.seriesQuantity = QStringLiteral("theta");
+    theta.scalarName = QStringLiteral("Moisture_content");
+    theta.filePrefix = QStringLiteral("moisture");
+    quantities.push_back(theta);
+
+    QuantitySpec age;
+    age.seriesQuantity = QStringLiteral("meanagetracer:concentration");
+    age.scalarName = QStringLiteral("Mean_Age");
+    age.filePrefix = QStringLiteral("mean_age");
+    quantities.push_back(age);
+
+    for (QuantitySpec &spec : quantities) {
+        for (int b = 0; b < geometry.size(); ++b) {
+            const QString expected1 = geometry.at(b).name + QStringLiteral("_") + spec.seriesQuantity;
+            const QString expected2 = geometry.at(b).name + QStringLiteral(":") + spec.seriesQuantity;
+            for (int c = 0; c < header.size(); ++c) {
+                const QString h = header.at(c).trimmed();
+                if (h.compare(expected1, Qt::CaseInsensitive) == 0
+                    || h.compare(expected2, Qt::CaseInsensitive) == 0
+                    || (h.contains(geometry.at(b).name, Qt::CaseInsensitive)
+                        && h.contains(spec.seriesQuantity, Qt::CaseInsensitive))) {
+                    spec.blockToColumn.insert(b, c);
+                    break;
+                }
+            }
+        }
+    }
+
+    const QString vtkDir = QDir(workingDirectory).filePath(QStringLiteral("Moisture"));
+    QDir().mkpath(vtkDir);
+    int rowIndex = 0;
+    int written = 0;
+    while (!in.atEnd()) {
+        const QString line = in.readLine().trimmed();
+        if (line.isEmpty()) {
+            continue;
+        }
+        const QStringList fields = VnSplitDelimitedLine(line);
+        if (fields.size() < header.size()) {
+            continue;
+        }
+        double t = rowIndex;
+        if (timeColumn >= 0 && timeColumn < fields.size()) {
+            bool okT = false;
+            const double parsedT = fields.at(timeColumn).trimmed().toDouble(&okT);
+            if (okT && std::isfinite(parsedT)) {
+                t = parsedT;
+            }
+        }
+        Q_UNUSED(t);
+
+        for (const QuantitySpec &spec : quantities) {
+            if (spec.blockToColumn.isEmpty()) {
+                continue;
+            }
+            QVector<VnVtkBlockPoint> pts;
+            QVector<double> vals;
+            pts.reserve(spec.blockToColumn.size());
+            vals.reserve(spec.blockToColumn.size());
+            for (auto it = spec.blockToColumn.constBegin(); it != spec.blockToColumn.constEnd(); ++it) {
+                const int blockIndex = it.key();
+                const int columnIndex = it.value();
+                if (blockIndex < 0 || blockIndex >= geometry.size() || columnIndex < 0 || columnIndex >= fields.size()) {
+                    continue;
+                }
+                bool okV = false;
+                const double value = fields.at(columnIndex).trimmed().toDouble(&okV);
+                if (!okV || !std::isfinite(value)) {
+                    continue;
+                }
+                pts.push_back(geometry.at(blockIndex));
+                vals.push_back(value);
+            }
+            if (pts.isEmpty()) {
+                continue;
+            }
+            const QString fileName = QStringLiteral("%1_%2.vtp").arg(spec.filePrefix).arg(rowIndex + 1, 4, 10, QLatin1Char('0'));
+            const QString outPath = QDir(vtkDir).filePath(fileName);
+            QString error;
+            if (VnWritePointCloudVtp(outPath, spec.scalarName, pts, vals, &error)) {
+                created << outPath;
+                ++written;
+            } else if (!error.trimmed().isEmpty()) {
+                appendLog(stamp(tr("VN VTK export warning: %1").arg(error)));
+            }
+        }
+        ++rowIndex;
+    }
+
+    if (written > 0) {
+        vnResultGridStatus = QStringLiteral("created_vtp_from_output_series");
+        vnVtkInventoryStatus = QStringLiteral("created_vtp_from_output_series");
+        appendLog(stamp(tr("VN VTK export created %1 VTP snapshot file(s) in %2").arg(written).arg(vtkDir)));
+    } else {
+        vnResultGridStatus = QStringLiteral("vtk_skipped_no_matching_theta_or_age_series");
+        appendLog(stamp(tr("VN VTK export skipped: no matching theta or mean-age output columns were found for Soil blocks.")));
+    }
+
+    return created;
+}
+
 QStringList ModelCreatorWindow::collectRunArtifacts() const
 {
     QStringList out;
@@ -6498,7 +6833,7 @@ QStringList ModelCreatorWindow::collectRunArtifacts() const
     QDirIterator it(workingDirectory, QDir::Files, QDirIterator::Subdirectories);
     const QDateTime threshold = runStartedAt.addSecs(-1);
 
-    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu", "vti", "pvd"};
+    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu", "vti", "vtm", "vtmb", "pvd"};
 
     while (it.hasNext()) {
         it.next();
