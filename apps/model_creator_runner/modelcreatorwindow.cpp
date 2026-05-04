@@ -2248,6 +2248,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         solveProgressObserved = false;
         vnResultGridStatus = QStringLiteral("not_run_in_current_app");
         vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
+        vnVtkInventoryStatus = QStringLiteral("not_run_in_current_app");
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -3744,6 +3745,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
         meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
         meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
+        meta.insert(QStringLiteral("vtk_inventory_runtime_status"), vnVtkInventoryRuntimeStatus());
         return meta;
     };
 
@@ -4175,6 +4177,7 @@ void ModelCreatorWindow::runScript()
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
         meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
         meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
+        meta.insert(QStringLiteral("vtk_inventory_runtime_status"), vnVtkInventoryRuntimeStatus());
         QJsonArray argsArray;
         for (const QString &arg : args) {
             argsArray.append(arg);
@@ -5340,7 +5343,7 @@ QStringList ModelCreatorWindow::collectExportArtifacts() const
     }
 
     QDirIterator it(workingDirectory, QDir::Files, QDirIterator::Subdirectories);
-    static const QStringList exportExt = {"vtk", "vtp", "vtu", "csv", "txt"};
+    static const QStringList exportExt = {"vtk", "vtp", "vtu", "vti", "pvd", "csv", "txt"};
     while (it.hasNext()) {
         it.next();
         const QFileInfo fi = it.fileInfo();
@@ -5358,7 +5361,7 @@ void ModelCreatorWindow::exportArtifacts()
     if (files.isEmpty()) {
         QMessageBox::information(this,
                                  tr("No artifacts"),
-                                 tr("No .vtk/.vtp/.vtu/.csv/.txt files were found in the current working directory tree."));
+                                 tr("No .vtk/.vtp/.vtu/.vti/.pvd/.csv/.txt files were found in the current working directory tree."));
         return;
     }
 
@@ -5770,6 +5773,30 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
             vnErtSnapshotStatus = QStringLiteral("detected_ert_snapshot_in_run_artifacts");
         }
     }
+
+    QString configuredVtkInventoryPath = vtkInventoryExportEdit->text().trimmed();
+    if (configuredVtkInventoryPath.isEmpty() && !workingDir.isEmpty()) {
+        configuredVtkInventoryPath = QDir(workingDir).filePath(QStringLiteral("vtk_inventory.csv"));
+    }
+    if (!configuredVtkInventoryPath.isEmpty()) {
+        const QString vtkInventoryPath = normalizePath(toAbsolutePath(configuredVtkInventoryPath));
+        if (normalizedArtifacts.contains(vtkInventoryPath)) {
+            vnVtkInventoryStatus = QStringLiteral("detected_vtk_inventory_in_run_artifacts");
+        }
+    }
+
+    bool foundVtkFamilyFile = false;
+    for (const QString &path : artifacts) {
+        const QString ext = QFileInfo(path).suffix().toLower();
+        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
+            ext == QStringLiteral("vti") || ext == QStringLiteral("pvd")) {
+            foundVtkFamilyFile = true;
+            break;
+        }
+    }
+    if (foundVtkFamilyFile && vnVtkInventoryStatus == QStringLiteral("not_run_in_current_app")) {
+        vnVtkInventoryStatus = QStringLiteral("detected_vtk_files_in_run_artifacts");
+    }
 }
 
 QString ModelCreatorWindow::vnResultGridRuntimeStatus() const
@@ -5784,6 +5811,14 @@ QString ModelCreatorWindow::vnErtSnapshotRuntimeStatus() const
     return vnErtSnapshotStatus.trimmed().isEmpty()
         ? QStringLiteral("not_run_in_current_app")
         : vnErtSnapshotStatus.trimmed();
+}
+
+
+QString ModelCreatorWindow::vnVtkInventoryRuntimeStatus() const
+{
+    return vnVtkInventoryStatus.trimmed().isEmpty()
+        ? QStringLiteral("not_run_in_current_app")
+        : vnVtkInventoryStatus.trimmed();
 }
 
 
@@ -5930,6 +5965,7 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));
     root.insert(QStringLiteral("resultgrid_runtime"), vnResultGridRuntimeStatus());
     root.insert(QStringLiteral("ert_snapshot_runtime"), vnErtSnapshotRuntimeStatus());
+    root.insert(QStringLiteral("vtk_inventory_runtime"), vnVtkInventoryRuntimeStatus());
     root.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
 
     QSaveFile out(targetPath);
@@ -6380,14 +6416,15 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         it.next();
         const QFileInfo fi = it.fileInfo();
         const QString ext = fi.suffix().toLower();
-        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu")) {
+        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
+            ext == QStringLiteral("vti") || ext == QStringLiteral("pvd")) {
             vtkFiles << fi.absoluteFilePath();
         }
     }
     vtkFiles.sort();
 
     if (vtkFiles.isEmpty()) {
-        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu files were found under the current working directory."));
+        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu/.vti/.pvd files were found under the current working directory."));
         return;
     }
 
@@ -6433,6 +6470,15 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         return;
     }
 
+    if (modelTypeCombo->currentText().trimmed().compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0) {
+        vnVtkInventoryStatus = QStringLiteral("exported_vtk_inventory_in_app");
+        const QString metadataPath = QDir(workingDirectory).filePath(QStringLiteral("vn_runner_metadata.json"));
+        QString metadataError;
+        if (!writeVnMetadataJson(metadataPath, &metadataError) && !metadataError.trimmed().isEmpty()) {
+            appendLog(stamp(tr("VN metadata JSON was not updated after VTK inventory export: %1").arg(metadataError)));
+        }
+    }
+
     appendLog(stamp(tr("Exported VTK inventory CSV: %1 (%2 file(s))").arg(target).arg(vtkFiles.size())));
     saveSettings();
 }
@@ -6452,7 +6498,7 @@ QStringList ModelCreatorWindow::collectRunArtifacts() const
     QDirIterator it(workingDirectory, QDir::Files, QDirIterator::Subdirectories);
     const QDateTime threshold = runStartedAt.addSecs(-1);
 
-    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu"};
+    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu", "vti", "pvd"};
 
     while (it.hasNext()) {
         it.next();
@@ -6497,7 +6543,7 @@ void ModelCreatorWindow::writeArtifactManifest(const QStringList &artifacts)
     }
 
     QTextStream ts(&manifest);
-    ts << "file_path,file_name,last_modified_utc,model_type,vn_init_theta_mode,vn_field_points,vn_field_seed,vn_field_dx,vn_field_pdf_mode,ksat_all,ksat_g,ksat_uw\n";
+    ts << "file_path,file_name,last_modified_utc,model_type,vn_init_theta_mode,vn_field_points,vn_field_seed,vn_field_dx,vn_field_pdf_mode,ksat_all,ksat_g,ksat_uw,vn_vtk_inventory_runtime_status\n";
     for (const QString &path : artifacts) {
         const QFileInfo fi(path);
         ts << '"' << esc(fi.absoluteFilePath()) << '"' << ','
@@ -6511,7 +6557,8 @@ void ModelCreatorWindow::writeArtifactManifest(const QStringList &artifacts)
            << '"' << esc(effectiveFieldPdf) << '"' << ','
            << '"' << esc(effectiveKsatAll) << '"' << ','
            << '"' << esc(effectiveKsatG) << '"' << ','
-           << '"' << esc(effectiveKsatUw) << '"' << "\n";
+           << '"' << esc(effectiveKsatUw) << '"' << ','
+           << '"' << esc(vnRunContext ? vnVtkInventoryRuntimeStatus() : QString()) << '"' << "\n";
     }
 
     if (manifest.commit()) {

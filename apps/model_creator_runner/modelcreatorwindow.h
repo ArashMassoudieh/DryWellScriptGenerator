@@ -112,6 +112,7 @@ private:
     void updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts);
     QString vnResultGridRuntimeStatus() const;
     QString vnErtSnapshotRuntimeStatus() const;
+    QString vnVtkInventoryRuntimeStatus() const;
     QString currentEffectiveVnInitTheta() const;
     QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;
@@ -303,6 +304,7 @@ private:
     bool inflowAutoSuggested = true;
     QString vnResultGridStatus = QStringLiteral("not_run_in_current_app");
     QString vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
+    QString vnVtkInventoryStatus = QStringLiteral("not_run_in_current_app");
 };
 
 #endif // MODELCREATORWINDOW_H
