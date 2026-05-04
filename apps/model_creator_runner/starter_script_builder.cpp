@@ -99,6 +99,21 @@ void ApplyVnKsatScaleOverrides(QString *scriptText, const StarterScriptOptions &
                         QStringLiteral("K_sat_scale_factor=%1").arg(uwScale));
 }
 
+bool IsIncompleteCreateCommand(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+    if (!trimmed.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+        && !trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    // Guard against broken embedded-reference rows such as:
+    //   create block;type=fixed_head,
+    // OpenHydroQual then creates an unnamed block and reports:
+    //   'name' must be specified when createing a block'
+    return !trimmed.contains(QStringLiteral("name="), Qt::CaseInsensitive);
+}
+
 bool LoadEntireFile(const QString &path, QString *text, QString *errorMessage)
 {
     QFile file(path);
@@ -146,6 +161,9 @@ void ApplyCommonScriptFixups(QString *scriptText, const QString &inflowFile)
                     continue;
                 }
             }
+        }
+        if (IsIncompleteCreateCommand(line)) {
+            continue;
         }
         filtered.push_back(line);
     }
@@ -502,20 +520,6 @@ void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, 
     }
 }
 
-
-bool IsIncompleteEmbeddedBlockLine(const QString &line)
-{
-    const QString trimmed = line.trimmed();
-
-    // The embedded VN reference script can contain a dangling duplicate line:
-    //   create block;type=fixed_head,
-    // OHQ treats that as a block creation request with no name and aborts with
-    // "name must be specified when creating a block". Keep the complete
-    // Ground Water fixed_head block; suppress only this incomplete line.
-    return trimmed.compare(QStringLiteral("create block;type=fixed_head,"),
-                           Qt::CaseInsensitive) == 0;
-}
-
 void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QString *scriptText)
 {
     if (scriptText == nullptr) {
@@ -529,9 +533,9 @@ void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QS
                                           .split('\n', Qt::KeepEmptyParts);
     for (const QString &line : filteredLines) {
         const QString trimmed = line.trimmed();
-        if (IsIncompleteEmbeddedBlockLine(trimmed)
-            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || IsIncompleteCreateCommand(trimmed)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
@@ -624,9 +628,9 @@ void AppendEmbeddedStructureSoftReferenceScaffold(const QString &embeddedScript,
     const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
     for (const QString &line : lines) {
         const QString trimmed = line.trimmed();
-        if (IsIncompleteEmbeddedBlockLine(trimmed)
-            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || IsIncompleteCreateCommand(trimmed)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
@@ -1038,9 +1042,9 @@ void AppendEmbeddedVnSoftReferenceScaffold(const StarterScriptOptions &options, 
                                           .split('\n', Qt::KeepEmptyParts);
     for (const QString &line : filteredLines) {
         const QString trimmed = line.trimmed();
-        if (IsIncompleteEmbeddedBlockLine(trimmed)
-            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
+            || IsIncompleteCreateCommand(trimmed)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=outputfile"), Qt::CaseInsensitive)
