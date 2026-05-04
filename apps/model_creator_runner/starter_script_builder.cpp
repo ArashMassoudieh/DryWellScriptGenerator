@@ -569,7 +569,9 @@ bool IsSoftReferenceGridLine(const QString &line)
         || line.contains(QStringLiteral("VL_Well_g - Soil-uw"), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("HL_Well_g - Soil-g"), Qt::CaseInsensitive)
         || line.contains(QStringLiteral("Soil to Groundwater ("), Qt::CaseInsensitive)
-        || line.contains(QStringLiteral("type=fixed_head,name=Ground Water"), Qt::CaseInsensitive);
+        || (line.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("type=fixed_head"), Qt::CaseInsensitive)
+            && line.contains(QStringLiteral("name=Ground Water"), Qt::CaseInsensitive));
 }
 
 bool IsHqSoftReferenceSoilLine(const QString &line)

@@ -1,5 +1,7 @@
 #include "vn_drywell_builder.h"
 
+#include <QStringList>
+
 namespace {
 
 static const char *kEmbeddedVnFullReferenceOhq = R"OHQREF(
@@ -1387,7 +1389,25 @@ create link;from=Soil-uw (16$11),to=Ground Water,type=soil_to_fixedhead_link,nam
 
 QString VnDrywellBuilder::VnFullReferenceScript()
 {
-    return QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    const QString embedded = QString::fromUtf8(kEmbeddedVnFullReferenceOhq);
+    const QStringList lines = embedded.split('\n', Qt::KeepEmptyParts);
+    QStringList filtered;
+    filtered.reserve(lines.size());
+
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        const bool incompleteBlock = trimmed.startsWith(QStringLiteral("create block;"), Qt::CaseInsensitive)
+            && !trimmed.contains(QStringLiteral("name="), Qt::CaseInsensitive);
+        const bool incompleteLink = trimmed.startsWith(QStringLiteral("create link;"), Qt::CaseInsensitive)
+            && !trimmed.contains(QStringLiteral("name="), Qt::CaseInsensitive);
+
+        if (incompleteBlock || incompleteLink) {
+            continue;
+        }
+        filtered.push_back(line);
+    }
+
+    return filtered.join('\n');
 }
 
 QString VnDrywellBuilder::InflowTargetObject()
