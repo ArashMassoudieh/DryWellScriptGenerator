@@ -502,6 +502,20 @@ void AppendTemplateLoads(QString *scriptText, const QString &templateDirectory, 
     }
 }
 
+
+bool IsIncompleteEmbeddedBlockLine(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+
+    // The embedded VN reference script can contain a dangling duplicate line:
+    //   create block;type=fixed_head,
+    // OHQ treats that as a block creation request with no name and aborts with
+    // "name must be specified when creating a block". Keep the complete
+    // Ground Water fixed_head block; suppress only this incomplete line.
+    return trimmed.compare(QStringLiteral("create block;type=fixed_head,"),
+                           Qt::CaseInsensitive) == 0;
+}
+
 void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QString *scriptText)
 {
     if (scriptText == nullptr) {
@@ -515,7 +529,8 @@ void AppendEmbeddedVnFullReferenceScript(const StarterScriptOptions &options, QS
                                           .split('\n', Qt::KeepEmptyParts);
     for (const QString &line : filteredLines) {
         const QString trimmed = line.trimmed();
-        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (IsIncompleteEmbeddedBlockLine(trimmed)
+            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
@@ -609,7 +624,8 @@ void AppendEmbeddedStructureSoftReferenceScaffold(const QString &embeddedScript,
     const QStringList lines = embeddedScript.split('\n', Qt::KeepEmptyParts);
     for (const QString &line : lines) {
         const QString trimmed = line.trimmed();
-        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (IsIncompleteEmbeddedBlockLine(trimmed)
+            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
@@ -1022,7 +1038,8 @@ void AppendEmbeddedVnSoftReferenceScaffold(const StarterScriptOptions &options, 
                                           .split('\n', Qt::KeepEmptyParts);
     for (const QString &line : filteredLines) {
         const QString trimmed = line.trimmed();
-        if (trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
+        if (IsIncompleteEmbeddedBlockLine(trimmed)
+            || trimmed.startsWith(QStringLiteral("loadtemplate;"), Qt::CaseInsensitive)
             || trimmed.startsWith(QStringLiteral("addtemplate;"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_start_time"), Qt::CaseInsensitive)
             || trimmed.contains(QStringLiteral("quantity=simulation_end_time"), Qt::CaseInsensitive)
