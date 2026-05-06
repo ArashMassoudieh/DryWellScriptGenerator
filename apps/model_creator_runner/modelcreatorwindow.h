@@ -75,8 +75,8 @@ private slots:
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
     void exportVnErtSnapshotCsv();
-    void exportVnVtkSnapshots();
     void exportVtkInventoryCsv();
+    void exportVnVtkSnapshots();
     void saveVnGeneratedFieldFile();
     void useVnGeneratedFieldFile();
 
@@ -102,8 +102,6 @@ private:
     void saveSettings() const;
     /// Discover files modified during/after current run window.
     QStringList collectRunArtifacts() const;
-    QStringList createVnPvdSidecars(const QString &vtkDir, const QStringList &prefixes, int timestepCount, const QVector<double> &times);
-    QStringList createVnVtkOutputsFromRunArtifacts();
     /// Copy discovered artifacts into configured artifacts directory.
     void copyArtifacts(const QStringList &artifacts);
     /// Write manifest CSV for copied/discovered artifacts.
@@ -113,9 +111,10 @@ private:
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
     void updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts);
+    QStringList createVnVtkOutputsFromRunArtifacts();
+    QStringList createVnPvdSidecars(const QString &vtkDir, const QStringList &prefixes, int timestepCount, const QVector<double> &times);
     QString vnResultGridRuntimeStatus() const;
     QString vnErtSnapshotRuntimeStatus() const;
-    QString vnVtkInventoryRuntimeStatus() const;
     QString currentEffectiveVnInitTheta() const;
     QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;
@@ -277,8 +276,8 @@ private:
     QPushButton *exportVnDepthSliceButton;
     QPushButton *exportVnMetadataButton;
     QPushButton *exportVnErtSnapshotButton;
-    QPushButton *exportVnVtkButton;
     QPushButton *exportVtkInventoryButton;
+    QPushButton *exportVnVtkSnapshotsButton;
     QPushButton *saveVnGeneratedFieldButton;
     QPushButton *useVnGeneratedFieldButton;
     OHQProcessRunner *runner;
@@ -308,7 +307,6 @@ private:
     bool inflowAutoSuggested = true;
     QString vnResultGridStatus = QStringLiteral("not_run_in_current_app");
     QString vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
-    QString vnVtkInventoryStatus = QStringLiteral("not_run_in_current_app");
 };
 
 #endif // MODELCREATORWINDOW_H

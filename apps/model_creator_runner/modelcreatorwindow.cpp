@@ -1468,25 +1468,67 @@ int VnFindTimeColumn(const QStringList &header)
     return header.isEmpty() ? -1 : 0;
 }
 
-QString VnSanitizeFileToken(QString token)
-{
-    token.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9_+.-]+")), QStringLiteral("_"));
-    while (token.contains(QStringLiteral("__"))) {
-        token.replace(QStringLiteral("__"), QStringLiteral("_"));
-    }
-    return token.trimmed().isEmpty() ? QStringLiteral("quantity") : token;
-}
-
-bool VnWritePointCloudVtp(const QString &path,
-                          const QString &scalarName,
-                          const QVector<VnVtkBlockPoint> &points,
-                          const QVector<double> &values,
-                          QString *errorMessage)
+bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
+                                   const QString &scalarName,
+                                   const QVector<VnVtkBlockPoint> &points,
+                                   const QVector<double> &values,
+                                   QString *errorMessage)
 {
     if (points.isEmpty() || points.size() != values.size()) {
         if (errorMessage) *errorMessage = QObject::tr("Invalid VTP point/value array sizes.");
         return false;
     }
+
+    const auto coordKey = [](double v) -> qint64 {
+        return qRound64(v * 1000000.0);
+    };
+    const auto pointKey = [](qint64 x, qint64 y) -> QString {
+        return QString::number(x) + QLatin1Char('|') + QString::number(y);
+    };
+
+    QMap<qint64, double> xCoords;
+    QMap<qint64, double> yCoords;
+    QMap<QString, int> indexByCoord;
+    for (int i = 0; i < points.size(); ++i) {
+        const qint64 kx = coordKey(points.at(i).x);
+        const qint64 ky = coordKey(points.at(i).y);
+        xCoords.insert(kx, points.at(i).x);
+        yCoords.insert(ky, points.at(i).y);
+        const QString key = pointKey(kx, ky);
+        if (!indexByCoord.contains(key)) {
+            indexByCoord.insert(key, i);
+        }
+    }
+
+    QVector<qint64> xs;
+    QVector<qint64> ys;
+    xs.reserve(xCoords.size());
+    ys.reserve(yCoords.size());
+    for (auto it = xCoords.constBegin(); it != xCoords.constEnd(); ++it) xs.push_back(it.key());
+    for (auto it = yCoords.constBegin(); it != yCoords.constEnd(); ++it) ys.push_back(it.key());
+    std::sort(xs.begin(), xs.end());
+    std::sort(ys.begin(), ys.end());
+
+    QVector<int> polyConnectivity;
+    QVector<int> polyOffsets;
+    if (xs.size() >= 2 && ys.size() >= 2) {
+        for (int yi = 0; yi + 1 < ys.size(); ++yi) {
+            for (int xi = 0; xi + 1 < xs.size(); ++xi) {
+                const int p00 = indexByCoord.value(pointKey(xs.at(xi),     ys.at(yi)),     -1);
+                const int p10 = indexByCoord.value(pointKey(xs.at(xi + 1), ys.at(yi)),     -1);
+                const int p01 = indexByCoord.value(pointKey(xs.at(xi),     ys.at(yi + 1)), -1);
+                const int p11 = indexByCoord.value(pointKey(xs.at(xi + 1), ys.at(yi + 1)), -1);
+                if (p00 < 0 || p10 < 0 || p01 < 0 || p11 < 0) {
+                    continue;
+                }
+                polyConnectivity << p00 << p10 << p11;
+                polyOffsets << polyConnectivity.size();
+                polyConnectivity << p00 << p11 << p01;
+                polyOffsets << polyConnectivity.size();
+            }
+        }
+    }
+
     QDir().mkpath(QFileInfo(path).absolutePath());
     QSaveFile out(path);
     if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -1497,32 +1539,50 @@ bool VnWritePointCloudVtp(const QString &path,
     QTextStream ts(&out);
     ts.setRealNumberPrecision(15);
     const int n = points.size();
+    const int nVerts = polyOffsets.isEmpty() ? n : 0;
+    const int nPolys = polyOffsets.size();
+
     ts << "<?xml version=\"1.0\"?>\n";
     ts << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
     ts << "  <PolyData>\n";
-    ts << "    <Piece NumberOfPoints=\"" << n << "\" NumberOfVerts=\"" << n << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+    ts << "    <Piece NumberOfPoints=\"" << n
+       << "\" NumberOfVerts=\"" << nVerts
+       << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"" << nPolys << "\">\n";
     ts << "      <PointData Scalars=\"" << VnXmlEscape(scalarName) << "\">\n";
-    ts << "        <DataArray type=\"Float64\" Name=\"" << VnXmlEscape(scalarName) << "\" format=\"ascii\">\n          ";
+    ts << "        <DataArray type=\"Float32\" Name=\"" << VnXmlEscape(scalarName) << "\" format=\"ascii\">\n          ";
     for (double v : values) {
-        ts << (std::isfinite(v) ? v : 0.0) << ' ';
+        ts << static_cast<float>(std::isfinite(v) ? v : 0.0) << ' ';
     }
     ts << "\n        </DataArray>\n";
     ts << "      </PointData>\n";
     ts << "      <Points>\n";
-    ts << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n          ";
+    ts << "        <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">\n          ";
     for (const auto &pt : points) {
-        ts << pt.x << ' ' << pt.y << " 0 ";
+        ts << static_cast<float>(pt.x) << ' ' << static_cast<float>(pt.y) << " 0 ";
     }
     ts << "\n        </DataArray>\n";
     ts << "      </Points>\n";
-    ts << "      <Verts>\n";
-    ts << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (int i = 0; i < n; ++i) ts << i << ' ';
-    ts << "\n        </DataArray>\n";
-    ts << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (int i = 0; i < n; ++i) ts << (i + 1) << ' ';
-    ts << "\n        </DataArray>\n";
-    ts << "      </Verts>\n";
+
+    if (!polyOffsets.isEmpty()) {
+        ts << "      <Polys>\n";
+        ts << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+        for (int idx : polyConnectivity) ts << idx << ' ';
+        ts << "\n        </DataArray>\n";
+        ts << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+        for (int off : polyOffsets) ts << off << ' ';
+        ts << "\n        </DataArray>\n";
+        ts << "      </Polys>\n";
+    } else {
+        ts << "      <Verts>\n";
+        ts << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+        for (int i = 0; i < n; ++i) ts << i << ' ';
+        ts << "\n        </DataArray>\n";
+        ts << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+        for (int i = 0; i < n; ++i) ts << (i + 1) << ' ';
+        ts << "\n        </DataArray>\n";
+        ts << "      </Verts>\n";
+    }
+
     ts << "    </Piece>\n";
     ts << "  </PolyData>\n";
     ts << "</VTKFile>\n";
@@ -1533,7 +1593,6 @@ bool VnWritePointCloudVtp(const QString &path,
     }
     return true;
 }
-
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -1645,8 +1704,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       exportVnDepthSliceButton(new QPushButton(tr("Export VN depth slice"), this)),
       exportVnMetadataButton(new QPushButton(tr("Export VN metadata JSON"), this)),
       exportVnErtSnapshotButton(new QPushButton(tr("Export ERT-ready CSV"), this)),
-      exportVnVtkButton(new QPushButton(tr("Export VN VTK"), this)),
       exportVtkInventoryButton(new QPushButton(tr("Export VTK inventory"), this)),
+      exportVnVtkSnapshotsButton(new QPushButton(tr("Export VN VTK"), this)),
       saveVnGeneratedFieldButton(new QPushButton(tr("Save field file"), this)),
       useVnGeneratedFieldButton(new QPushButton(tr("Use field file"), this)),
       runner(new OHQProcessRunner(this))
@@ -2126,8 +2185,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             }
         });
         row->addWidget(browseBtn);
-        row->addWidget(exportVnVtkButton);
         row->addWidget(exportVtkInventoryButton);
+        row->addWidget(exportVnVtkSnapshotsButton);
         row->addStretch(1);
         layout->addWidget(container);
     }
@@ -2237,8 +2296,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(exportVnDepthSliceButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnDepthSliceCsv);
     connect(exportVnMetadataButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnMetadataJson);
     connect(exportVnErtSnapshotButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnErtSnapshotCsv);
-    connect(exportVnVtkButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnVtkSnapshots);
     connect(exportVtkInventoryButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVtkInventoryCsv);
+    connect(exportVnVtkSnapshotsButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnVtkSnapshots);
     connect(saveVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::saveVnGeneratedFieldFile);
     connect(useVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::useVnGeneratedFieldFile);
     connect(stopButton, &QPushButton::clicked, runner, &OHQProcessRunner::stop);
@@ -2401,7 +2460,6 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         solveProgressObserved = false;
         vnResultGridStatus = QStringLiteral("not_run_in_current_app");
         vnErtSnapshotStatus = QStringLiteral("not_run_in_current_app");
-        vnVtkInventoryStatus = QStringLiteral("not_run_in_current_app");
         previewScriptButton->setEnabled(false);
         quickRunButton->setEnabled(false);
         generateScriptButton->setEnabled(false);
@@ -2501,13 +2559,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         refreshPlots();
 
         const QStringList generatedVtkArtifacts = createVnVtkOutputsFromRunArtifacts();
-        QStringList artifacts = collectRunArtifacts();
-        for (const QString &file : generatedVtkArtifacts) {
-            if (!artifacts.contains(file)) {
-                artifacts << file;
-            }
-        }
-        artifacts.sort();
+        Q_UNUSED(generatedVtkArtifacts);
+
+        const QStringList artifacts = collectRunArtifacts();
         if (artifacts.isEmpty()) {
             appendLog(stamp(tr("No new artifacts detected in working directory.")));
             return;
@@ -3905,7 +3959,6 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
         meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
         meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
-        meta.insert(QStringLiteral("vtk_inventory_runtime_status"), vnVtkInventoryRuntimeStatus());
         return meta;
     };
 
@@ -4337,7 +4390,6 @@ void ModelCreatorWindow::runScript()
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
         meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
         meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
-        meta.insert(QStringLiteral("vtk_inventory_runtime_status"), vnVtkInventoryRuntimeStatus());
         QJsonArray argsArray;
         for (const QString &arg : args) {
             argsArray.append(arg);
@@ -5933,30 +5985,6 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
             vnErtSnapshotStatus = QStringLiteral("detected_ert_snapshot_in_run_artifacts");
         }
     }
-
-    QString configuredVtkInventoryPath = vtkInventoryExportEdit->text().trimmed();
-    if (configuredVtkInventoryPath.isEmpty() && !workingDir.isEmpty()) {
-        configuredVtkInventoryPath = QDir(workingDir).filePath(QStringLiteral("vtk_inventory.csv"));
-    }
-    if (!configuredVtkInventoryPath.isEmpty()) {
-        const QString vtkInventoryPath = normalizePath(toAbsolutePath(configuredVtkInventoryPath));
-        if (normalizedArtifacts.contains(vtkInventoryPath)) {
-            vnVtkInventoryStatus = QStringLiteral("detected_vtk_inventory_in_run_artifacts");
-        }
-    }
-
-    bool foundVtkFamilyFile = false;
-    for (const QString &path : artifacts) {
-        const QString ext = QFileInfo(path).suffix().toLower();
-        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
-            ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb") || ext == QStringLiteral("pvd")) {
-            foundVtkFamilyFile = true;
-            break;
-        }
-    }
-    if (foundVtkFamilyFile && vnVtkInventoryStatus == QStringLiteral("not_run_in_current_app")) {
-        vnVtkInventoryStatus = QStringLiteral("detected_vtk_files_in_run_artifacts");
-    }
 }
 
 QString ModelCreatorWindow::vnResultGridRuntimeStatus() const
@@ -5971,13 +5999,6 @@ QString ModelCreatorWindow::vnErtSnapshotRuntimeStatus() const
     return vnErtSnapshotStatus.trimmed().isEmpty()
         ? QStringLiteral("not_run_in_current_app")
         : vnErtSnapshotStatus.trimmed();
-}
-
-QString ModelCreatorWindow::vnVtkInventoryRuntimeStatus() const
-{
-    return vnVtkInventoryStatus.trimmed().isEmpty()
-        ? QStringLiteral("not_run_in_current_app")
-        : vnVtkInventoryStatus.trimmed();
 }
 
 
@@ -6124,7 +6145,6 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));
     root.insert(QStringLiteral("resultgrid_runtime"), vnResultGridRuntimeStatus());
     root.insert(QStringLiteral("ert_snapshot_runtime"), vnErtSnapshotRuntimeStatus());
-    root.insert(QStringLiteral("vtk_inventory_runtime"), vnVtkInventoryRuntimeStatus());
     root.insert(QStringLiteral("written_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
 
     QSaveFile out(targetPath);
@@ -6556,42 +6576,6 @@ void ModelCreatorWindow::exportVnErtSnapshotCsv()
     saveSettings();
 }
 
-
-void ModelCreatorWindow::exportVnVtkSnapshots()
-{
-    QString validationError;
-    if (!validateVnAwarenessInputs(&validationError, false)) {
-        QMessageBox::warning(this, tr("Export VN VTK"), validationError);
-        return;
-    }
-
-    const QStringList created = createVnVtkOutputsFromRunArtifacts();
-    if (created.isEmpty()) {
-        QMessageBox::information(this,
-                                 tr("Export VN VTK"),
-                                 tr("No VN VTK files were created. Run the model first, or check that the generated .ohq and OHQ output file contain matching Soil theta / mean-age series."));
-        return;
-    }
-
-    QStringList artifacts = collectExportArtifacts();
-    for (const QString &file : created) {
-        if (!artifacts.contains(file)) {
-            artifacts << file;
-        }
-    }
-    artifacts.sort();
-    updateVnRuntimeStatusFromArtifacts(artifacts);
-    writeArtifactManifest(artifacts);
-
-    appendLog(stamp(tr("Exported/regenerated VN VTK artifacts: %1 file(s).").arg(created.size())));
-    QMessageBox::information(this,
-                             tr("Export VN VTK"),
-                             tr("Created/regenerated %1 VN VTK file(s).\n\nOutput folder:\n%2")
-                                 .arg(created.size())
-                                 .arg(QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("Moisture"))));
-    saveSettings();
-}
-
 void ModelCreatorWindow::exportVtkInventoryCsv()
 {
     const QString workingDirectory = workingDirEdit->text().trimmed();
@@ -6611,15 +6595,16 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         it.next();
         const QFileInfo fi = it.fileInfo();
         const QString ext = fi.suffix().toLower();
-        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu") ||
-            ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb") || ext == QStringLiteral("pvd")) {
+        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu")
+            || ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb")
+            || ext == QStringLiteral("pvd")) {
             vtkFiles << fi.absoluteFilePath();
         }
     }
     vtkFiles.sort();
 
     if (vtkFiles.isEmpty()) {
-        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu/.vti/.pvd files were found under the current working directory."));
+        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu/.vti/.vtm/.vtmb/.pvd files were found under the current working directory."));
         return;
     }
 
@@ -6757,8 +6742,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     } else if (QFileInfo(outputPath).isRelative()) {
         outputPath = QDir(workingDirectory).filePath(outputPath);
     }
-    QFile outputFile(outputPath);
-    if (!outputFile.exists()) {
+    if (!QFileInfo::exists(outputPath)) {
         const QString fallback1 = QDir(workingDirectory).filePath(QStringLiteral("output.txt"));
         const QString fallback2 = QDir(workingDirectory).filePath(QStringLiteral("Output_LR.txt"));
         if (QFileInfo::exists(fallback1)) {
@@ -6887,7 +6871,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
             const QString fileName = QStringLiteral("%1_%2.vtp").arg(spec.filePrefix).arg(rowIndex + 1, 4, 10, QLatin1Char('0'));
             const QString outPath = QDir(vtkDir).filePath(fileName);
             QString error;
-            if (VnWritePointCloudVtp(outPath, spec.scalarName, pts, vals, &error)) {
+            if (VnWriteSurfaceOrPointCloudVtp(outPath, spec.scalarName, pts, vals, &error)) {
                 created << outPath;
                 ++written;
             } else if (!error.trimmed().isEmpty()) {
@@ -6911,8 +6895,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
             }
         }
 
-        vnResultGridStatus = QStringLiteral("created_vtp_from_output_series");
-        vnVtkInventoryStatus = pvdFiles.isEmpty()
+        vnResultGridStatus = pvdFiles.isEmpty()
             ? QStringLiteral("created_vtp_from_output_series")
             : QStringLiteral("created_vtp_and_pvd_from_output_series");
         appendLog(stamp(tr("VN VTK export created %1 VTP snapshot file(s) in %2").arg(written).arg(vtkDir)));
@@ -6925,6 +6908,23 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     }
 
     return created;
+}
+
+void ModelCreatorWindow::exportVnVtkSnapshots()
+{
+    const QStringList created = createVnVtkOutputsFromRunArtifacts();
+    if (created.isEmpty()) {
+        QMessageBox::information(this, tr("Export VN VTK"), tr("No VN VTK files were created. Check that a VN run output file and generated script are available."));
+        return;
+    }
+
+    appendLog(stamp(tr("Export VN VTK completed: %1 file(s) created or refreshed.").arg(created.size())));
+    const QStringList artifacts = collectRunArtifacts();
+    if (!artifacts.isEmpty()) {
+        updateVnRuntimeStatusFromArtifacts(artifacts);
+        copyArtifacts(artifacts);
+        writeArtifactManifest(artifacts);
+    }
 }
 
 QStringList ModelCreatorWindow::collectRunArtifacts() const
