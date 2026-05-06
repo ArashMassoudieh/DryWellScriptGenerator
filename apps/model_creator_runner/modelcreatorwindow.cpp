@@ -1645,6 +1645,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       exportVnDepthSliceButton(new QPushButton(tr("Export VN depth slice"), this)),
       exportVnMetadataButton(new QPushButton(tr("Export VN metadata JSON"), this)),
       exportVnErtSnapshotButton(new QPushButton(tr("Export ERT-ready CSV"), this)),
+      exportVnVtkButton(new QPushButton(tr("Export VN VTK"), this)),
       exportVtkInventoryButton(new QPushButton(tr("Export VTK inventory"), this)),
       saveVnGeneratedFieldButton(new QPushButton(tr("Save field file"), this)),
       useVnGeneratedFieldButton(new QPushButton(tr("Use field file"), this)),
@@ -2125,6 +2126,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
             }
         });
         row->addWidget(browseBtn);
+        row->addWidget(exportVnVtkButton);
         row->addWidget(exportVtkInventoryButton);
         row->addStretch(1);
         layout->addWidget(container);
@@ -2235,6 +2237,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     connect(exportVnDepthSliceButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnDepthSliceCsv);
     connect(exportVnMetadataButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnMetadataJson);
     connect(exportVnErtSnapshotButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnErtSnapshotCsv);
+    connect(exportVnVtkButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVnVtkSnapshots);
     connect(exportVtkInventoryButton, &QPushButton::clicked, this, &ModelCreatorWindow::exportVtkInventoryCsv);
     connect(saveVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::saveVnGeneratedFieldFile);
     connect(useVnGeneratedFieldButton, &QPushButton::clicked, this, &ModelCreatorWindow::useVnGeneratedFieldFile);
@@ -6550,6 +6553,42 @@ void ModelCreatorWindow::exportVnErtSnapshotCsv()
     vnErtSnapshotStatus = QStringLiteral("exported_in_app");
     appendLog(stamp(tr("Exported ERT-ready borehole CSV: %1").arg(target)));
     appendLog(stamp(tr("This app-side export uses the currently selected output/depth columns and slice X/R as a borehole-style profile.")));
+    saveSettings();
+}
+
+
+void ModelCreatorWindow::exportVnVtkSnapshots()
+{
+    QString validationError;
+    if (!validateVnAwarenessInputs(&validationError, false)) {
+        QMessageBox::warning(this, tr("Export VN VTK"), validationError);
+        return;
+    }
+
+    const QStringList created = createVnVtkOutputsFromRunArtifacts();
+    if (created.isEmpty()) {
+        QMessageBox::information(this,
+                                 tr("Export VN VTK"),
+                                 tr("No VN VTK files were created. Run the model first, or check that the generated .ohq and OHQ output file contain matching Soil theta / mean-age series."));
+        return;
+    }
+
+    QStringList artifacts = collectExportArtifacts();
+    for (const QString &file : created) {
+        if (!artifacts.contains(file)) {
+            artifacts << file;
+        }
+    }
+    artifacts.sort();
+    updateVnRuntimeStatusFromArtifacts(artifacts);
+    writeArtifactManifest(artifacts);
+
+    appendLog(stamp(tr("Exported/regenerated VN VTK artifacts: %1 file(s).").arg(created.size())));
+    QMessageBox::information(this,
+                             tr("Export VN VTK"),
+                             tr("Created/regenerated %1 VN VTK file(s).\n\nOutput folder:\n%2")
+                                 .arg(created.size())
+                                 .arg(QDir(workingDirEdit->text().trimmed()).filePath(QStringLiteral("Moisture"))));
     saveSettings();
 }
 

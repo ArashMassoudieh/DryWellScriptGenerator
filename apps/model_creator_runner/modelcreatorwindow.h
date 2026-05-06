@@ -75,6 +75,7 @@ private slots:
     void exportVnDepthSliceCsv();
     void exportVnMetadataJson();
     void exportVnErtSnapshotCsv();
+    void exportVnVtkSnapshots();
     void exportVtkInventoryCsv();
     void saveVnGeneratedFieldFile();
     void useVnGeneratedFieldFile();
@@ -276,6 +277,7 @@ private:
     QPushButton *exportVnDepthSliceButton;
     QPushButton *exportVnMetadataButton;
     QPushButton *exportVnErtSnapshotButton;
+    QPushButton *exportVnVtkButton;
     QPushButton *exportVtkInventoryButton;
     QPushButton *saveVnGeneratedFieldButton;
     QPushButton *useVnGeneratedFieldButton;
