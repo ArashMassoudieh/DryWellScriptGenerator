@@ -111,10 +111,10 @@ private:
     bool validateVnAwarenessInputs(QString *errorMessage, bool forRun) const;
     bool writeVnMetadataJson(const QString &targetPath, QString *errorMessage = nullptr) const;
     void updateVnRuntimeStatusFromArtifacts(const QStringList &artifacts);
-    QStringList createVnVtkOutputsFromRunArtifacts();
-    QStringList createVnPvdSidecars(const QString &vtkDir, const QStringList &prefixes, int timestepCount, const QVector<double> &times);
     QString vnResultGridRuntimeStatus() const;
     QString vnErtSnapshotRuntimeStatus() const;
+    QStringList createVnVtkOutputsFromRunArtifacts();
+    QStringList createVnPvdSidecars(const QString &vtkDir, const QStringList &prefixes, int timestepCount, const QVector<double> &times);
     QString currentEffectiveVnInitTheta() const;
     QString currentEffectiveVnFieldMode() const;
     QString currentEffectiveVnFieldPoints() const;

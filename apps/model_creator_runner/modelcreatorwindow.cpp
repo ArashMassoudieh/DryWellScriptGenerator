@@ -50,6 +50,7 @@
 #include <QWidget>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 QString stamp(const QString &message)
@@ -1392,15 +1393,14 @@ struct VnVtkBlockPoint
     double y = 0.0;
 };
 
-QString VnXmlEscape(const QString &text)
+QString VnXmlEscape(QString text)
 {
-    QString out = text;
-    out.replace('&', QStringLiteral("&amp;"));
-    out.replace('<', QStringLiteral("&lt;"));
-    out.replace('>', QStringLiteral("&gt;"));
-    out.replace('"', QStringLiteral("&quot;"));
-    out.replace('\'', QStringLiteral("&apos;"));
-    return out;
+    text.replace('&', QStringLiteral("&amp;"));
+    text.replace('<', QStringLiteral("&lt;"));
+    text.replace('>', QStringLiteral("&gt;"));
+    text.replace('"', QStringLiteral("&quot;"));
+    text.replace('\'', QStringLiteral("&apos;"));
+    return text;
 }
 
 QString VnScriptCommandValue(const QString &line, const QString &key)
@@ -1409,6 +1409,12 @@ QString VnScriptCommandValue(const QString &line, const QString &key)
                                 QRegularExpression::CaseInsensitiveOption);
     const QRegularExpressionMatch match = re.match(line);
     return match.hasMatch() ? match.captured(1).trimmed() : QString();
+}
+
+bool VnIsResultGridSoilBlockName(const QString &name)
+{
+    return name.startsWith(QStringLiteral("Soil-g"), Qt::CaseInsensitive)
+        || name.startsWith(QStringLiteral("Soil-uw"), Qt::CaseInsensitive);
 }
 
 QVector<VnVtkBlockPoint> VnReadSoilBlockGeometryForVtk(const QString &scriptPath)
@@ -1420,6 +1426,7 @@ QVector<VnVtkBlockPoint> VnReadSoilBlockGeometryForVtk(const QString &scriptPath
     }
 
     QTextStream in(&file);
+    QSet<QString> seenNames;
     while (!in.atEnd()) {
         const QString line = in.readLine().trimmed();
         if (!line.startsWith(QStringLiteral("create block"), Qt::CaseInsensitive)
@@ -1427,19 +1434,25 @@ QVector<VnVtkBlockPoint> VnReadSoilBlockGeometryForVtk(const QString &scriptPath
             continue;
         }
 
-        bool okX = false;
-        bool okY = false;
         const QString name = VnScriptCommandValue(line, QStringLiteral("name"));
-        const double x = VnScriptCommandValue(line, QStringLiteral("act_X")).toDouble(&okX);
-        const double y = VnScriptCommandValue(line, QStringLiteral("act_Y")).toDouble(&okY);
-        if (name.isEmpty() || !okX || !okY || !std::isfinite(x) || !std::isfinite(y)) {
+        if (!VnIsResultGridSoilBlockName(name) || seenNames.contains(name)) {
             continue;
         }
+
+        bool okX = false;
+        bool okY = false;
+        const double x = VnScriptCommandValue(line, QStringLiteral("act_X")).toDouble(&okX);
+        const double y = VnScriptCommandValue(line, QStringLiteral("act_Y")).toDouble(&okY);
+        if (!okX || !okY || !std::isfinite(x) || !std::isfinite(y)) {
+            continue;
+        }
+
         VnVtkBlockPoint pt;
         pt.name = name;
         pt.x = x;
         pt.y = y;
         blocks.push_back(pt);
+        seenNames.insert(name);
     }
     return blocks;
 }
@@ -1468,66 +1481,157 @@ int VnFindTimeColumn(const QStringList &header)
     return header.isEmpty() ? -1 : 0;
 }
 
-bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
-                                   const QString &scalarName,
-                                   const QVector<VnVtkBlockPoint> &points,
-                                   const QVector<double> &values,
-                                   QString *errorMessage)
+struct VnDelaunayTriangle
+{
+    int a = -1;
+    int b = -1;
+    int c = -1;
+};
+
+double VnTriangleArea2(const QVector<VnVtkBlockPoint> &pts, int a, int b, int c)
+{
+    return (pts.at(b).x - pts.at(a).x) * (pts.at(c).y - pts.at(a).y)
+         - (pts.at(b).y - pts.at(a).y) * (pts.at(c).x - pts.at(a).x);
+}
+
+bool VnCircumcircleContains(const QVector<VnVtkBlockPoint> &pts,
+                            const VnDelaunayTriangle &tri,
+                            const VnVtkBlockPoint &p)
+{
+    const double ax = pts.at(tri.a).x - p.x;
+    const double ay = pts.at(tri.a).y - p.y;
+    const double bx = pts.at(tri.b).x - p.x;
+    const double by = pts.at(tri.b).y - p.y;
+    const double cx = pts.at(tri.c).x - p.x;
+    const double cy = pts.at(tri.c).y - p.y;
+
+    double det = (ax * ax + ay * ay) * (bx * cy - by * cx)
+               - (bx * bx + by * by) * (ax * cy - ay * cx)
+               + (cx * cx + cy * cy) * (ax * by - ay * bx);
+    if (VnTriangleArea2(pts, tri.a, tri.b, tri.c) < 0.0) {
+        det = -det;
+    }
+    return det > 1.0e-10;
+}
+
+QString VnEdgeKey(int a, int b)
+{
+    if (a > b) std::swap(a, b);
+    return QString::number(a) + QLatin1Char('|') + QString::number(b);
+}
+
+QVector<VnDelaunayTriangle> VnBuildDelaunayTriangles(const QVector<VnVtkBlockPoint> &inputPoints)
+{
+    QVector<VnDelaunayTriangle> result;
+    const int n = inputPoints.size();
+    if (n < 3) {
+        return result;
+    }
+
+    QVector<VnVtkBlockPoint> pts = inputPoints;
+    double minX = pts.at(0).x;
+    double maxX = pts.at(0).x;
+    double minY = pts.at(0).y;
+    double maxY = pts.at(0).y;
+    for (const auto &pt : pts) {
+        minX = std::min(minX, pt.x);
+        maxX = std::max(maxX, pt.x);
+        minY = std::min(minY, pt.y);
+        maxY = std::max(maxY, pt.y);
+    }
+
+    const double dx = std::max(1.0, maxX - minX);
+    const double dy = std::max(1.0, maxY - minY);
+    const double delta = std::max(dx, dy) * 32.0;
+    const double cx = 0.5 * (minX + maxX);
+    const double cy = 0.5 * (minY + maxY);
+
+    VnVtkBlockPoint s1; s1.x = cx - 2.0 * delta; s1.y = cy - delta;
+    VnVtkBlockPoint s2; s2.x = cx;               s2.y = cy + 2.0 * delta;
+    VnVtkBlockPoint s3; s3.x = cx + 2.0 * delta; s3.y = cy - delta;
+    const int si1 = pts.size(); pts.push_back(s1);
+    const int si2 = pts.size(); pts.push_back(s2);
+    const int si3 = pts.size(); pts.push_back(s3);
+
+    QVector<VnDelaunayTriangle> triangles;
+    triangles.push_back({si1, si2, si3});
+
+    for (int pi = 0; pi < n; ++pi) {
+        QVector<VnDelaunayTriangle> kept;
+        QMap<QString, QPair<int, int>> edgeByKey;
+        QMap<QString, int> edgeCount;
+
+        for (const auto &tri : triangles) {
+            if (VnCircumcircleContains(pts, tri, pts.at(pi))) {
+                const QPair<int, int> edges[3] = {
+                    qMakePair(tri.a, tri.b),
+                    qMakePair(tri.b, tri.c),
+                    qMakePair(tri.c, tri.a)
+                };
+                for (const auto &edge : edges) {
+                    const QString key = VnEdgeKey(edge.first, edge.second);
+                    edgeByKey.insert(key, edge);
+                    edgeCount.insert(key, edgeCount.value(key, 0) + 1);
+                }
+            } else {
+                kept.push_back(tri);
+            }
+        }
+
+        for (auto it = edgeCount.constBegin(); it != edgeCount.constEnd(); ++it) {
+            if (it.value() != 1) {
+                continue;
+            }
+            const QPair<int, int> edge = edgeByKey.value(it.key());
+            VnDelaunayTriangle tri{edge.first, edge.second, pi};
+            if (std::abs(VnTriangleArea2(pts, tri.a, tri.b, tri.c)) < 1.0e-12) {
+                continue;
+            }
+            if (VnTriangleArea2(pts, tri.a, tri.b, tri.c) < 0.0) {
+                std::swap(tri.a, tri.b);
+            }
+            kept.push_back(tri);
+        }
+        triangles = kept;
+    }
+
+    QSet<QString> unique;
+    for (auto tri : triangles) {
+        if (tri.a >= n || tri.b >= n || tri.c >= n) {
+            continue;
+        }
+        if (std::abs(VnTriangleArea2(inputPoints, tri.a, tri.b, tri.c)) < 1.0e-12) {
+            continue;
+        }
+        if (VnTriangleArea2(inputPoints, tri.a, tri.b, tri.c) < 0.0) {
+            std::swap(tri.a, tri.b);
+        }
+        QVector<int> sorted{tri.a, tri.b, tri.c};
+        std::sort(sorted.begin(), sorted.end());
+        const QString key = QString::number(sorted.at(0)) + QLatin1Char('|')
+                          + QString::number(sorted.at(1)) + QLatin1Char('|')
+                          + QString::number(sorted.at(2));
+        if (unique.contains(key)) {
+            continue;
+        }
+        unique.insert(key);
+        result.push_back(tri);
+    }
+    return result;
+}
+
+bool VnWriteDelaunayVtp(const QString &path,
+                        const QString &scalarName,
+                        const QVector<VnVtkBlockPoint> &points,
+                        const QVector<double> &values,
+                        QString *errorMessage)
 {
     if (points.isEmpty() || points.size() != values.size()) {
         if (errorMessage) *errorMessage = QObject::tr("Invalid VTP point/value array sizes.");
         return false;
     }
 
-    const auto coordKey = [](double v) -> qint64 {
-        return qRound64(v * 1000000.0);
-    };
-    const auto pointKey = [](qint64 x, qint64 y) -> QString {
-        return QString::number(x) + QLatin1Char('|') + QString::number(y);
-    };
-
-    QMap<qint64, double> xCoords;
-    QMap<qint64, double> yCoords;
-    QMap<QString, int> indexByCoord;
-    for (int i = 0; i < points.size(); ++i) {
-        const qint64 kx = coordKey(points.at(i).x);
-        const qint64 ky = coordKey(points.at(i).y);
-        xCoords.insert(kx, points.at(i).x);
-        yCoords.insert(ky, points.at(i).y);
-        const QString key = pointKey(kx, ky);
-        if (!indexByCoord.contains(key)) {
-            indexByCoord.insert(key, i);
-        }
-    }
-
-    QVector<qint64> xs;
-    QVector<qint64> ys;
-    xs.reserve(xCoords.size());
-    ys.reserve(yCoords.size());
-    for (auto it = xCoords.constBegin(); it != xCoords.constEnd(); ++it) xs.push_back(it.key());
-    for (auto it = yCoords.constBegin(); it != yCoords.constEnd(); ++it) ys.push_back(it.key());
-    std::sort(xs.begin(), xs.end());
-    std::sort(ys.begin(), ys.end());
-
-    QVector<int> polyConnectivity;
-    QVector<int> polyOffsets;
-    if (xs.size() >= 2 && ys.size() >= 2) {
-        for (int yi = 0; yi + 1 < ys.size(); ++yi) {
-            for (int xi = 0; xi + 1 < xs.size(); ++xi) {
-                const int p00 = indexByCoord.value(pointKey(xs.at(xi),     ys.at(yi)),     -1);
-                const int p10 = indexByCoord.value(pointKey(xs.at(xi + 1), ys.at(yi)),     -1);
-                const int p01 = indexByCoord.value(pointKey(xs.at(xi),     ys.at(yi + 1)), -1);
-                const int p11 = indexByCoord.value(pointKey(xs.at(xi + 1), ys.at(yi + 1)), -1);
-                if (p00 < 0 || p10 < 0 || p01 < 0 || p11 < 0) {
-                    continue;
-                }
-                polyConnectivity << p00 << p10 << p11;
-                polyOffsets << polyConnectivity.size();
-                polyConnectivity << p00 << p11 << p01;
-                polyOffsets << polyConnectivity.size();
-            }
-        }
-    }
+    const QVector<VnDelaunayTriangle> triangles = VnBuildDelaunayTriangles(points);
 
     QDir().mkpath(QFileInfo(path).absolutePath());
     QSaveFile out(path);
@@ -1539,8 +1643,8 @@ bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
     QTextStream ts(&out);
     ts.setRealNumberPrecision(15);
     const int n = points.size();
-    const int nVerts = polyOffsets.isEmpty() ? n : 0;
-    const int nPolys = polyOffsets.size();
+    const int nVerts = triangles.isEmpty() ? n : 0;
+    const int nPolys = triangles.size();
 
     ts << "<?xml version=\"1.0\"?>\n";
     ts << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
@@ -1550,8 +1654,8 @@ bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
        << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"" << nPolys << "\">\n";
     ts << "      <PointData Scalars=\"" << VnXmlEscape(scalarName) << "\">\n";
     ts << "        <DataArray type=\"Float32\" Name=\"" << VnXmlEscape(scalarName) << "\" format=\"ascii\">\n          ";
-    for (double v : values) {
-        ts << static_cast<float>(std::isfinite(v) ? v : 0.0) << ' ';
+    for (double value : values) {
+        ts << static_cast<float>(std::isfinite(value) ? value : 0.0) << ' ';
     }
     ts << "\n        </DataArray>\n";
     ts << "      </PointData>\n";
@@ -1563,13 +1667,19 @@ bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
     ts << "\n        </DataArray>\n";
     ts << "      </Points>\n";
 
-    if (!polyOffsets.isEmpty()) {
+    if (!triangles.isEmpty()) {
         ts << "      <Polys>\n";
         ts << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-        for (int idx : polyConnectivity) ts << idx << ' ';
+        for (const auto &tri : triangles) {
+            ts << tri.a << ' ' << tri.b << ' ' << tri.c << ' ';
+        }
         ts << "\n        </DataArray>\n";
         ts << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-        for (int off : polyOffsets) ts << off << ' ';
+        int offset = 0;
+        for (int i = 0; i < triangles.size(); ++i) {
+            offset += 3;
+            ts << offset << ' ';
+        }
         ts << "\n        </DataArray>\n";
         ts << "      </Polys>\n";
     } else {
@@ -1593,6 +1703,7 @@ bool VnWriteSurfaceOrPointCloudVtp(const QString &path,
     }
     return true;
 }
+
 }
 
 ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
@@ -2559,7 +2670,9 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         refreshPlots();
 
         const QStringList generatedVtkArtifacts = createVnVtkOutputsFromRunArtifacts();
-        Q_UNUSED(generatedVtkArtifacts);
+        if (!generatedVtkArtifacts.isEmpty()) {
+            appendLog(stamp(tr("VN VTK export refreshed %1 file(s) after run.").arg(generatedVtkArtifacts.size())));
+        }
 
         const QStringList artifacts = collectRunArtifacts();
         if (artifacts.isEmpty()) {
@@ -5963,14 +6076,29 @@ void ModelCreatorWindow::updateVnRuntimeStatusFromArtifacts(const QStringList &a
     };
 
     QSet<QString> normalizedArtifacts;
+    bool hasVtkArtifact = false;
+    bool hasPvdArtifact = false;
     for (const QString &path : artifacts) {
         normalizedArtifacts.insert(normalizePath(path));
+        const QString ext = QFileInfo(path).suffix().toLower();
+        if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu")
+            || ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb")) {
+            hasVtkArtifact = true;
+        } else if (ext == QStringLiteral("pvd")) {
+            hasPvdArtifact = true;
+        }
+    }
+
+    if (hasVtkArtifact || hasPvdArtifact) {
+        vnResultGridStatus = hasPvdArtifact
+            ? QStringLiteral("detected_vtk_and_pvd_artifacts")
+            : QStringLiteral("detected_vtk_artifacts");
     }
 
     const QString configuredOutputSeries = outputSeriesFileEdit->text().trimmed();
     if (!configuredOutputSeries.isEmpty()) {
         const QString outputSeriesPath = normalizePath(toAbsolutePath(configuredOutputSeries));
-        if (normalizedArtifacts.contains(outputSeriesPath)) {
+        if (normalizedArtifacts.contains(outputSeriesPath) && !hasVtkArtifact && !hasPvdArtifact) {
             vnResultGridStatus = QStringLiteral("detected_output_series_in_run_artifacts");
         }
     }
@@ -6596,15 +6724,15 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
         const QFileInfo fi = it.fileInfo();
         const QString ext = fi.suffix().toLower();
         if (ext == QStringLiteral("vtk") || ext == QStringLiteral("vtp") || ext == QStringLiteral("vtu")
-            || ext == QStringLiteral("vti") || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb")
-            || ext == QStringLiteral("pvd")) {
+            || ext == QStringLiteral("vti") || ext == QStringLiteral("pvd")
+            || ext == QStringLiteral("vtm") || ext == QStringLiteral("vtmb")) {
             vtkFiles << fi.absoluteFilePath();
         }
     }
     vtkFiles.sort();
 
     if (vtkFiles.isEmpty()) {
-        QMessageBox::information(this, tr("Export VTK inventory"), tr("No .vtk/.vtp/.vtu/.vti/.vtm/.vtmb/.pvd files were found under the current working directory."));
+        QMessageBox::information(this, tr("Export VTK inventory"), tr("No VTK files (.vtk/.vtp/.vtu/.vti/.pvd/.vtm/.vtmb) were found under the current working directory."));
         return;
     }
 
@@ -6654,6 +6782,7 @@ void ModelCreatorWindow::exportVtkInventoryCsv()
     saveSettings();
 }
 
+
 QStringList ModelCreatorWindow::createVnPvdSidecars(const QString &vtkDir,
                                                     const QStringList &prefixes,
                                                     int timestepCount,
@@ -6668,15 +6797,6 @@ QStringList ModelCreatorWindow::createVnPvdSidecars(const QString &vtkDir,
     if (!dir.exists()) {
         return created;
     }
-
-    const auto xmlEscape = [](QString value) {
-        value.replace('&', QStringLiteral("&amp;"));
-        value.replace('<', QStringLiteral("&lt;"));
-        value.replace('>', QStringLiteral("&gt;"));
-        value.replace('"', QStringLiteral("&quot;"));
-        value.replace('\'', QStringLiteral("&apos;"));
-        return value;
-    };
 
     for (const QString &prefix : prefixes) {
         const QStringList files = dir.entryList(QStringList() << QStringLiteral("%1_*.vtp").arg(prefix),
@@ -6701,7 +6821,7 @@ QStringList ModelCreatorWindow::createVnPvdSidecars(const QString &vtkDir,
         for (int i = 0; i < n; ++i) {
             const double t = (i < times.size()) ? times.at(i) : static_cast<double>(i);
             ts << "    <DataSet timestep=\"" << QString::number(t, 'g', 15)
-               << "\" group=\"\" part=\"0\" file=\"" << xmlEscape(files.at(i)) << "\"/>\n";
+               << "\" group=\"\" part=\"0\" file=\"" << VnXmlEscape(files.at(i)) << "\"/>\n";
         }
         ts << "  </Collection>\n";
         ts << "</VTKFile>\n";
@@ -6732,7 +6852,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     const QVector<VnVtkBlockPoint> geometry = VnReadSoilBlockGeometryForVtk(scriptPath);
     if (geometry.isEmpty()) {
         vnResultGridStatus = QStringLiteral("vtk_skipped_no_soil_geometry");
-        appendLog(stamp(tr("VN VTK export skipped: no Soil block geometry was found in the generated script.")));
+        appendLog(stamp(tr("VN VTK export skipped: no Soil-g/Soil-uw block geometry was found in the generated script.")));
         return created;
     }
 
@@ -6768,12 +6888,6 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     while (!in.atEnd() && headerLine.trimmed().isEmpty()) {
         headerLine = in.readLine();
     }
-    if (headerLine.trimmed().isEmpty()) {
-        vnResultGridStatus = QStringLiteral("vtk_skipped_empty_output_series_file");
-        appendLog(stamp(tr("VN VTK export skipped: output file is empty.")));
-        return created;
-    }
-
     const QStringList header = VnSplitDelimitedLine(headerLine);
     if (header.size() < 2) {
         vnResultGridStatus = QStringLiteral("vtk_skipped_unrecognized_output_series_header");
@@ -6790,17 +6904,8 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
     };
 
     QVector<QuantitySpec> quantities;
-    QuantitySpec theta;
-    theta.seriesQuantity = QStringLiteral("theta");
-    theta.scalarName = QStringLiteral("Moisture_content");
-    theta.filePrefix = QStringLiteral("moisture");
-    quantities.push_back(theta);
-
-    QuantitySpec age;
-    age.seriesQuantity = QStringLiteral("meanagetracer:concentration");
-    age.scalarName = QStringLiteral("Mean_Age");
-    age.filePrefix = QStringLiteral("mean_age");
-    quantities.push_back(age);
+    QuantitySpec theta; theta.seriesQuantity = QStringLiteral("theta"); theta.scalarName = QStringLiteral("Moisture_content"); theta.filePrefix = QStringLiteral("moisture"); quantities.push_back(theta);
+    QuantitySpec age; age.seriesQuantity = QStringLiteral("meanagetracer:concentration"); age.scalarName = QStringLiteral("Mean_Age"); age.filePrefix = QStringLiteral("mean_age"); quantities.push_back(age);
 
     for (QuantitySpec &spec : quantities) {
         for (int b = 0; b < geometry.size(); ++b) {
@@ -6871,7 +6976,7 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
             const QString fileName = QStringLiteral("%1_%2.vtp").arg(spec.filePrefix).arg(rowIndex + 1, 4, 10, QLatin1Char('0'));
             const QString outPath = QDir(vtkDir).filePath(fileName);
             QString error;
-            if (VnWriteSurfaceOrPointCloudVtp(outPath, spec.scalarName, pts, vals, &error)) {
+            if (VnWriteDelaunayVtp(outPath, spec.scalarName, pts, vals, &error)) {
                 created << outPath;
                 ++written;
             } else if (!error.trimmed().isEmpty()) {
@@ -6896,15 +7001,15 @@ QStringList ModelCreatorWindow::createVnVtkOutputsFromRunArtifacts()
         }
 
         vnResultGridStatus = pvdFiles.isEmpty()
-            ? QStringLiteral("created_vtp_from_output_series")
-            : QStringLiteral("created_vtp_and_pvd_from_output_series");
+            ? QStringLiteral("created_delaunay_vtp_from_soil_output_series")
+            : QStringLiteral("created_delaunay_vtp_and_pvd_from_soil_output_series");
         appendLog(stamp(tr("VN VTK export created %1 VTP snapshot file(s) in %2").arg(written).arg(vtkDir)));
         if (!pvdFiles.isEmpty()) {
             appendLog(stamp(tr("VN VTK export created %1 PVD time-series file(s).").arg(pvdFiles.size())));
         }
     } else {
         vnResultGridStatus = QStringLiteral("vtk_skipped_no_matching_theta_or_age_series");
-        appendLog(stamp(tr("VN VTK export skipped: no matching theta or mean-age output columns were found for Soil blocks.")));
+        appendLog(stamp(tr("VN VTK export skipped: no matching theta or mean-age output columns were found for Soil-g/Soil-uw blocks.")));
     }
 
     return created;
@@ -6942,7 +7047,7 @@ QStringList ModelCreatorWindow::collectRunArtifacts() const
     QDirIterator it(workingDirectory, QDir::Files, QDirIterator::Subdirectories);
     const QDateTime threshold = runStartedAt.addSecs(-1);
 
-    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu", "vti", "vtm", "vtmb", "pvd"};
+    static const QStringList allowedExt = {"txt", "csv", "log", "json", "ohq", "vtk", "vtp", "vtu", "vti", "pvd", "vtm", "vtmb"};
 
     while (it.hasNext()) {
         it.next();
