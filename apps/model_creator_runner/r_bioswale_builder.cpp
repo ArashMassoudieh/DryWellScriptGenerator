@@ -580,22 +580,22 @@ create link;from=EngineeredSoil (4),to=EngineeredSoil (5),type=soil_to_soil_link
 create link;from=EngineeredSoil (5),to=EngineeredSoil (6),type=soil_to_soil_link,name=EngineeredSoil_V (5)
 create link;from=EngineeredSoil (6),to=EngineeredSoil (7),type=soil_to_soil_link,name=EngineeredSoil_V (6)
 create link;from=EngineeredSoil (7),to=EngineeredSoil (8),type=soil_to_soil_link,name=EngineeredSoil_V (7)
-create link;from=EngineeredSoil (1),to=LeftTop (1$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (1),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (2),to=LeftTop (2$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (2),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (3),to=LeftTop (3$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (3),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (4),to=LeftTop (4$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (4),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (5),to=LeftTop (5$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (5),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (6),to=LeftTop (6$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (6),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (7),to=LeftTop (7$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (7),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (8),to=LeftTop (8$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (8),length=0.5548[m],area=0.8128[m~^2])
+create link;from=EngineeredSoil (1),to=LeftTop (1$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (1),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (2),to=LeftTop (2$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (2),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (3),to=LeftTop (3$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (3),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (4),to=LeftTop (4$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (4),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (5),to=LeftTop (5$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (5),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (6),to=LeftTop (6$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (6),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (7),to=LeftTop (7$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (7),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (8),to=LeftTop (8$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (8),length=0.5548[m],area=0.8128[m~^2]
 create link;from=EngineeredSoil (1),to=Subbase (1),type=soil_to_fixedhead_link_H,area=0.8128[m~^2],length=0.5548[m],name=EngineeredSoil-Subbase,outlet_head=-0.1016[m]
-create link;from=EngineeredSoil (2),to=RightTop (2$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (2),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (3),to=RightTop (3$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (3),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (4),to=RightTop (4$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (4),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (5),to=RightTop (5$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (5),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (6),to=RightTop (6$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (6),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (7),to=RightTop (7$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (7),length=0.5548[m],area=0.8128[m~^2])
-create link;from=EngineeredSoil (8),to=RightTop (8$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (8),length=0.5548[m],area=0.8128[m~^2])
+create link;from=EngineeredSoil (2),to=RightTop (2$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (2),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (3),to=RightTop (3$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (3),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (4),to=RightTop (4$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (4),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (5),to=RightTop (5$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (5),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (6),to=RightTop (6$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (6),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (7),to=RightTop (7$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (7),length=0.5548[m],area=0.8128[m~^2]
+create link;from=EngineeredSoil (8),to=RightTop (8$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (8),length=0.5548[m],area=0.8128[m~^2]
 create link;from=LeftTop (1$1),to=LeftTop (1$2),type=soil_to_soil_H_link,name=LeftTopH (1$1),length=0.5[m],area=0.8128[m~^2]
 create link;from=LeftTop (1$2),to=LeftTop (1$3),type=soil_to_soil_H_link,name=LeftTopH (1$2),length=0.5[m],area=0.8128[m~^2]
 create link;from=LeftTop (1$3),to=LeftTop (1$4),type=soil_to_soil_H_link,name=LeftTopH (1$3),length=0.5[m],area=0.8128[m~^2]
@@ -4222,7 +4222,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         const double area = layers[layer].depth * modelLength;
         bottomElevation -= layers[layer].depth;
         if (isTopLayer(layer)) {
-            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=LeftTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
+            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=LeftTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-LeftTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2]\n";
         } else {
             break;
         }
@@ -4231,11 +4231,26 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     double length = bioswaleWidth / 2.0 + rightCellWidth / 2.0;
     double area = layers[0].depth * modelLength;
     ts << "create link;from=EngineeredSoil (1),to=Subbase (1),type=soil_to_fixedhead_link_H,area=" << area << "[m~^2],length=" << length << "[m],name=EngineeredSoil-Subbase,outlet_head=" << (-layers[0].depth) << "[m]\n";
+
+    // Keep the aggregate-storage/subbase trench hydraulically connected along
+    // the street direction. The original reference script has these links,
+    // but the soft generator accidentally omitted them, so water entering
+    // Subbase (1) could not move laterally to the remaining Subbase cells.
+    for (int column = 0; column + 1 < streetCells; ++column) {
+        ts << "create link;from=Subbase (" << (column + 1)
+           << "),to=Subbase (" << (column + 2)
+           << "),type=aggregate2aggregate_H_Link,width=" << modelLength
+           << "[m],length=" << rightCellWidth
+           << "[m],name=Subbase (" << (column + 1)
+           << ") - Subbase (" << (column + 2) << ")\n";
+    }
+
     bottomElevation = -layers[0].depth;
     for (int layer = 1; layer < layers.size(); ++layer) {
         bottomElevation -= layers[layer].depth;
         if (isTopLayer(layer)) {
-            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=RightTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (" << (layer + 1) << "),length=" << length << "[m],area=" << area << "[m~^2])\n";
+            const double hArea = layers[layer].depth * modelLength;
+            ts << "create link;from=EngineeredSoil (" << (layer + 1) << "),to=RightTop (" << (layer + 1) << "$1),type=soil_to_soil_H_link,name=EngineeredSoil-RightTop (" << (layer + 1) << "),length=" << length << "[m],area=" << hArea << "[m~^2]\n";
         } else {
             break;
         }
@@ -4249,6 +4264,33 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         if (isTopLayer(layer)) {
             for (int column = 0; column < lateralCells - 1; ++column) {
                 ts << "create link;from=LeftTop (" << (layer + 1) << "$" << (column + 1) << "),to=LeftTop (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=LeftTopH (" << (layer + 1) << "$" << (column + 1) << "),length=" << hLength << "[m],area=" << hArea << "[m~^2]\n";
+            }
+        } else {
+            break;
+        }
+    }
+
+    // RightTop horizontal soil links, matching DialogRoseMead.
+    // Layer 1 on the right side is Subbase, so RightTop soil blocks start at layer index 1.
+    bottomElevation = -layers[0].depth;
+    for (int layer = 1; layer < layers.size(); ++layer) {
+        const double hLength = rightCellWidth;
+        const double hArea = layers[layer].depth * modelLength;
+        bottomElevation -= layers[layer].depth;
+        if (isTopLayer(layer)) {
+            for (int column = 0; column < streetCells - 1; ++column) {
+                ts << "create link;from=RightTop (" << (layer + 1) << "$" << (column + 1) << "),to=RightTop (" << (layer + 1) << "$" << (column + 2) << "),type=soil_to_soil_H_link,name=RightTopH (" << (layer + 1) << "$" << (column + 1) << "),length=" << hLength << "[m],area=" << hArea << "[m~^2]\n";
+            }
+        } else {
+            break;
+        }
+    }
+
+    // LeftTop vertical soil links, matching DialogRoseMead.
+    for (int layer = 0; layer + 1 < layers.size(); ++layer) {
+        if (isTopLayer(layer) && isTopLayer(layer + 1)) {
+            for (int column = 0; column < lateralCells; ++column) {
+                ts << "create link;from=LeftTop (" << (layer + 1) << "$" << (column + 1) << "),to=LeftTop (" << (layer + 2) << "$" << (column + 1) << "),type=soil_to_soil_link,name=LeftTop_V (" << (layer + 1) << "$" << (column + 1) << ")\n";
             }
         } else {
             break;
