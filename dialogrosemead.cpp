@@ -5,7 +5,7 @@
 #include <QDebug>
 
 #include "paths.h"
-#include "solver_runner.h"
+
 
 DialogRoseMead::DialogRoseMead(QWidget *parent) :
     QDialog(parent),

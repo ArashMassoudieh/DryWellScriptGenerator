@@ -10,7 +10,7 @@
 #include "QMessageBox"
 
 #include "paths.h"
-#include "solver_runner.h"
+
 
 DryWellDialog::DryWellDialog(QWidget *parent, StructureVariant variant)
     : QDialog(parent)

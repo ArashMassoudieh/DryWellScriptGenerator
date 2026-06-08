@@ -3,7 +3,7 @@
 #include "mainwindow.h"
 
 #include "paths.h"
-#include"solver_runner.h"
+
 
 int main(int argc, char *argv[])
 {
