@@ -27,6 +27,8 @@ struct SoilBlockSpec
 
 QString FullReferenceScript();
 QString InflowTargetObject();
+QString RainfallTargetObject();
+QString ContributingCatchmentObject();
 QString BuildSoilBlockCommand(const SoilBlockSpec &spec);
 
 bool AppendBaseInflowBlock(const StarterScriptOptions &options,
