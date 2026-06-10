@@ -5143,6 +5143,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     ts << "create parameter;type=Parameter,high=10,low=1,name=Anisotropy_ratio,prior_distribution=log-normal,value=" << anisoRatio << '\n';
     ts << "create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_alpha,prior_distribution=log-normal,value=1.35\n";
     ts << "create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_n,prior_distribution=log-normal,value=1.5601\n";
+    ts << "create parameter;type=Parameter,high=10,low=1,name=Native_Soil_alpha,prior_distribution=log-normal,value=3.6\n";
+    ts << "create parameter;type=Parameter,high=10,low=1,name=Native_Soil_n,prior_distribution=log-normal,value=1.56\n";
     ts << "create parameter;type=Parameter,high=10,low=0.01,name=EC_alpha,prior_distribution=log-normal,value=0.43\n";
     ts << "create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2\n";
     ts << "create source;type=Precipitation,name=Rain,timeseries=\n";
@@ -5416,6 +5418,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
             for (int column = 0; column < lateralCells; ++column) {
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_alpha, quantity= alpha\n";
+                ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_n, quantity= n\n";
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
                 ts << "setasparameter; object= LeftTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
             }
@@ -5429,6 +5433,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
             for (int column = 0; column < streetCells; ++column) {
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_alpha, quantity= alpha\n";
+                ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_n, quantity= n\n";
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
                 ts << "setasparameter; object= RightTop (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
             }
@@ -5441,6 +5447,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
         if (isBottomLayer(layer)) {
             ts << "setasparameter; object=UEngineered (" << (layer + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
             ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+            ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= Native_Soil_alpha, quantity= alpha\n";
+            ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= Native_Soil_n, quantity= n\n";
             ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
             ts << "setasparameter; object= UEngineered (" << (layer + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
         } else {
@@ -5456,12 +5464,16 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
             for (int column = 0; column < lateralCells; ++column) {
                 ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object=LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_alpha, quantity= alpha\n";
+                ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_n, quantity= n\n";
                 ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
                 ts << "setasparameter; object= LeftBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
             }
             for (int column = 0; column < streetCells; ++column) {
                 ts << "setasparameter; object=RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= KS_scale_factor, quantity= K_sat_scale_factor\n";
                 ts << "setasparameter; object=RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Anisotropy_ratio, quantity= aniso_ratio\n";
+                ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_alpha, quantity= alpha\n";
+                ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= Native_Soil_n, quantity= n\n";
                 ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_alpha, quantity= MC_to_EC_coefficient\n";
                 ts << "setasparameter; object= RightBottom (" << (layer + 1) << "$" << (column + 1) << "), parametername= EC_beta, quantity= MC_to_EC_exponent\n";
             }
