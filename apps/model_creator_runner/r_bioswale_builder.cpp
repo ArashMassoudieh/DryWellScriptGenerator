@@ -12,8 +12,7 @@
 
 namespace {
 
-static const char *kBioswaleFullRef = R"BIO(
-loadtemplate; filename = /mnt/3rd900/Projects/OpenHydroQual/build/Release/../../resources/main_components.json
+static const char *kBioswaleFullRef = R"BIO(loadtemplate; filename = /mnt/3rd900/Projects/OpenHydroQual/build/Release/../../resources/main_components.json
 addtemplate; filename = /mnt/3rd900/Projects/OpenHydroQual/build/Release/../../resources/main_components.json
 addtemplate; filename = /mnt/3rd900/Projects/OpenHydroQual/resources/main_components.json
 addtemplate; filename = /mnt/3rd900/Projects/OpenHydroQual/resources/Pond_Plugin.json
@@ -39,8 +38,8 @@ setvalue; object=system, quantity=record_interval, value=1
 setvalue; object=system, quantity=samples_filename, value=mcmc.txt
 setvalue; object=system, quantity=alloutputfile, value=output.txt
 setvalue; object=system, quantity=observed_outputfile, value=observedoutput.txt
-setvalue; object=system, quantity=simulation_end_time, value=44439.7
-setvalue; object=system, quantity=simulation_start_time, value=44437
+setvalue; object=system, quantity=simulation_end_time, value=40542.8
+setvalue; object=system, quantity=simulation_start_time, value=40178.8
 setvalue; object=system, quantity=maxpop, value=40
 setvalue; object=system, quantity=ngen, value=40
 setvalue; object=system, quantity=numthreads, value=8
@@ -63,7 +62,7 @@ setvalue; object=system, quantity=nr_timestep_reduction_factor_fail, value=0.2
 setvalue; object=system, quantity=nr_tolerance, value=0.001
 setvalue; object=system, quantity=write_interval, value=100
 setvalue; object=system, quantity=write_solution_details, value=No
-create source;type=Precipitation,name=Rain,timeseries=
+create source;type=Precipitation,name=Rain,timeseries=Rain_2010.txt
 create parameter;type=Parameter,high=10,low=0.1,name=KS_scale_factor,prior_distribution=log-normal,value=2
 create parameter;type=Parameter,high=10,low=1,name=Anisotropy_ratio,prior_distribution=log-normal,value=5
 create parameter;type=Parameter,high=10,low=1,name=Eng_Soil_alpha,prior_distribution=log-normal,value=1.35
@@ -72,9 +71,9 @@ create parameter;type=Parameter,high=10,low=1,name=Native_Soil_alpha,prior_distr
 create parameter;type=Parameter,high=10,low=1,name=Native_Soil_n,prior_distribution=log-normal,value=1.56
 create parameter;type=Parameter,high=10,low=0.01,name=EC_alpha,prior_distribution=log-normal,value=0.43
 create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2
-create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,Slope=0.02,Width=0.6096,_height=200,_width=200,area=4.8768[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=0,y=-200
-create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=30,_height=400,_width=600,area=40[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Contributing Catchment,x=-886,y=-503
-create block;type=Catchment,Evapotranspiration=,ManningCoeff=0,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=0,_height=200,_width=200,area=0,depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment (1),x=673,y=-366
+create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,Slope=0.02,Width=0.6096,_height=200,_width=200,area=4.8768[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=-16,y=-296
+create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=30,_height=400,_width=600,area=687.966[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Contributing Catchment,x=-886,y=-503
+create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=0,_height=200,_width=200,area=10000,depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment (1),x=673,y=-366
 create block;type=Soil,Evapotranspiration=,K_sat_original=50,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=100,_width=150,act_X=0,act_Y=-0.0508,alpha=1,aniso_ratio=1,area=4.8768,bottom_elevation=-0.1016,depth=0.1016,n=1.8,name=EngineeredSoil (1),specific_storage=0.01,theta=0.09,theta_res=0.08,theta_sat=0.4,x=0,y=0
 create block;type=Soil,Evapotranspiration=,K_sat_original=50,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=100,_width=150,act_X=0,act_Y=-0.1524,alpha=1,aniso_ratio=1,area=4.8768,bottom_elevation=-0.2032,depth=0.1016,n=1.8,name=EngineeredSoil (2),specific_storage=0.01,theta=0.09,theta_res=0.08,theta_sat=0.4,x=0,y=200
 create block;type=Soil,Evapotranspiration=,K_sat_original=50,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=100,_width=150,act_X=0,act_Y=-0.254,alpha=1,aniso_ratio=1,area=4.8768,bottom_elevation=-0.3048,depth=0.1016,n=1.8,name=EngineeredSoil (3),specific_storage=0.01,theta=0.09,theta_res=0.08,theta_sat=0.4,x=0,y=400
@@ -603,6 +602,7 @@ create block;type=Soil,Evapotranspiration=,K_sat_original=0.25,K_sat_scale_facto
 create block;type=Soil,Evapotranspiration=,K_sat_original=0.25,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=100,_width=150,act_X=-4.5548,act_Y=-10.4394,alpha=3.6,aniso_ratio=1,area=4,bottom_elevation=-10.668,depth=0.4572,n=1.56,name=RightBottom (31$9),specific_storage=0.01,theta=0.09,theta_res=0.078,theta_sat=0.43,x=-1800,y=6000
 create block;type=Soil,Evapotranspiration=,K_sat_original=0.25,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=100,_width=150,act_X=-5.0548,act_Y=-10.4394,alpha=3.6,aniso_ratio=1,area=4,bottom_elevation=-10.668,depth=0.4572,n=1.56,name=RightBottom (31$10),specific_storage=0.01,theta=0.09,theta_res=0.078,theta_sat=0.43,x=-2000,y=6000
 create block;type=fixed_head,Storage=100000[m~^3],_height=200,_width=200,head=-10.668,name=GW,x=0,y=6400
+create block;type=fixed_head,Storage=100000,_height=200,_width=200,head=0.2,name=fixed_head,x=329,y=-451
 create link;from=Catchment,to=EngineeredSoil (1),type=surfacewater_to_soil_link,name=Catchment (1) - EngineeredSoil (1)
 create link;from=EngineeredSoil (1),to=EngineeredSoil (2),type=soil_to_soil_link,name=EngineeredSoil_V (1)
 create link;from=EngineeredSoil (2),to=EngineeredSoil (3),type=soil_to_soil_link,name=EngineeredSoil_V (2)
@@ -1628,7 +1628,13 @@ create link;from=RightBottom (31$8),to=GW,type=soil_to_fixedhead_link,name=Right
 create link;from=RightBottom (31$9),to=GW,type=soil_to_fixedhead_link,name=RightBottom - GW (9)
 create link;from=RightBottom (31$10),to=GW,type=soil_to_fixedhead_link,name=RightBottom - GW (10)
 create link;from=Contributing Catchment,to=Catchment,type=Catchment_link,name=Contributing Catchment - Catchment (1)
+create link;from=Catchment,to=fixed_head,type=Sewer_pipe,ManningCoeff=0.01,diameter=0.15,end_elevation=0.15,length=2,name=Catchment - fixed_head,start_elevation=0.2
 create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=(Precipitation*1000),kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Precipitation (mm/day),object=Contributing Catchment,observed_data=
+create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=depth,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Catchment Water Depth (m),object=Catchment,observed_data=
+create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M1,object=EngineeredSoil (1),observed_data=
+create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M2,object=EngineeredSoil (3),observed_data=
+create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M3,object=EngineeredSoil (7),observed_data=
+create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=flow,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Overflow (m3/day),object=Catchment - fixed_head,observed_data=
 setasparameter; object= EngineeredSoil (1), parametername= Eng_Soil_alpha, quantity= alpha
 setasparameter; object= EngineeredSoil (1), parametername= Eng_Soil_n, quantity= n
 setasparameter; object= EngineeredSoil (2), parametername= Eng_Soil_alpha, quantity= alpha
@@ -4698,8 +4704,7 @@ setasparameter; object= RightBottom (31$10), parametername= EC_alpha, quantity= 
 setasparameter; object= RightBottom (31$10), parametername= EC_beta, quantity= MC_to_EC_exponent
 setasparameter; object= RightBottom (31$10), parametername= Native_Soil_alpha, quantity= alpha
 setasparameter; object= RightBottom (31$10), parametername= Anisotropy_ratio, quantity= aniso_ratio
-setasparameter; object= RightBottom (31$10), parametername= Native_Soil_n, quantity= n
-)BIO";
+setasparameter; object= RightBottom (31$10), parametername= Native_Soil_n, quantity= n)BIO";
 
 
 
@@ -5122,8 +5127,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     ts << "addtemplate; filename=" << tf(QStringLiteral("soil_evapotranspiration_models.json")) << '\n';
     ts << "addtemplate; filename=" << tf(QStringLiteral("evapotranspiration_models.json")) << '\n';
     ts << "addtemplate; filename=" << tf(QStringLiteral("pipe_pump_tank.json")) << '\n';
-    ts << "setvalue; object=system, quantity=simulation_start_time, value=" << (options.simulationStart.trimmed().isEmpty() ? QStringLiteral("44438.3") : options.simulationStart.trimmed()) << '\n';
-    ts << "setvalue; object=system, quantity=simulation_end_time, value=" << (options.simulationEnd.trimmed().isEmpty() ? QStringLiteral("44440") : options.simulationEnd.trimmed()) << '\n';
+    ts << "setvalue; object=system, quantity=simulation_start_time, value=" << (options.simulationStart.trimmed().isEmpty() ? QStringLiteral("40178.8") : options.simulationStart.trimmed()) << '\n';
+    ts << "setvalue; object=system, quantity=simulation_end_time, value=" << (options.simulationEnd.trimmed().isEmpty() ? QStringLiteral("40542.8") : options.simulationEnd.trimmed()) << '\n';
     ts << "setvalue; object=system, quantity=shakescalered, value=0.75\n";
     ts << "setvalue; object=system, quantity=shakescale, value=0.05\n";
     ts << "setvalue; object=system, quantity=pmute, value=0.02\n";
@@ -5147,10 +5152,10 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     ts << "create parameter;type=Parameter,high=10,low=1,name=Native_Soil_n,prior_distribution=log-normal,value=1.56\n";
     ts << "create parameter;type=Parameter,high=10,low=0.01,name=EC_alpha,prior_distribution=log-normal,value=0.43\n";
     ts << "create parameter;type=Parameter,high=2,low=0.5,name=EC_beta,prior_distribution=log-normal,value=2\n";
-    ts << "create source;type=Precipitation,name=Rain,timeseries=\n";
-    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,Slope=0.02,Width=" << bioswaleWidth << ",_height=200,_width=200,area=" << catchmentArea << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=0,y=-200\n";
-    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=30,_height=400,_width=600,area=40[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Contributing Catchment,x=-886,y=-503\n";
-    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=0,_height=200,_width=200,area=0,depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment (1),x=673,y=-366\n";
+    ts << "create source;type=Precipitation,name=Rain,timeseries=Rain_2010.txt\n";
+    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,Slope=0.02,Width=" << bioswaleWidth << ",_height=200,_width=200,area=" << catchmentArea << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=-16,y=-296\n";
+    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=30,_height=400,_width=600,area=687.966[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Contributing Catchment,x=-886,y=-503\n";
+    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,Slope=0.02,Width=0,_height=200,_width=200,area=687.966,depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment (1),x=673,y=-366\n";
 
     int lowestUp = topLastLayer;
     double gwElevation = -10.668;
@@ -5258,6 +5263,8 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
 
     ts << "create link;from=Catchment,to=EngineeredSoil (1),type=surfacewater_to_soil_link,name=Catchment (1) - EngineeredSoil (1)\n";
     ts << "create link;from=Contributing Catchment,to=Catchment,type=Catchment_link,name=Contributing Catchment - Catchment (1)\n";
+    ts << "create block;type=fixed_head,Storage=100000,_height=200,_width=200,head=0.2,name=fixed_head,x=329,y=-451\n";
+    ts << "create link;from=Catchment,to=fixed_head,type=Sewer_pipe,ManningCoeff=0.01,diameter=0.15,end_elevation=0.15,length=2,name=Catchment - fixed_head,start_elevation=0.2\n";
 
     bottomElevation = 0.0;
     for (int layer = 0; layer + 1 < layers.size(); ++layer) {
@@ -5481,6 +5488,11 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     }
 
     ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=(Precipitation*1000),kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Precipitation (mm/day),object=Contributing Catchment,observed_data=\n";
+    ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=depth,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Catchment Water Depth (m),object=Catchment,observed_data=\n";
+    ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M1,object=EngineeredSoil (1),observed_data=\n";
+    ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M2,object=EngineeredSoil (3),observed_data=\n";
+    ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=theta,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Soil Moisture M3,object=EngineeredSoil (7),observed_data=\n";
+    ts << "create observation;type=Observation,autocorrelation_time-span=1,comparison_method=Least Squared,error_standard_deviation=1,error_structure=normal,expression=flow,kernel_Delta0=1,kernel_alpha=1,kernel_tau=1,name=Overflow (m3/day),object=Catchment - fixed_head,observed_data=\n";
 
     return out;
 }
@@ -5542,15 +5554,15 @@ bool RBioswaleBuilder::AppendBaseInflowBlock(const StarterScriptOptions &,
 
     Q_UNUSED(inflow);
     *scriptText += QStringLiteral(
-        "create source;type=Precipitation,name=Rain,timeseries=\n"
+        "create source;type=Precipitation,name=Rain,timeseries=Rain_2010.txt\n"
         "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,"
-        "Slope=0.02,Width=1,_height=200,_width=200,area=1[m~^2],depression_storage=0,"
-        "depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=0,y=-200\n"
+        "Slope=0.02,Width=0.6096,_height=200,_width=200,area=4.8768[m~^2],depression_storage=0,"
+        "depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment,x=-16,y=-296\n"
         "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,"
-        "Slope=0.02,Width=30,_height=400,_width=600,area=40[m~^2],depression_storage=0,"
+        "Slope=0.02,Width=30,_height=400,_width=600,area=687.966[m~^2],depression_storage=0,"
         "depth=0,elevation=0,inflow=,loss_coefficient=0,name=Contributing Catchment,x=-886,y=-503\n"
-        "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0,Precipitation=Rain,Runoff_coeff=0.8,"
-        "Slope=0.02,Width=0,_height=200,_width=200,area=0,depression_storage=0,"
+        "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,"
+        "Slope=0.02,Width=0,_height=200,_width=200,area=10000,depression_storage=0,"
         "depth=0,elevation=0,inflow=,loss_coefficient=0,name=Catchment (1),x=673,y=-366\n");
     return true;
 }
