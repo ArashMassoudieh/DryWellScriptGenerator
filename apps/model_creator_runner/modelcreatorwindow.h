@@ -141,6 +141,7 @@ private:
     QLineEdit *generatedScriptEdit;
     QComboBox *enrichmentPresetCombo;
     QLineEdit *inflowFileEdit;
+    QPushButton *inflowUseButton;
     QLineEdit *simulationStartEdit;
     QLineEdit *simulationEndEdit;
     QLineEdit *ksatScaleEdit;

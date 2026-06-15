@@ -1723,6 +1723,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       generatedScriptEdit(new QLineEdit(this)),
       enrichmentPresetCombo(new QComboBox(this)),
       inflowFileEdit(new QLineEdit(this)),
+      inflowUseButton(new QPushButton(tr("Use"), this)),
       simulationStartEdit(new QLineEdit(this)),
       simulationEndEdit(new QLineEdit(this)),
       ksatScaleEdit(new QLineEdit(this)),
@@ -1859,6 +1860,30 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         return container;
     };
 
+    auto addToggleFileRow = [](QVBoxLayout *targetLayout, const QString &labelText, QLineEdit *edit,
+                               QPushButton *useButton, const QString &buttonText, auto slot) -> QWidget* {
+        auto *container = new QWidget();
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(labelText));
+        useButton->setCheckable(true);
+        useButton->setChecked(true);
+        useButton->setText(QObject::tr("Use"));
+        useButton->setToolTip(QObject::tr("Toggle this file assignment on/off without clearing the selected path."));
+        row->addWidget(useButton);
+        row->addWidget(edit, 1);
+        auto *btn = new QPushButton(buttonText);
+        QObject::connect(btn, &QPushButton::clicked, slot);
+        row->addWidget(btn);
+        QObject::connect(useButton, &QPushButton::toggled, edit, [edit, useButton, btn](bool checked) {
+            useButton->setText(checked ? QObject::tr("Use") : QObject::tr("No file"));
+            edit->setEnabled(checked);
+            btn->setEnabled(checked);
+        });
+        targetLayout->addWidget(container);
+        return container;
+    };
+
     auto addTextRow = [](QVBoxLayout *targetLayout, const QString &labelText, QWidget *editor) -> QWidget* {
         auto *container = new QWidget();
         auto *row = new QHBoxLayout(container);
@@ -1898,7 +1923,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     templateDirEdit->setPlaceholderText(tr("Auto-detected from OpenHydroQual roots"));
     generatedScriptRowWidget = addFileRow(layout, tr("Generated script path"), generatedScriptEdit, tr("Browse"), [this]() { chooseGeneratedScriptPath(); });
     generatedScriptEdit->setPlaceholderText(tr("Suggested: <working_dir>/starter_generated.ohq"));
-    inflowRowWidget = addFileRow(layout, tr("Inflow file"), inflowFileEdit, tr("Browse"), [this]() { chooseInflowFile(); });
+    inflowRowWidget = addToggleFileRow(layout, tr("Inflow file"), inflowFileEdit, inflowUseButton, tr("Browse"), [this]() { chooseInflowFile(); });
     inflowFileEdit->setPlaceholderText(tr("Suggested: <repo>/inflow.csv"));
     simulationStartRowWidget = addTextRow(layout, tr("Simulation start"), simulationStartEdit);
     simulationStartEdit->setPlaceholderText(tr("Suggested: auto-from-inflow"));
@@ -2503,6 +2528,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(templateDirEdit);
     saveOnEdit(generatedScriptEdit);
     saveOnEdit(inflowFileEdit);
+    if (inflowUseButton) {
+        connect(inflowUseButton, &QPushButton::toggled, this, [this](bool checked) {
+            inflowUseButton->setText(checked ? tr("Use") : tr("No file"));
+            saveSettings();
+        });
+    }
     connect(inflowFileEdit, &QLineEdit::textEdited, this, [this]() { inflowAutoSuggested = false; });
     saveOnEdit(simulationStartEdit);
     saveOnEdit(simulationEndEdit);
@@ -3869,7 +3900,8 @@ void ModelCreatorWindow::previewScript()
         options.outputFile = generatedScriptEdit->text().trimmed();
         options.modelType = modelTypeCombo->currentText();
         options.enrichmentPreset = enrichmentPresetCombo->currentData().toString();
-        options.inflowFile = inflowFileEdit->text().trimmed();
+        options.useInflowFile = !inflowUseButton || inflowUseButton->isChecked();
+        options.inflowFile = options.useInflowFile ? inflowFileEdit->text().trimmed() : QString();
         options.simulationStart = simulationStartEdit->text().trimmed();
         options.simulationEnd = simulationEndEdit->text().trimmed();
         options.outputSeriesFile = outputSeriesFileEdit->text().trimmed();
@@ -4087,7 +4119,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         meta.insert(QStringLiteral("working_directory"), workingDirectory);
         meta.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
         meta.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
-        meta.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
+        meta.insert(QStringLiteral("use_inflow_file"), inflowUseButton ? inflowUseButton->isChecked() : true);
+        meta.insert(QStringLiteral("inflow_file"), inflowUseButton && !inflowUseButton->isChecked() ? QString() : inflowFileEdit->text().trimmed());
         meta.insert(QStringLiteral("field_generator_runtime_status"), QStringLiteral("metadata_only_in_current_app"));
         meta.insert(QStringLiteral("resultgrid_runtime_status"), vnResultGridRuntimeStatus());
         meta.insert(QStringLiteral("ert_snapshot_runtime_status"), vnErtSnapshotRuntimeStatus());
@@ -4156,7 +4189,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
     options.outputFile = generatedScriptEdit->text().trimmed();
     options.modelType = modelTypeCombo->currentText();
     options.enrichmentPreset = enrichmentPresetCombo->currentData().toString();
-    options.inflowFile = inflowFileEdit->text().trimmed();
+    options.useInflowFile = !inflowUseButton || inflowUseButton->isChecked();
+    options.inflowFile = options.useInflowFile ? inflowFileEdit->text().trimmed() : QString();
     options.simulationStart = simulationStartEdit->text().trimmed();
     options.simulationEnd = simulationEndEdit->text().trimmed();
     options.outputSeriesFile = outputSeriesFileEdit->text().trimmed();
@@ -4357,7 +4391,7 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         return false;
     }
 
-    if (options.inflowFile.isEmpty()) {
+    if (options.useInflowFile && options.inflowFile.isEmpty()) {
         if (vnModel) {
             options.inflowFile = DetectSuggestedInflowFile(QStringLiteral("VN_Drywell"),
                                                            options.templateDirectory);
@@ -5851,6 +5885,12 @@ void ModelCreatorWindow::loadSettings()
                                                                                : defaultTemplateDirectory).toString());
     generatedScriptEdit->setText(settings.value("generatedScriptPath", defaultGeneratedScriptPath).toString());
     inflowFileEdit->setText(settings.value("inflowFile").toString());
+    if (inflowUseButton) {
+        const bool useInflow = settings.value("useInflowFile", true).toBool();
+        inflowUseButton->setChecked(useInflow);
+        inflowUseButton->setText(useInflow ? tr("Use") : tr("No file"));
+        inflowFileEdit->setEnabled(useInflow);
+    }
     simulationStartEdit->setText(settings.value("simulationStart", "44435").toString());
     simulationEndEdit->setText(settings.value("simulationEnd", "44438").toString());
     ksatScaleEdit->setText(settings.value("ksatScale").toString());
@@ -6012,6 +6052,7 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("templateDirectory", templateDirEdit->text());
     settings.setValue("generatedScriptPath", generatedScriptEdit->text());
     settings.setValue("inflowFile", inflowFileEdit->text());
+    settings.setValue("useInflowFile", inflowUseButton ? inflowUseButton->isChecked() : true);
     settings.setValue("simulationStart", simulationStartEdit->text());
     settings.setValue("simulationEnd", simulationEndEdit->text());
     settings.setValue("ksatScale", ksatScaleEdit->text());
@@ -6301,7 +6342,8 @@ bool ModelCreatorWindow::writeVnMetadataJson(const QString &targetPath, QString 
     root.insert(QStringLiteral("ksat_uw"), currentEffectiveKsatUw());
     root.insert(QStringLiteral("simulation_start"), simulationStartEdit->text().trimmed());
     root.insert(QStringLiteral("simulation_end"), simulationEndEdit->text().trimmed());
-    root.insert(QStringLiteral("inflow_file"), inflowFileEdit->text().trimmed());
+    root.insert(QStringLiteral("use_inflow_file"), inflowUseButton ? inflowUseButton->isChecked() : true);
+    root.insert(QStringLiteral("inflow_file"), inflowUseButton && !inflowUseButton->isChecked() ? QString() : inflowFileEdit->text().trimmed());
     root.insert(QStringLiteral("script_path"), scriptPathEdit->text().trimmed());
     root.insert(QStringLiteral("working_directory"), workingDirEdit->text().trimmed());
     root.insert(QStringLiteral("field_generator_runtime"), QStringLiteral("metadata_only_in_current_app"));

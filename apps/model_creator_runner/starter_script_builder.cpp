@@ -1599,8 +1599,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return false;
     }
 
-    QString inflow = options.inflowFile.trimmed();
-    if (inflow.isEmpty()) {
+    QString inflow = options.useInflowFile ? options.inflowFile.trimmed() : QString();
+    if (options.useInflowFile && inflow.isEmpty()) {
         if (vnModelType) {
             inflow = (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))
                          ? DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory)
@@ -1612,9 +1612,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                                           || rBioswaleMode == QStringLiteral("SoftReference"))) {
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
         }
-    } else if ((vnModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("VN_Drywell")))
+    } else if (options.useInflowFile && ((vnModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("VN_Drywell")))
                || (hqModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("HQ_Drywell")))
-               || (rBioswaleModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("R_Bioswale")))) {
+               || (rBioswaleModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("R_Bioswale"))))) {
         // Guard against stale inflow defaults carried across model switches in UI state.
         if (vnModelType && (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))) {
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory);
@@ -1624,16 +1624,16 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
         }
     }
-    const bool inflowRequired = vnModelType
+    const bool inflowRequired = options.useInflowFile && (vnModelType
         || (hqModelType && hqMode == QStringLiteral("SoftReference"))
-        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference"));
+        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("SoftReference")));
     if (inflowRequired && inflow.isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Inflow file is required.");
         }
         return false;
     }
-    {
+    if (options.useInflowFile && !inflow.isEmpty()) {
         const QFileInfo inflowInfo(inflow);
         if (inflowInfo.isAbsolute() && !inflowInfo.exists()) {
             if (errorMessage) {
@@ -1831,8 +1831,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                    .arg(options.simulationEnd);
         out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
                    .arg(options.outputSeriesFile);
-        out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
-                   .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
+        if (!inflow.isEmpty()) {
+            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
+                       .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
+        }
 
         if (!options.observationFile.trimmed().isEmpty()) {
             out += QStringLiteral(
@@ -1883,8 +1885,10 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
                        .arg(options.simulationEnd);
             out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n")
                        .arg(options.outputSeriesFile);
-            out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
-                       .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
+            if (!inflow.isEmpty()) {
+                out += QStringLiteral("setvalue; object=%1, quantity=inflow, value=%2\n")
+                           .arg(VnDrywellBuilder::InflowTargetObject(), inflow);
+            }
         } else {
             AppendEmbeddedVnSoftReferenceScaffold(options, &out);
             QTextStream ts(&out);
@@ -1892,7 +1896,9 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             ts << "setvalue; object=system, quantity=simulation_start_time, value=" << options.simulationStart << "\n";
             ts << "setvalue; object=system, quantity=simulation_end_time, value=" << options.simulationEnd << "\n";
             ts << "setvalue; object=system, quantity=outputfile, value=" << options.outputSeriesFile << "\n";
-            ts << "setvalue; object=" << VnDrywellBuilder::InflowTargetObject() << ", quantity=inflow, value=" << inflow << "\n";
+            if (!inflow.isEmpty()) {
+                ts << "setvalue; object=" << VnDrywellBuilder::InflowTargetObject() << ", quantity=inflow, value=" << inflow << "\n";
+            }
             ts << "# VN_Drywell soft reference scaffold generated from embedded VN reference + controllable Soil-uw grid\n";
             AppendVnSoftReferenceGrid(ts, options);
         }

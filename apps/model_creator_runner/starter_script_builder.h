@@ -18,6 +18,10 @@ struct StarterScriptOptions
     /// Input inflow time series file path.
     QString inflowFile;
 
+    /// When false, generated scripts leave inflow assignments disabled/empty.
+    /// This is controlled by the ModelCreatorWindow "Use/No file" button.
+    bool useInflowFile = true;
+
     /// Simulation start time (OHQ numeric timestamp).
     QString simulationStart = "44435";
 
