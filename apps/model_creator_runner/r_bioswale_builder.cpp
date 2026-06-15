@@ -6,6 +6,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QVector>
+#include <QtGlobal>
 
 #include <algorithm>
 #include <cmath>
@@ -5021,10 +5022,17 @@ static QVector<RBioswaleLayerLocal> ResolveRBioswaleLayersLocal(const StarterScr
 
     int effectiveNz = sourceLayers.size();
 
-    if (options.rVerticalLayers > 0) {
-        // User-entered nz is authoritative. Keep at least two rows so the
-        // last row can become the bottom/GW-connected layer when the cut is
-        // shallower than the Rosemead bioswale-depth split.
+    const bool hasSplitNz = options.rEngineeredSoilNz > 0 || options.rNativeSoilNz > 0;
+    if (hasSplitNz) {
+        int inferredEngineeredNz = MinimumRBioswaleLayerCountForBottomLocal(sourceLayers, bioswaleDepth) - 1;
+        inferredEngineeredNz = qBound(1, inferredEngineeredNz, qMax(1, sourceLayers.size() - 1));
+        const int engineeredNz = options.rEngineeredSoilNz > 0 ? options.rEngineeredSoilNz : inferredEngineeredNz;
+        const int nativeNz = options.rNativeSoilNz > 0 ? options.rNativeSoilNz : qMax(1, sourceLayers.size() - inferredEngineeredNz);
+        effectiveNz = qMax(engineeredNz, 1) + qMax(nativeNz, 1);
+    } else if (options.rVerticalLayers > 0) {
+        // Legacy total-nz field is authoritative only when the newer split
+        // engineered/native nz controls are not used. Keep at least two rows
+        // so the last row can become the bottom/GW-connected layer.
         effectiveNz = qMax(options.rVerticalLayers, 2);
     }
 
@@ -5057,19 +5065,23 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     }
 
     // Rosemead uses the soil-file row number as the vertical layer index.
-    // When the user trims nz (for example nz=5), all link counters must trim
-    // with it as well: GW must connect to layer 5, not the old file/reference
-    // last layer. If the requested cut is shallower than the bioswale-depth
-    // split, force the last effective row to be the bottom layer so
-    // UEngineered/LeftBottom/RightBottom and GW links still exist.
+    // Split nz mode: engineered_soil_nz defines the final Engineered/Top row,
+    // native_soil_nz defines the Bottom/UEngineered rows. The final native row
+    // is therefore always the row connected to fixed-head GW. Legacy total_nz
+    // still works when the split fields are left Auto/blank.
     int topLastLayer = -1; // 0-based index of the last Top/Engineered row.
-    double splitBottomElevation = 0.0;
-    for (int i = 0; i < layers.size(); ++i) {
-        splitBottomElevation -= layers[i].depth;
-        if (splitBottomElevation >= -bioswaleDepth) {
-            topLastLayer = i;
-        } else {
-            break;
+    const bool hasSplitNz = options.rEngineeredSoilNz > 0 || options.rNativeSoilNz > 0;
+    if (hasSplitNz && options.rEngineeredSoilNz > 0) {
+        topLastLayer = qBound(0, options.rEngineeredSoilNz - 1, qMax(0, layers.size() - 2));
+    } else {
+        double splitBottomElevation = 0.0;
+        for (int i = 0; i < layers.size(); ++i) {
+            splitBottomElevation -= layers[i].depth;
+            if (splitBottomElevation >= -bioswaleDepth) {
+                topLastLayer = i;
+            } else {
+                break;
+            }
         }
     }
     if (topLastLayer >= layers.size() - 1) {
@@ -5114,9 +5126,15 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
 
     QString out;
     QTextStream ts(&out);
-    if (options.rVerticalLayers > 0) {
-        ts << "# r_bioswale_note: requested nz=" << options.rVerticalLayers
-           << "; effective nz=" << layers.size()
+    if (options.rEngineeredSoilNz > 0 || options.rNativeSoilNz > 0) {
+        ts << "# r_bioswale_note: engineered_soil_nz="
+           << (options.rEngineeredSoilNz > 0 ? options.rEngineeredSoilNz : topLastLayer + 1)
+           << "; native_soil_nz=" << (layers.size() - bottomFirstLayer)
+           << "; effective total_nz=" << layers.size()
+           << "; bottom/GW links use native row " << layers.size() << ".\n";
+    } else if (options.rVerticalLayers > 0) {
+        ts << "# r_bioswale_note: requested total_nz=" << options.rVerticalLayers
+           << "; effective total_nz=" << layers.size()
            << "; bottom/GW links use layer " << layers.size() << ".\n";
     }
     ts << "loadtemplate; filename=" << tf(QStringLiteral("main_components.json")) << '\n';

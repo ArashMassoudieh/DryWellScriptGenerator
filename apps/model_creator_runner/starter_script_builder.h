@@ -112,7 +112,9 @@ struct StarterScriptOptions
     int rLateralCells = 6;
     double rStreetWidth = 5.0;
     int rStreetCells = 10;
-    int rVerticalLayers = 0; // R/Bioswale nz override; 0 = use file/reference row count.
+    int rVerticalLayers = 0; // Legacy R/Bioswale total nz override; 0 = use file/reference row count.
+    int rEngineeredSoilNz = 0; // R/Bioswale engineered-soil vertical rows; 0 = infer from depth split/reference.
+    int rNativeSoilNz = 0;     // R/Bioswale native/bottom-soil vertical rows; 0 = infer from depth split/reference.
     double rAnisoRatio = 5.0;
     QString rSoilPropsFile;
 

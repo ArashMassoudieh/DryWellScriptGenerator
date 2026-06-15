@@ -187,6 +187,8 @@ private:
     QLineEdit *rBioSwaleDepthEdit;
     QLineEdit *rSoilPropsFileEdit;
     QLineEdit *rVerticalLayersEdit;
+    QLineEdit *rEngineeredSoilNzEdit;
+    QLineEdit *rNativeSoilNzEdit;
     QLineEdit *rLateralCellsEdit;
     QLineEdit *rLengthEdit;
     QLineEdit *rStreetWidthEdit;

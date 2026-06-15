@@ -747,6 +747,9 @@ bool IsRBioswaleSoftCustomizationRequested(const StarterScriptOptions &options)
         || options.rLateralCells != defaults.rLateralCells
         || differs(options.rStreetWidth, defaults.rStreetWidth)
         || options.rStreetCells != defaults.rStreetCells
+        || options.rVerticalLayers != defaults.rVerticalLayers
+        || options.rEngineeredSoilNz != defaults.rEngineeredSoilNz
+        || options.rNativeSoilNz != defaults.rNativeSoilNz
         || differs(options.rAnisoRatio, defaults.rAnisoRatio);
 }
 
@@ -1766,6 +1769,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       rBioSwaleDepthEdit(new QLineEdit(this)),
       rSoilPropsFileEdit(new QLineEdit(this)),
       rVerticalLayersEdit(new QLineEdit(this)),
+      rEngineeredSoilNzEdit(new QLineEdit(this)),
+      rNativeSoilNzEdit(new QLineEdit(this)),
       rLateralCellsEdit(new QLineEdit(this)),
       rLengthEdit(new QLineEdit(this)),
       rStreetWidthEdit(new QLineEdit(this)),
@@ -1970,12 +1975,18 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(rStreetWidthEdit, tr("5"));
     setupCompactNumericEdit(rStreetCellsEdit, tr("10"));
     setupCompactNumericEdit(rVerticalLayersEdit, tr("Auto"));
+    setupCompactNumericEdit(rEngineeredSoilNzEdit, tr("Auto"));
+    setupCompactNumericEdit(rNativeSoilNzEdit, tr("Auto"));
     setupCompactNumericEdit(rAnisoRatioEdit, tr("5"));
     hqSoilPropsFileEdit->setPlaceholderText(tr("Optional HQ soil layer file (*.txt, *.csv)"));
     hqSoilPropsFileEdit->setToolTip(tr("Optional HQ/DryWell soil layer table. If provided, HQ SoftReference uses these per-layer soil parameters while keeping HQ geometry controls."));
     rSoilPropsFileEdit->setPlaceholderText(tr("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt"));
     rVerticalLayersEdit->setPlaceholderText(tr("Auto"));
-    rVerticalLayersEdit->setToolTip(tr("R/Rosemead nz. Auto uses all selected soil-file rows. If entered, the builder trims/extends to that row count and moves bottom/GW links to the last effective layer."));
+    rVerticalLayersEdit->setToolTip(tr("Legacy total R/Rosemead nz. Leave Auto when using separate engineered/native nz fields."));
+    rEngineeredSoilNzEdit->setPlaceholderText(tr("Auto"));
+    rEngineeredSoilNzEdit->setToolTip(tr("Engineered/top soil nz. If set with native soil nz, total nz = engineered nz + native nz."));
+    rNativeSoilNzEdit->setPlaceholderText(tr("Auto"));
+    rNativeSoilNzEdit->setToolTip(tr("Native/bottom soil nz. The last native row is connected to fixed-head GW."));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -2157,8 +2168,12 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addWidget(rStreetWidthEdit);
         row->addWidget(new QLabel(tr("street_cells")));
         row->addWidget(rStreetCellsEdit);
-        row->addWidget(new QLabel(tr("nz")));
+        row->addWidget(new QLabel(tr("total_nz")));
         row->addWidget(rVerticalLayersEdit);
+        row->addWidget(new QLabel(tr("eng_nz")));
+        row->addWidget(rEngineeredSoilNzEdit);
+        row->addWidget(new QLabel(tr("native_nz")));
+        row->addWidget(rNativeSoilNzEdit);
         row->addWidget(new QLabel(tr("aniso")));
         row->addWidget(rAnisoRatioEdit);
         row->addStretch(1);
@@ -2543,6 +2558,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(rStreetWidthEdit);
     saveOnEdit(rStreetCellsEdit);
     saveOnEdit(rVerticalLayersEdit);
+    saveOnEdit(rEngineeredSoilNzEdit);
+    saveOnEdit(rNativeSoilNzEdit);
     saveOnEdit(rAnisoRatioEdit);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
@@ -3957,6 +3974,8 @@ void ModelCreatorWindow::previewScript()
             AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
             AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
             AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
+            AssignIntIfProvided(rEngineeredSoilNzEdit, &options.rEngineeredSoilNz);
+            AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
             AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
             options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
             if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
@@ -4266,6 +4285,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         AssignDoubleIfProvided(rStreetWidthEdit, &options.rStreetWidth);
         AssignIntIfProvided(rStreetCellsEdit, &options.rStreetCells);
         AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
+        AssignIntIfProvided(rEngineeredSoilNzEdit, &options.rEngineeredSoilNz);
+        AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
         AssignDoubleIfProvided(rAnisoRatioEdit, &options.rAnisoRatio);
         options.rSoilPropsFile = rSoilPropsFileEdit->text().trimmed();
         if (options.rBioswaleBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
@@ -4284,6 +4305,15 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         rMetadata << QStringLiteral("# r_bioswale_ui:bioswale_depth=%1").arg(options.rBioSwaleDepth);
         rMetadata << QStringLiteral("# r_bioswale_ui:length=%1").arg(options.rLength);
         rMetadata << QStringLiteral("# r_bioswale_ui:lateral_cells=%1").arg(options.rLateralCells);
+        if (options.rVerticalLayers > 0) {
+            rMetadata << QStringLiteral("# r_bioswale_ui:total_nz=%1").arg(options.rVerticalLayers);
+        }
+        if (options.rEngineeredSoilNz > 0) {
+            rMetadata << QStringLiteral("# r_bioswale_ui:engineered_soil_nz=%1").arg(options.rEngineeredSoilNz);
+        }
+        if (options.rNativeSoilNz > 0) {
+            rMetadata << QStringLiteral("# r_bioswale_ui:native_soil_nz=%1").arg(options.rNativeSoilNz);
+        }
         rMetadata << QStringLiteral("# r_bioswale_ui:street_width=%1").arg(options.rStreetWidth);
         rMetadata << QStringLiteral("# r_bioswale_ui:street_cells=%1").arg(options.rStreetCells);
         rMetadata << QStringLiteral("# r_bioswale_ui:anisotropy_ratio=%1").arg(options.rAnisoRatio);
@@ -5910,6 +5940,8 @@ void ModelCreatorWindow::loadSettings()
     rStreetWidthEdit->setText(settingTextOrDefault("rStreetWidth", "5"));
     rStreetCellsEdit->setText(settingTextOrDefault("rStreetCells", "10"));
     rVerticalLayersEdit->setText(settingTextOrDefault("rVerticalLayers", ""));
+    rEngineeredSoilNzEdit->setText(settingTextOrDefault("rEngineeredSoilNz", ""));
+    rNativeSoilNzEdit->setText(settingTextOrDefault("rNativeSoilNz", ""));
     rAnisoRatioEdit->setText(settingTextOrDefault("rAnisoRatio", "5"));
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
@@ -6036,6 +6068,8 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("rStreetWidth", rStreetWidthEdit->text());
     settings.setValue("rStreetCells", rStreetCellsEdit->text());
     settings.setValue("rVerticalLayers", rVerticalLayersEdit->text());
+    settings.setValue("rEngineeredSoilNz", rEngineeredSoilNzEdit->text());
+    settings.setValue("rNativeSoilNz", rNativeSoilNzEdit->text());
     settings.setValue("rAnisoRatio", rAnisoRatioEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
