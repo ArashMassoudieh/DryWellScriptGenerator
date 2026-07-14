@@ -1,6 +1,8 @@
 # JM_Bioretention: John McCormack Road CC-101
 # Units: SI; all lengths/elevations are metres.
 # Local vertical datum: partial-height outlet crest = 0.0 m.
+# JM grid: nx=4, nz=5 material layers, primary_cells=20
+# JM blocks: soil=8, aggregate_storage=8, surface=4
 loadtemplate; filename=<template_dir>/main_components.json
 addtemplate; filename=<template_dir>/Pond_Plugin.json
 addtemplate; filename=<template_dir>/unsaturated_soil.json

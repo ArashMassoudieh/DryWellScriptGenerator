@@ -152,6 +152,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("name=JM Outlet", text)
         self.assertIn("name=JM Groundwater", text)
         self.assertIn("JM Partial Height Outlet", text)
+        self.assertIn("# JM grid: nx=4, nz=5 material layers, primary_cells=20", text)
+        self.assertIn("# JM blocks: soil=8, aggregate_storage=8, surface=4", text)
         self.assertEqual(text.count("name=JM Surface ("), 4)
         self.assertEqual(text.count("name=JM Media ("), 4)
         self.assertEqual(text.count("name=JM Choker ("), 4)

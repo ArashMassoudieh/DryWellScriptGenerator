@@ -40,6 +40,9 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "# JM_Bioretention: John McCormack Road CC-101\n";
     ts << "# Units: SI; all lengths/elevations are metres.\n";
     ts << "# Local vertical datum: partial-height outlet crest = 0.0 m.\n";
+    ts << "# JM grid: nx=" << nx << ", nz=5 material layers, primary_cells=" << (nx * 5) << "\n";
+    ts << "# JM blocks: soil=" << (nx * 2) << ", aggregate_storage=" << (nx * 2)
+       << ", surface=" << nx << "\n";
     ts << "loadtemplate; filename=<template_dir>/main_components.json\n";
     ts << "addtemplate; filename=<template_dir>/Pond_Plugin.json\n";
     ts << "addtemplate; filename=<template_dir>/unsaturated_soil.json\n";
