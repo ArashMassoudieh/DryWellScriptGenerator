@@ -34,3 +34,6 @@ HEADERS += \
     starter_script_builder.h \
     vn_drywell_builder.h \
     scripteditordialog.h
+
+DISTFILES += \
+    JM.ohq
