@@ -47,8 +47,8 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "# Units: SI; all lengths/elevations are metres.\n";
     ts << "# Local vertical datum: partial-height outlet crest = 0.0 m.\n";
     ts << "# JM grid: nx=" << nx << ", nz=5 material layers, primary_cells=" << (nx * 5) << "\n";
-    ts << "# JM blocks: soil=" << (nx * 5) << ", aggregate_storage=" << (nx * 2)
-       << ", surface=1, surrounding_soil=" << (nx * 3) << "\n";
+    ts << "# JM blocks: soil=" << (nx * 7) << ", aggregate_storage=" << (nx * 2)
+       << ", surface=1, surrounding_soil=" << (nx * 5) << "\n";
     ts << "loadtemplate; filename=<template_dir>/main_components.json\n";
     ts << "addtemplate; filename=<template_dir>/Pond_Plugin.json\n";
     ts << "addtemplate; filename=<template_dir>/unsaturated_soil.json\n";
@@ -134,20 +134,35 @@ QString BuildReference(const StarterScriptOptions &options)
                              sideActualY,
                              i * 300.0,
                              1110.0);
+        const double bottomActualY = zSumpBottom - verticalSoilDepth / 2.0;
         writeNativeSoilBlock(QStringLiteral("JM Bottom Native Soil (%1)").arg(k),
                              zSumpBottom - verticalSoilDepth,
                              verticalSoilDepth,
                              centerX,
-                             zSumpBottom - verticalSoilDepth / 2.0,
+                             bottomActualY,
                              i * 300.0,
                              1250.0);
+        writeNativeSoilBlock(QStringLiteral("JM Left Bottom Native Soil (%1)").arg(k),
+                             zSumpBottom - verticalSoilDepth,
+                             verticalSoilDepth,
+                             centerX - width,
+                             bottomActualY,
+                             i * 300.0,
+                             1390.0);
+        writeNativeSoilBlock(QStringLiteral("JM Right Bottom Native Soil (%1)").arg(k),
+                             zSumpBottom - verticalSoilDepth,
+                             verticalSoilDepth,
+                             centerX + width,
+                             bottomActualY,
+                             i * 300.0,
+                             1530.0);
     }
 
     ts << "create block;type=Pipe,name=JM Underdrain,_width=220,_height=120,x=1040,y=600,diameter="
        << n(underdrainDiameter) << "[m],length=" << n(length)
        << "[m],slope=0.005\n";
     ts << "create block;type=fixed_head,name=JM Outlet,_width=180,_height=120,x=1300,y=120,head=0[m],Storage=100000[m~^3]\n";
-    ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=450,y=1420,head="
+    ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=450,y=1700,head="
        << n(-1.9812) << "[m],Storage=100000[m~^3]\n";
 
     // Use one surface catchment for runoff storage, comparable to R_Bioswale's
@@ -180,13 +195,25 @@ QString BuildReference(const StarterScriptOptions &options)
            << "),to=JM Bottom Native Soil (" << i
            << "),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil " << i << "\n";
         ts << "create link;from=JM Left Native Soil (" << i
-           << "),to=JM Bottom Native Soil (" << i
-           << "),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil " << i << "\n";
+           << "),to=JM Left Bottom Native Soil (" << i
+           << "),type=soil_to_soil_link,name=JM Left Native Soil - Left Bottom Native Soil " << i << "\n";
         ts << "create link;from=JM Right Native Soil (" << i
-           << "),to=JM Bottom Native Soil (" << i
-           << "),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil " << i << "\n";
+           << "),to=JM Right Bottom Native Soil (" << i
+           << "),type=soil_to_soil_link,name=JM Right Native Soil - Right Bottom Native Soil " << i << "\n";
+        ts << "create link;from=JM Bottom Native Soil (" << i
+           << "),to=JM Left Bottom Native Soil (" << i
+           << "),type=soil_to_soil_H_link,name=JM Bottom Native Soil - Left Bottom Native Soil " << i
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(verticalSoilDepth * dx) << "[m~^2]\n";
+        ts << "create link;from=JM Bottom Native Soil (" << i
+           << "),to=JM Right Bottom Native Soil (" << i
+           << "),type=soil_to_soil_H_link,name=JM Bottom Native Soil - Right Bottom Native Soil " << i
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(verticalSoilDepth * dx) << "[m~^2]\n";
         ts << "create link;from=JM Bottom Native Soil (" << i
            << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW " << i << "\n";
+        ts << "create link;from=JM Left Bottom Native Soil (" << i
+           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Left Bottom Native Soil - GW " << i << "\n";
+        ts << "create link;from=JM Right Bottom Native Soil (" << i
+           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Right Bottom Native Soil - GW " << i << "\n";
     }
 
     for (int i = 1; i < nx; ++i) {
@@ -208,6 +235,12 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",length=" << n(dx) << "[m],area=" << n(surroundingSoilDepth * width) << "[m~^2]\n";
         ts << "create link;from=JM Bottom Native Soil (" << i << "),to=JM Bottom Native Soil (" << i + 1
            << "),type=soil_to_soil_H_link,name=JM Bottom Native Soil Horizontal " << i
+           << ",length=" << n(dx) << "[m],area=" << n(verticalSoilDepth * width) << "[m~^2]\n";
+        ts << "create link;from=JM Left Bottom Native Soil (" << i << "),to=JM Left Bottom Native Soil (" << i + 1
+           << "),type=soil_to_soil_H_link,name=JM Left Bottom Native Soil Horizontal " << i
+           << ",length=" << n(dx) << "[m],area=" << n(verticalSoilDepth * width) << "[m~^2]\n";
+        ts << "create link;from=JM Right Bottom Native Soil (" << i << "),to=JM Right Bottom Native Soil (" << i + 1
+           << "),type=soil_to_soil_H_link,name=JM Right Bottom Native Soil Horizontal " << i
            << ",length=" << n(dx) << "[m],area=" << n(verticalSoilDepth * width) << "[m~^2]\n";
     }
 
