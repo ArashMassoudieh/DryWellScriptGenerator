@@ -64,6 +64,8 @@ def is_known_preset(preset):
         "R_Bioswale_Underdrain_GW",
         "R_Bioswale_SuiteStyle",
         "R_Bioswale_LegacyStyle",
+        "JM_Bioretention_Underdrain",
+        "JM_Bioretention_GW",
     }
 
 
@@ -72,11 +74,15 @@ def is_preset_compatible_with_model(preset, model_type):
         return True
     hq_drywell_model = model_type.lower() in {"hq_drywell", "vn_drywell"}
     r_bioswale_model = model_type.lower() == "r_bioswale"
+    jm_model = model_type.lower() == "jm_bioretention"
     hq_drywell_preset = preset.startswith("HQ_Drywell_")
     r_bioswale_preset = preset.startswith("R_Bioswale_")
-    if (hq_drywell_model and r_bioswale_preset) or (r_bioswale_model and hq_drywell_preset):
+    jm_preset = preset.startswith("JM_Bioretention_")
+    if (hq_drywell_model and (r_bioswale_preset or jm_preset)) \
+            or (r_bioswale_model and (hq_drywell_preset or jm_preset)) \
+            or (jm_model and (hq_drywell_preset or r_bioswale_preset)):
         return False
-    if preset in {"VN_Drywell", "VN_Drywell_Pro"} and not hq_drywell_model:
+    if preset in {"VN_Drywell", "VN_Drywell_Pro"} and model_type.lower() != "vn_drywell":
         return False
     return True
 
@@ -116,12 +122,14 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertTrue(is_known_preset("R_Bioswale_Underdrain_GW"))
         self.assertTrue(is_known_preset("R_Bioswale_SuiteStyle"))
         self.assertTrue(is_known_preset("R_Bioswale_LegacyStyle"))
+        self.assertTrue(is_known_preset("JM_Bioretention_Underdrain"))
+        self.assertTrue(is_known_preset("JM_Bioretention_GW"))
         self.assertFalse(is_known_preset("HQ_Drywell_Unknown"))
 
     def test_preset_model_compatibility(self):
         self.assertTrue(is_preset_compatible_with_model("", "HQ_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "HQ_Drywell"))
-        self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "HQ_Drywell"))
+        self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "HQ_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell", "VN_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("VN_Drywell_Pro", "VN_Drywell"))
         self.assertTrue(is_preset_compatible_with_model("R_Bioswale_Underdrain", "R_Bioswale"))
@@ -129,11 +137,29 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("VN_Drywell", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("VN_Drywell_Pro", "R_Bioswale"))
+        self.assertTrue(is_preset_compatible_with_model("JM_Bioretention_Underdrain", "JM_Bioretention"))
+        self.assertTrue(is_preset_compatible_with_model("JM_Bioretention_GW", "JM_Bioretention"))
+        self.assertFalse(is_preset_compatible_with_model("JM_Bioretention_Underdrain", "HQ_Drywell"))
+        self.assertFalse(is_preset_compatible_with_model("JM_Bioretention_GW", "R_Bioswale"))
+        self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "JM_Bioretention"))
 
-    def test_hq_builder_has_no_kept_soil_blocks_reference(self):
-        source = Path(__file__).resolve().parents[1] / "hq_drywell_builder.cpp"
+    def test_jm_builder_reference_script_contains_required_blocks(self):
+        source = Path(__file__).resolve().parents[1] / "jm_bioretention_builder.cpp"
         text = source.read_text(encoding="utf-8")
-        self.assertNotIn("keptSoilBlocks", text)
+        self.assertIn("JM_Bioretention: John McCormack Road CC-101", text)
+        self.assertIn("create block;type=Catchment", text)
+        self.assertIn("name=JM Contributing Catchment", text)
+        self.assertIn("name=JM Underdrain", text)
+        self.assertIn("name=JM Outlet", text)
+        self.assertIn("name=JM Groundwater", text)
+        self.assertIn("JM Partial Height Outlet", text)
+
+    def test_registry_exposes_jm_model_type(self):
+        source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"
+        text = source.read_text(encoding="utf-8")
+        self.assertIn('QStringLiteral("JM_Bioretention")', text)
+        self.assertIn('QStringLiteral("JM_Bioretention_Underdrain")', text)
+        self.assertIn('QStringLiteral("JM_Bioretention_GW")', text)
 
 
 if __name__ == "__main__":
