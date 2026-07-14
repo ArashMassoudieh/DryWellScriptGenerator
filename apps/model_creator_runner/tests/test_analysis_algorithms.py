@@ -153,14 +153,23 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("name=JM Groundwater", text)
         self.assertIn("JM Partial Height Outlet", text)
         self.assertIn("# JM grid: nx=4, nz=5 material layers, primary_cells=20", text)
-        self.assertIn("# JM blocks: soil=8, aggregate_storage=8, surface=1", text)
+        self.assertIn("# JM blocks: soil=20, aggregate_storage=8, surface=1, surrounding_soil=12", text)
         self.assertEqual(text.count("name=JM Catchment,x"), 1)
         self.assertEqual(text.count("name=JM Media ("), 4)
         self.assertEqual(text.count("name=JM Choker ("), 4)
         self.assertEqual(text.count("name=JM Gravel ("), 4)
         self.assertEqual(text.count("name=JM Infiltration Sump ("), 4)
+        self.assertEqual(text.count("name=JM Left Native Soil ("), 4)
+        self.assertEqual(text.count("name=JM Right Native Soil ("), 4)
+        self.assertEqual(text.count("name=JM Bottom Native Soil ("), 4)
         self.assertEqual(text.count("name=JM Contributing Catchment - JM Catchment"), 1)
         self.assertEqual(text.count("name=JM Catchment - Media 1"), 1)
+        self.assertEqual(text.count("name=JM Media - Left Native Soil"), 4)
+        self.assertEqual(text.count("name=JM Media - Right Native Soil"), 4)
+        self.assertEqual(text.count("name=JM Sump - Bottom Native Soil"), 4)
+        self.assertEqual(text.count("name=JM Left Native Soil Horizontal"), 3)
+        self.assertEqual(text.count("name=JM Right Native Soil Horizontal"), 3)
+        self.assertEqual(text.count("name=JM Bottom Native Soil Horizontal"), 3)
         self.assertEqual(text.count("name=JM Surface ("), 0)
         self.assertEqual(text.count("name=JM Surface Routing"), 0)
 
@@ -171,6 +180,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
             "type=Catchment_link",
             "type=surfacewater_to_soil_link",
             "type=soil_to_fixedhead_link_H",
+            "type=soil_to_soil_H_link",
+            "type=soil_to_soil_link",
             "type=aggregate2aggregate_H_Link",
             "type=aggregate_to_soil_link",
             "type=soil_to_fixedhead_link",
@@ -192,6 +203,9 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("depth=0.0762,inflow=,name=JM Choker", jm_text)
         self.assertIn("depth=0.6096,inflow=,name=JM Gravel", jm_text)
         self.assertIn("depth=0.3048,n=1.56,name=JM Infiltration Sump", jm_text)
+        self.assertIn("depth=0.9144,n=1.56,name=JM Left Native Soil", jm_text)
+        self.assertIn("depth=0.9144,n=1.56,name=JM Right Native Soil", jm_text)
+        self.assertIn("depth=0.9144,n=1.56,name=JM Bottom Native Soil", jm_text)
         self.assertIn("diameter=0.1016[m],length=12.192[m],slope=0.005", jm_text)
 
     def test_registry_exposes_jm_model_type(self):

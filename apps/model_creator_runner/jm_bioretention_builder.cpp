@@ -17,7 +17,8 @@ QString BuildReference(const StarterScriptOptions &options)
     // John McCormack Road CC-101 bioretention reference geometry.
     // Keep this independent from the R_Bioswale cross-section: JM is a
     // longitudinal, layered system with sloped media elevations, choker/gravel
-    // storage, sump, underdrain, a single surface catchment, and a partial-height outlet.
+    // storage, sump, surrounding native soil, underdrain, a single surface
+    // catchment, and a partial-height outlet.
     // All dimensions and elevations written to OHQ are SI (m).
     constexpr int nx = 4;
     const double length = options.jmLength > 0.0 ? options.jmLength : 12.192;       // 40 ft
@@ -32,6 +33,8 @@ QString BuildReference(const StarterScriptOptions &options)
     const double sump = options.jmSumpDepth > 0.0 ? options.jmSumpDepth : 0.3048;
     const double underdrainDiameter = options.jmUnderdrainDiameter > 0.0
         ? options.jmUnderdrainDiameter : 0.1016;
+    const double surroundingSoilDepth = media;
+    const double verticalSoilDepth = media;
 
     // Local datum: partial-height outlet crest = 0 m.
     const double surfaceZ[nx] = {0.835152, 0.70104, 0.512064, 0.280416};
@@ -44,8 +47,8 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "# Units: SI; all lengths/elevations are metres.\n";
     ts << "# Local vertical datum: partial-height outlet crest = 0.0 m.\n";
     ts << "# JM grid: nx=" << nx << ", nz=5 material layers, primary_cells=" << (nx * 5) << "\n";
-    ts << "# JM blocks: soil=" << (nx * 2) << ", aggregate_storage=" << (nx * 2)
-       << ", surface=1\n";
+    ts << "# JM blocks: soil=" << (nx * 5) << ", aggregate_storage=" << (nx * 2)
+       << ", surface=1, surrounding_soil=" << (nx * 3) << "\n";
     ts << "loadtemplate; filename=<template_dir>/main_components.json\n";
     ts << "addtemplate; filename=<template_dir>/Pond_Plugin.json\n";
     ts << "addtemplate; filename=<template_dir>/unsaturated_soil.json\n";
@@ -98,6 +101,46 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",bottom_elevation=" << n(zSumpBottom) << ",depth=" << n(sump)
            << ",n=1.56,name=JM Infiltration Sump (" << k << "),specific_storage=0.01,theta=0.12,theta_res=0.078,theta_sat=0.43,x="
            << n(x) << ",y=790\n";
+
+        const auto writeNativeSoilBlock = [&](const QString &name,
+                                             double bottomElevation,
+                                             double depth,
+                                             double actualX,
+                                             double actualY,
+                                             double uiX,
+                                             double uiY) {
+            ts << "create block;type=Soil,Evapotranspiration=,K_sat_original=0.25,K_sat_scale_factor=1,"
+                  "MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=110,_width=180,"
+                  "act_X=" << n(actualX) << ",act_Y=" << n(actualY)
+               << ",alpha=3.6,aniso_ratio=1,area=" << n(cellArea)
+               << ",bottom_elevation=" << n(bottomElevation) << ",depth=" << n(depth)
+               << ",n=1.56,name=" << name
+               << ",specific_storage=0.01,theta=0.12,theta_res=0.078,theta_sat=0.43,x="
+               << n(uiX) << ",y=" << n(uiY) << "\n";
+        };
+        const double centerX = (i + 0.5) * dx;
+        const double sideActualY = zSurface - mulch - surroundingSoilDepth / 2.0;
+        writeNativeSoilBlock(QStringLiteral("JM Left Native Soil (%1)").arg(k),
+                             zSurface - mulch - surroundingSoilDepth,
+                             surroundingSoilDepth,
+                             centerX - width,
+                             sideActualY,
+                             x - 220.0,
+                             220.0);
+        writeNativeSoilBlock(QStringLiteral("JM Right Native Soil (%1)").arg(k),
+                             zSurface - mulch - surroundingSoilDepth,
+                             surroundingSoilDepth,
+                             centerX + width,
+                             sideActualY,
+                             x + 220.0,
+                             220.0);
+        writeNativeSoilBlock(QStringLiteral("JM Bottom Native Soil (%1)").arg(k),
+                             zSumpBottom - verticalSoilDepth,
+                             verticalSoilDepth,
+                             centerX,
+                             zSumpBottom - verticalSoilDepth / 2.0,
+                             x,
+                             970.0);
     }
 
     ts << "create block;type=Pipe,name=JM Underdrain,_width=220,_height=120,x=1040,y=600,diameter="
@@ -127,6 +170,19 @@ QString BuildReference(const StarterScriptOptions &options)
            << "),type=aggregate_to_soil_link,name=JM Gravel - Sump " << i << "\n";
         ts << "create link;from=JM Infiltration Sump (" << i
            << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Sump - GW " << i << "\n";
+        ts << "create link;from=JM Media (" << i
+           << "),to=JM Left Native Soil (" << i
+           << "),type=soil_to_soil_H_link,name=JM Media - Left Native Soil " << i
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(media * dx) << "[m~^2]\n";
+        ts << "create link;from=JM Media (" << i
+           << "),to=JM Right Native Soil (" << i
+           << "),type=soil_to_soil_H_link,name=JM Media - Right Native Soil " << i
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(media * dx) << "[m~^2]\n";
+        ts << "create link;from=JM Infiltration Sump (" << i
+           << "),to=JM Bottom Native Soil (" << i
+           << "),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil " << i << "\n";
+        ts << "create link;from=JM Bottom Native Soil (" << i
+           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW " << i << "\n";
     }
 
     for (int i = 1; i < nx; ++i) {
@@ -140,6 +196,15 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",name=JM Gravel Horizontal " << i << ",width=" << n(width) << "\n";
         ts << "create link;from=JM Infiltration Sump (" << i << "),to=JM Infiltration Sump (" << i + 1
            << "),type=soil_to_soil_H_li,name=JM Sump Horizontal " << i << "\n";
+        ts << "create link;from=JM Left Native Soil (" << i << "),to=JM Left Native Soil (" << i + 1
+           << "),type=soil_to_soil_H_link,name=JM Left Native Soil Horizontal " << i
+           << ",length=" << n(dx) << "[m],area=" << n(surroundingSoilDepth * width) << "[m~^2]\n";
+        ts << "create link;from=JM Right Native Soil (" << i << "),to=JM Right Native Soil (" << i + 1
+           << "),type=soil_to_soil_H_link,name=JM Right Native Soil Horizontal " << i
+           << ",length=" << n(dx) << "[m],area=" << n(surroundingSoilDepth * width) << "[m~^2]\n";
+        ts << "create link;from=JM Bottom Native Soil (" << i << "),to=JM Bottom Native Soil (" << i + 1
+           << "),type=soil_to_soil_H_link,name=JM Bottom Native Soil Horizontal " << i
+           << ",length=" << n(dx) << "[m],area=" << n(verticalSoilDepth * width) << "[m~^2]\n";
     }
 
     // Underdrain receives drainage from each gravel cell and discharges to outlet.
