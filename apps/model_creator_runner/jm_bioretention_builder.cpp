@@ -125,29 +125,29 @@ QString BuildReference(const StarterScriptOptions &options)
                              surroundingSoilDepth,
                              centerX - width,
                              sideActualY,
-                             x - 220.0,
-                             220.0);
+                             i * 300.0,
+                             970.0);
         writeNativeSoilBlock(QStringLiteral("JM Right Native Soil (%1)").arg(k),
                              zSurface - mulch - surroundingSoilDepth,
                              surroundingSoilDepth,
                              centerX + width,
                              sideActualY,
-                             x + 220.0,
-                             220.0);
+                             i * 300.0,
+                             1110.0);
         writeNativeSoilBlock(QStringLiteral("JM Bottom Native Soil (%1)").arg(k),
                              zSumpBottom - verticalSoilDepth,
                              verticalSoilDepth,
                              centerX,
                              zSumpBottom - verticalSoilDepth / 2.0,
-                             x,
-                             970.0);
+                             i * 300.0,
+                             1250.0);
     }
 
     ts << "create block;type=Pipe,name=JM Underdrain,_width=220,_height=120,x=1040,y=600,diameter="
        << n(underdrainDiameter) << "[m],length=" << n(length)
        << "[m],slope=0.005\n";
     ts << "create block;type=fixed_head,name=JM Outlet,_width=180,_height=120,x=1300,y=120,head=0[m],Storage=100000[m~^3]\n";
-    ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=1300,y=800,head="
+    ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=450,y=1420,head="
        << n(-1.9812) << "[m],Storage=100000[m~^3]\n";
 
     // Use one surface catchment for runoff storage, comparable to R_Bioswale's
@@ -168,8 +168,6 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",name=JM Choker - Gravel " << i << ",width=" << n(width) << "\n";
         ts << "create link;from=JM Gravel (" << i << "),to=JM Infiltration Sump (" << i
            << "),type=aggregate_to_soil_link,name=JM Gravel - Sump " << i << "\n";
-        ts << "create link;from=JM Infiltration Sump (" << i
-           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Sump - GW " << i << "\n";
         ts << "create link;from=JM Media (" << i
            << "),to=JM Left Native Soil (" << i
            << "),type=soil_to_soil_H_link,name=JM Media - Left Native Soil " << i
