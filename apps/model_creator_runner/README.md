@@ -121,7 +121,8 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 ## JM_Bioretention (John McCormack Road)
 
 A dedicated `JM_Bioretention` model type and procedural builder are included in
-`jm_bioretention_builder.cpp/.h`. The reference output is `JM.ohq`.
+`jm_bioretention_builder.cpp/.h`. The checked-in reference output is
+`apps/model_creator_runner/JM.ohq`.
 
 Default SI geometry:
 - facility: 12.192 m long × 3.7084 m wide
@@ -131,6 +132,11 @@ Default SI geometry:
 - gravel: 0.6096 m
 - infiltration sump: 0.3048 m
 - underdrain diameter: 0.1016 m
+
+The generated `JM.ohq` uses four longitudinal cells matching the four CC-101
+curb inlets, routes each surface/media/choker/gravel/sump layer vertically and
+horizontally, connects each gravel cell to the 4 in underdrain, and routes the
+last surface cell to the partial-height outlet at the local 0.0 m datum.
 
 Add these files to the qmake/CMake source list:
 - `jm_bioretention_builder.cpp`
