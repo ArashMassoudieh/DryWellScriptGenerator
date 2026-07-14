@@ -179,6 +179,12 @@ QString BuildReference(const StarterScriptOptions &options)
         ts << "create link;from=JM Infiltration Sump (" << i
            << "),to=JM Bottom Native Soil (" << i
            << "),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil " << i << "\n";
+        ts << "create link;from=JM Left Native Soil (" << i
+           << "),to=JM Bottom Native Soil (" << i
+           << "),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil " << i << "\n";
+        ts << "create link;from=JM Right Native Soil (" << i
+           << "),to=JM Bottom Native Soil (" << i
+           << "),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil " << i << "\n";
         ts << "create link;from=JM Bottom Native Soil (" << i
            << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW " << i << "\n";
     }

@@ -167,6 +167,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertEqual(text.count("name=JM Media - Left Native Soil"), 4)
         self.assertEqual(text.count("name=JM Media - Right Native Soil"), 4)
         self.assertEqual(text.count("name=JM Sump - Bottom Native Soil"), 4)
+        self.assertEqual(text.count("name=JM Left Native Soil - Bottom Native Soil"), 4)
+        self.assertEqual(text.count("name=JM Right Native Soil - Bottom Native Soil"), 4)
         self.assertEqual(text.count("name=JM Sump - GW"), 0)
         self.assertEqual(text.count("name=JM Bottom Native Soil - GW"), 4)
         self.assertEqual(text.count("name=JM Left Native Soil Horizontal"), 3)

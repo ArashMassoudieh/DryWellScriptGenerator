@@ -56,6 +56,8 @@ create link;from=JM Gravel (1),to=JM Infiltration Sump (1),type=aggregate_to_soi
 create link;from=JM Media (1),to=JM Left Native Soil (1),type=soil_to_soil_H_link,name=JM Media - Left Native Soil 1,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Media (1),to=JM Right Native Soil (1),type=soil_to_soil_H_link,name=JM Media - Right Native Soil 1,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Infiltration Sump (1),to=JM Bottom Native Soil (1),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil 1
+create link;from=JM Left Native Soil (1),to=JM Bottom Native Soil (1),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil 1
+create link;from=JM Right Native Soil (1),to=JM Bottom Native Soil (1),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil 1
 create link;from=JM Bottom Native Soil (1),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW 1
 create link;from=JM Media (2),to=JM Choker (2),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 2,outlet_head=-0.28956
 create link;from=JM Choker (2),to=JM Gravel (2),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 2,width=3.7084
@@ -63,6 +65,8 @@ create link;from=JM Gravel (2),to=JM Infiltration Sump (2),type=aggregate_to_soi
 create link;from=JM Media (2),to=JM Left Native Soil (2),type=soil_to_soil_H_link,name=JM Media - Left Native Soil 2,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Media (2),to=JM Right Native Soil (2),type=soil_to_soil_H_link,name=JM Media - Right Native Soil 2,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Infiltration Sump (2),to=JM Bottom Native Soil (2),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil 2
+create link;from=JM Left Native Soil (2),to=JM Bottom Native Soil (2),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil 2
+create link;from=JM Right Native Soil (2),to=JM Bottom Native Soil (2),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil 2
 create link;from=JM Bottom Native Soil (2),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW 2
 create link;from=JM Media (3),to=JM Choker (3),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 3,outlet_head=-0.478536
 create link;from=JM Choker (3),to=JM Gravel (3),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 3,width=3.7084
@@ -70,6 +74,8 @@ create link;from=JM Gravel (3),to=JM Infiltration Sump (3),type=aggregate_to_soi
 create link;from=JM Media (3),to=JM Left Native Soil (3),type=soil_to_soil_H_link,name=JM Media - Left Native Soil 3,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Media (3),to=JM Right Native Soil (3),type=soil_to_soil_H_link,name=JM Media - Right Native Soil 3,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Infiltration Sump (3),to=JM Bottom Native Soil (3),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil 3
+create link;from=JM Left Native Soil (3),to=JM Bottom Native Soil (3),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil 3
+create link;from=JM Right Native Soil (3),to=JM Bottom Native Soil (3),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil 3
 create link;from=JM Bottom Native Soil (3),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW 3
 create link;from=JM Media (4),to=JM Choker (4),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 4,outlet_head=-0.710184
 create link;from=JM Choker (4),to=JM Gravel (4),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 4,width=3.7084
@@ -77,6 +83,8 @@ create link;from=JM Gravel (4),to=JM Infiltration Sump (4),type=aggregate_to_soi
 create link;from=JM Media (4),to=JM Left Native Soil (4),type=soil_to_soil_H_link,name=JM Media - Left Native Soil 4,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Media (4),to=JM Right Native Soil (4),type=soil_to_soil_H_link,name=JM Media - Right Native Soil 4,length=1.8542[m],area=2.7870912[m~^2]
 create link;from=JM Infiltration Sump (4),to=JM Bottom Native Soil (4),type=soil_to_soil_link,name=JM Sump - Bottom Native Soil 4
+create link;from=JM Left Native Soil (4),to=JM Bottom Native Soil (4),type=soil_to_soil_link,name=JM Left Native Soil - Bottom Native Soil 4
+create link;from=JM Right Native Soil (4),to=JM Bottom Native Soil (4),type=soil_to_soil_link,name=JM Right Native Soil - Bottom Native Soil 4
 create link;from=JM Bottom Native Soil (4),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW 4
 create link;from=JM Media (1),to=JM Media (2),type=soil_to_soil_H_li,name=JM Media Horizontal 1
 create link;from=JM Choker (1),to=JM Choker (2),type=aggregate2aggregate_H_Link,length=3.048,name=JM Choker Horizontal 1,width=3.7084
