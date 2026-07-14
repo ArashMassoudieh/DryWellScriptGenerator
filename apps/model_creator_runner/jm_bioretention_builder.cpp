@@ -42,7 +42,7 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "# Local vertical datum: partial-height outlet crest = 0.0 m.\n";
     ts << "# JM grid: nx=" << nx << ", nz=5 material layers, primary_cells=" << (nx * 5) << "\n";
     ts << "# JM blocks: soil=" << (nx * 2) << ", aggregate_storage=" << (nx * 2)
-       << ", surface=" << nx << "\n";
+       << ", surface=1\n";
     ts << "loadtemplate; filename=<template_dir>/main_components.json\n";
     ts << "addtemplate; filename=<template_dir>/Pond_Plugin.json\n";
     ts << "addtemplate; filename=<template_dir>/unsaturated_soil.json\n";
@@ -58,6 +58,10 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,"
           "Slope=0.02,Width=30,_height=300,_width=500,area=" << n(options.jmCatchmentArea > 0.0 ? options.jmCatchmentArea : 1000.0)
        << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=JM Contributing Catchment,x=-800,y=-300\n";
+    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,"
+          "Slope=0.01,Width=" << n(width) << ",_height=140,_width=190,area=" << n(width * length)
+       << "[m~^2],depression_storage=0,depth=0,elevation=" << n(surfaceZ[0])
+       << ",inflow=,loss_coefficient=0,name=JM Catchment,x=0,y=0\n";
 
     for (int i = 0; i < nx; ++i) {
         const int k = i + 1;
@@ -67,11 +71,6 @@ QString BuildReference(const StarterScriptOptions &options)
         const double zChokerBottom = zMediaBottom - choker;
         const double zGravelBottom = zChokerBottom - gravel;
         const double zSumpBottom = zGravelBottom - sump;
-
-        ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=1,"
-              "Slope=0.01,Width=" << n(width) << ",_height=140,_width=190,area=" << n(cellArea)
-           << "[m~^2],depression_storage=0,depth=0,elevation=" << n(zSurface)
-           << ",inflow=,loss_coefficient=0,name=JM Surface (" << k << "),x=" << n(x) << ",y=0\n";
 
         ts << "create block;type=Soil,Evapotranspiration=,K_sat_original=50,K_sat_scale_factor=JM_KS_scale_factor,"
               "MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=120,_width=180,"
@@ -105,15 +104,15 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=1300,y=800,head="
        << n(-1.9812) << "[m],Storage=100000[m~^3]\n";
 
-    // Route the contributing area into the upstream surface cell, matching the
-    // R_Bioswale approach of applying external runoff once and then moving it
-    // through the connected surface-storage cells.
-    ts << "create link;from=JM Contributing Catchment,to=JM Surface (1),"
-          "type=Catchment_link,name=JM Catchment - Inlet 1\n";
+    // Match the R_Bioswale surface layout: one catchment represents surface
+    // storage above the media grid, receives the external contributing area,
+    // and connects to the upstream engineered media cell.
+    ts << "create link;from=JM Contributing Catchment,to=JM Catchment,"
+          "type=Catchment_link,name=JM Contributing Catchment - JM Catchment\n";
+    ts << "create link;from=JM Catchment,to=JM Media (1),"
+          "type=surfacewater_to_soil_link,name=JM Catchment - Media 1\n";
 
     for (int i = 1; i <= nx; ++i) {
-        ts << "create link;from=JM Surface (" << i << "),to=JM Media (" << i
-           << "),type=surfacewater_to_soil_link,name=JM Surface - Media " << i << "\n";
         ts << "create link;from=JM Media (" << i << "),to=JM Choker (" << i
            << "),type=soil_to_fixedhead_link_H,area=" << n(cellArea)
            << ",length=" << n(media / 2.0) << ",name=JM Media - Choker " << i
@@ -128,8 +127,6 @@ QString BuildReference(const StarterScriptOptions &options)
     }
 
     for (int i = 1; i < nx; ++i) {
-        ts << "create link;from=JM Surface (" << i << "),to=JM Surface (" << i + 1
-           << "),type=Catchment_link,name=JM Surface Routing " << i << "\n";
         ts << "create link;from=JM Media (" << i << "),to=JM Media (" << i + 1
            << "),type=soil_to_soil_H_li,name=JM Media Horizontal " << i << "\n";
         ts << "create link;from=JM Choker (" << i << "),to=JM Choker (" << i + 1
@@ -152,7 +149,7 @@ QString BuildReference(const StarterScriptOptions &options)
        << ",name=JM Underdrain - Outlet,start_elevation=0.05\n";
 
     // Partial-height surface outlet at local crest elevation 0 m.
-    ts << "create link;from=JM Surface (4),to=JM Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.15,"
+    ts << "create link;from=JM Catchment,to=JM Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.15,"
           "end_elevation=0,length=1,name=JM Partial Height Outlet,start_elevation=0\n";
 
     return out;
