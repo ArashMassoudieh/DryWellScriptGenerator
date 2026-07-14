@@ -7,6 +7,7 @@
 #include "structure_registry.h"
 #include "scripteditordialog.h"
 #include "hq_drywell_builder.h"
+#include "jm_bioretention_builder.h"
 #include "r_bioswale_builder.h"
 #include "vn_drywell_builder.h"
 
@@ -588,6 +589,8 @@ QString DetectSuggestedInflowFile(const QString &modelType, const QString &templ
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
         }
         candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
+    } else if (normalizedModel.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return QString();
     } else {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
@@ -2780,6 +2783,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         modePrefix = QStringLiteral("HQ_MODE");
     } else if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         modePrefix = QStringLiteral("R_MODE");
+    } else if (modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        modePrefix = QStringLiteral("JM_MODE");
     }
 
     const QString defaultModePreset = modePrefix.isEmpty()
@@ -4019,6 +4024,11 @@ void ModelCreatorWindow::previewScript()
                 }
                 appendLog(stamp(tr("R mode auto-switched to SoftReference because R geometry/soil controls were customized.")));
             }
+        } else if (options.modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+            const QString selectedPreset = options.enrichmentPreset.trimmed();
+            const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
+            options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
+            options.enrichmentPreset.clear();
         }
 
         QString error;
@@ -4360,6 +4370,11 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         } else {
             options.additionalCommands = rMetadataBlock + QStringLiteral("\n") + options.additionalCommands;
         }
+    } else if (options.modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        const QString selectedPreset = options.enrichmentPreset.trimmed();
+        const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
+        options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
+        options.enrichmentPreset.clear();
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
     const bool usingExplicitVnBase = vnModel && !options.vnBaseOhqFile.isEmpty();
@@ -5851,9 +5866,11 @@ void ModelCreatorWindow::loadSettings()
         QDir(defaultWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("vn_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("r_bioswale.ohq"),
+        QDir(defaultWorkingDirectory).filePath("JM.ohq"),
         QDir(defaultWorkingDirectory).filePath("examples/hq_drywell.ohq"),
         QDir(defaultWorkingDirectory).filePath("examples/vn_drywell.ohq"),
-        QDir(defaultWorkingDirectory).filePath("examples/r_bioswale.ohq")
+        QDir(defaultWorkingDirectory).filePath("examples/r_bioswale.ohq"),
+        QDir(defaultWorkingDirectory).filePath("examples/JM.ohq")
     });
 
     modelTypeCombo->setCurrentText(settings.value("modelType", "HQ_Drywell").toString());
@@ -5868,6 +5885,8 @@ void ModelCreatorWindow::loadSettings()
         defaultModePreset = QStringLiteral("HQ_MODE:SoftReference");
     } else if (currentModelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         defaultModePreset = QStringLiteral("R_MODE:SoftReference");
+    } else if (currentModelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        defaultModePreset = QStringLiteral("JM_MODE:SoftReference");
     }
     int presetIndex = enrichmentPresetCombo->findData(enrichmentPreset);
     if (presetIndex < 0 && !defaultModePreset.isEmpty()) {
@@ -6618,6 +6637,7 @@ void ModelCreatorWindow::exportVnDepthSliceCsv()
         QMessageBox::warning(this, tr("Export VN depth slice"), validationError);
         return;
     }
+
 
     QString error;
     if (!loadOutputColumns(&error)) {

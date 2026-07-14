@@ -17,6 +17,7 @@ SOURCES += \
     simplelineplotwidget.cpp \
     hq_drywell_builder.cpp \
     r_bioswale_builder.cpp \
+    jm_bioretention_builder.cpp \
     structure_registry.cpp \
     starter_script_builder.cpp \
     vn_drywell_builder.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     simplelineplotwidget.h \
     hq_drywell_builder.h \
     r_bioswale_builder.h \
+    jm_bioretention_builder.h \
     structure_registry.h \
     starter_script_builder.h \
     vn_drywell_builder.h \

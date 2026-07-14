@@ -117,3 +117,21 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 - Legacy dialogs (`DialogRosemead`, `DryWellDialog`) are being phased out.
 - New architecture:
+
+## JM_Bioretention (John McCormack Road)
+
+A dedicated `JM_Bioretention` model type and procedural builder are included in
+`jm_bioretention_builder.cpp/.h`. The reference output is `JM.ohq`.
+
+Default SI geometry:
+- facility: 12.192 m long × 3.7084 m wide
+- mulch: 0.0762 m
+- bioretention media: 0.9144 m
+- choker: 0.0762 m
+- gravel: 0.6096 m
+- infiltration sump: 0.3048 m
+- underdrain diameter: 0.1016 m
+
+Add these files to the qmake/CMake source list:
+- `jm_bioretention_builder.cpp`
+- `jm_bioretention_builder.h`

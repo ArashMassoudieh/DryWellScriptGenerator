@@ -5,7 +5,8 @@ namespace {
 const QStringList kModelTypes = {
     QStringLiteral("VN_Drywell"),
     QStringLiteral("R_Bioswale"),
-    QStringLiteral("HQ_Drywell")
+    QStringLiteral("HQ_Drywell"),
+    QStringLiteral("JM_Bioretention")
 };
 
 const QStringList kAllPresets = {
@@ -19,7 +20,9 @@ const QStringList kAllPresets = {
     QStringLiteral("R_Bioswale_Underdrain"),
     QStringLiteral("R_Bioswale_Underdrain_GW"),
     QStringLiteral("R_Bioswale_SuiteStyle"),
-    QStringLiteral("R_Bioswale_LegacyStyle")
+    QStringLiteral("R_Bioswale_LegacyStyle"),
+    QStringLiteral("JM_Bioretention_Underdrain"),
+    QStringLiteral("JM_Bioretention_GW")
 };
 
 bool IsVnModel(const QString &modelType)
@@ -64,10 +67,14 @@ bool StructureRegistry::IsPresetCompatibleWithModel(const QString &preset, const
 
     const bool hqDrywellModel = IsHqDrywellLikeModel(modelType);
     const bool rBioswaleModel = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+    const bool jmModel = modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0;
     const bool hqDrywellPreset = trimmedPreset.startsWith(QStringLiteral("HQ_Drywell_"));
     const bool rBioswalePreset = trimmedPreset.startsWith(QStringLiteral("R_Bioswale_"));
+    const bool jmPreset = trimmedPreset.startsWith(QStringLiteral("JM_Bioretention_"));
 
-    if ((hqDrywellModel && rBioswalePreset) || (rBioswaleModel && hqDrywellPreset)) {
+    if ((hqDrywellModel && (rBioswalePreset || jmPreset))
+        || (rBioswaleModel && (hqDrywellPreset || jmPreset))
+        || (jmModel && (hqDrywellPreset || rBioswalePreset))) {
         return false;
     }
 
@@ -101,6 +108,14 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
             {QStringLiteral("FullReference"), QStringLiteral("VN_MODE:FullReference")}
             // {QStringLiteral("VN_Drywell_Pro"), QStringLiteral("VN_Drywell_Pro")},
             // {QStringLiteral("VN_Drywell"), QStringLiteral("VN_Drywell")}
+        };
+    }
+
+    if (modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return {
+            {QStringLiteral("SoftReference"), QStringLiteral("JM_MODE:SoftReference")},
+            {QStringLiteral("LoadFromOhq"), QStringLiteral("JM_MODE:LoadFromOhq")},
+            {QStringLiteral("FullReference"), QStringLiteral("JM_MODE:FullReference")}
         };
     }
 

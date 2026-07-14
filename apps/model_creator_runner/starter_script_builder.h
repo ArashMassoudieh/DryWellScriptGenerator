@@ -12,8 +12,8 @@ struct StarterScriptOptions
     /// Destination path for writing generated starter script text.
     QString outputFile;
 
-    /// Base model flavor for starter creation ("HQ_Drywell", "VN_Drywell", or "R_Bioswale").
-    QString modelType = "HQ_Drywell";    // HQ_Drywell | VN_Drywell | R_Bioswale
+    /// Base model flavor for starter creation ("HQ_Drywell", "VN_Drywell", "R_Bioswale", or "JM_Bioretention").
+    QString modelType = "HQ_Drywell";    // HQ_Drywell | VN_Drywell | R_Bioswale | JM_Bioretention
 
     /// Input inflow time series file path.
     QString inflowFile;
@@ -121,6 +121,22 @@ struct StarterScriptOptions
     int rNativeSoilNz = 0;     // R/Bioswale native/bottom-soil vertical rows; 0 = infer from depth split/reference.
     double rAnisoRatio = 5.0;
     QString rSoilPropsFile;
+
+
+    // ---------------------------------------------------------------------
+    // JM_Bioretention-specific build mode and geometry (John McCormack Rd)
+    // ---------------------------------------------------------------------
+    QString jmBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
+    QString jmBaseOhqFile;
+    double jmLength = 12.192;              // 40 ft
+    double jmWidth = 3.7084;               // 12 ft 2 in
+    double jmMulchDepth = 0.0762;          // 3 in
+    double jmMediaDepth = 0.9144;          // 36 in
+    double jmChokerDepth = 0.0762;         // 3 in
+    double jmGravelDepth = 0.6096;         // 24 in
+    double jmSumpDepth = 0.3048;           // 12 in
+    double jmUnderdrainDiameter = 0.1016;  // 4 in
+    double jmCatchmentArea = 1000.0;
 
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 16;

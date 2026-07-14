@@ -1,6 +1,7 @@
 // NOTE: This file is part of the DryWellSuite/OpenHydroQual codebase.
 #include "starter_script_builder.h"
 #include "hq_drywell_builder.h"
+#include "jm_bioretention_builder.h"
 #include "r_bioswale_builder.h"
 #include "structure_registry.h"
 #include "vn_drywell_builder.h"
@@ -245,6 +246,9 @@ QString EmbeddedFullReferenceScriptForModel(const QString &modelType)
     if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         return RBioswaleBuilder::FullReferenceScript();
     }
+    if (modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return JMBioretentionBuilder::FullReferenceScript();
+    }
     return VnDrywellBuilder::VnFullReferenceScript();
 }
 
@@ -255,6 +259,9 @@ QString EmbeddedInflowTargetForModel(const QString &modelType)
     }
     if (modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         return RBioswaleBuilder::InflowTargetObject();
+    }
+    if (modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return JMBioretentionBuilder::InflowTargetObject();
     }
     return VnDrywellBuilder::InflowTargetObject();
 }
@@ -440,6 +447,9 @@ QString EffectiveBuildModeForMetadata(const StarterScriptOptions &options)
     if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         return NormalizeStructureBuildMode(options.rBioswaleBuildMode);
     }
+    if (options.modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return NormalizeStructureBuildMode(options.jmBuildMode);
+    }
     return QStringLiteral("SoftReference");
 }
 
@@ -478,6 +488,9 @@ QString EffectiveSoilParameterStrategyForMetadata(const StarterScriptOptions &op
     }
     if (options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         return QStringLiteral("R_EmbeddedReference");
+    }
+    if (options.modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("JM_ProceduralReference");
     }
     return QStringLiteral("Unknown");
 }
@@ -1507,21 +1520,27 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
     const bool vnModelType = IsVnModel(options.modelType);
     const bool hqModelType = options.modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0;
     const bool rBioswaleModelType = options.modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0;
+    const bool jmModelType = options.modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0;
     const QString vnMode = vnModelType ? NormalizeVnBuildMode(options.vnBuildMode)
                                        : QStringLiteral("SoftReference");
     const QString hqMode = hqModelType ? NormalizeStructureBuildMode(options.hqBuildMode)
                                        : QStringLiteral("SoftReference");
     const QString rBioswaleMode = rBioswaleModelType ? NormalizeStructureBuildMode(options.rBioswaleBuildMode)
                                                      : QStringLiteral("SoftReference");
+    const QString jmMode = jmModelType ? NormalizeStructureBuildMode(options.jmBuildMode)
+                                       : QStringLiteral("SoftReference");
 
     const bool directScriptMode = (hqModelType && (hqMode == QStringLiteral("FullReference")
                                                    || hqMode == QStringLiteral("LoadFromOhq")))
         || (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
-                                   || rBioswaleMode == QStringLiteral("LoadFromOhq")));
+                                   || rBioswaleMode == QStringLiteral("LoadFromOhq")))
+        || (jmModelType && (jmMode == QStringLiteral("FullReference")
+                            || jmMode == QStringLiteral("LoadFromOhq")));
 
     const bool loadFromOhqMode = (vnModelType && vnMode == QStringLiteral("LoadFromOhq"))
         || (hqModelType && hqMode == QStringLiteral("LoadFromOhq"))
-        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("LoadFromOhq"));
+        || (rBioswaleModelType && rBioswaleMode == QStringLiteral("LoadFromOhq"))
+        || (jmModelType && jmMode == QStringLiteral("LoadFromOhq"));
 
     const QStringList requiredTemplates = directScriptMode || loadFromOhqMode
                                               ? QStringList{}
@@ -1611,10 +1630,15 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference")
                                           || rBioswaleMode == QStringLiteral("SoftReference"))) {
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
+        } else if (jmModelType && (jmMode == QStringLiteral("FullReference")
+                                   || jmMode == QStringLiteral("SoftReference"))) {
+            // JM may be rainfall-driven without an external inflow file.
+            inflow.clear();
         }
     } else if (options.useInflowFile && ((vnModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("VN_Drywell")))
                || (hqModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("HQ_Drywell")))
-               || (rBioswaleModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("R_Bioswale"))))) {
+               || (rBioswaleModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("R_Bioswale")))
+               || (jmModelType && IsKnownReferenceInflowForOtherModel(inflow, QStringLiteral("JM_Bioretention"))))) {
         // Guard against stale inflow defaults carried across model switches in UI state.
         if (vnModelType && (vnMode == QStringLiteral("FullReference") || vnMode == QStringLiteral("SoftReference"))) {
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("VN_Drywell"), options.templateDirectory);
@@ -1622,6 +1646,8 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("HQ_Drywell"), options.templateDirectory);
         } else if (rBioswaleModelType && (rBioswaleMode == QStringLiteral("FullReference") || rBioswaleMode == QStringLiteral("SoftReference"))) {
             inflow = DetectStructureDefaultInflowFile(QStringLiteral("R_Bioswale"), options.templateDirectory);
+        } else if (jmModelType) {
+            inflow.clear();
         }
     }
     const bool inflowRequired = options.useInflowFile && (vnModelType
@@ -1695,6 +1721,28 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
         return true;
     }
 
+    if (jmModelType && jmMode == QStringLiteral("LoadFromOhq")) {
+        if (options.jmBaseOhqFile.trimmed().isEmpty()) {
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("JM_Bioretention LoadFromOhq mode requires jmBaseOhqFile.");
+            }
+            return false;
+        }
+        QString jmText;
+        if (!LoadEntireFile(options.jmBaseOhqFile, &jmText, errorMessage)) {
+            return false;
+        }
+        if (!jmText.endsWith('\n')) {
+            jmText += '\n';
+        }
+        jmText += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        jmText += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        jmText += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        ApplyCommonScriptFixups(&jmText, inflow);
+        *scriptText = jmText;
+        return true;
+    }
+
     if (hqModelType && (hqMode == QStringLiteral("FullReference")
                         || hqMode == QStringLiteral("SoftReference"))) {
         QString out;
@@ -1744,6 +1792,31 @@ bool StarterScriptBuilder::BuildText(const StarterScriptOptions &options,
             out += "\n# user_additional_commands\n" + extra;
             if (!extra.endsWith('\n')) {
                 out += "\n";
+            }
+        }
+        ApplyCommonScriptFixups(&out, inflow);
+        *scriptText = out;
+        return true;
+    }
+
+    if (jmModelType && (jmMode == QStringLiteral("FullReference")
+                        || jmMode == QStringLiteral("SoftReference"))) {
+        QString out;
+        if (!JMBioretentionBuilder::Build(options, &out, errorMessage)) {
+            return false;
+        }
+        out.replace(QStringLiteral("<template_dir>"), options.templateDirectory);
+        if (!out.endsWith('\n')) {
+            out += '\n';
+        }
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_start_time, value=%1\n").arg(options.simulationStart);
+        out += QStringLiteral("setvalue; object=system, quantity=simulation_end_time, value=%1\n").arg(options.simulationEnd);
+        out += QStringLiteral("setvalue; object=system, quantity=outputfile, value=%1\n").arg(options.outputSeriesFile);
+        const QString extra = options.additionalCommands.trimmed();
+        if (!extra.isEmpty()) {
+            out += "\n# user_additional_commands\n" + extra;
+            if (!extra.endsWith('\n')) {
+                out += '\n';
             }
         }
         ApplyCommonScriptFixups(&out, inflow);
