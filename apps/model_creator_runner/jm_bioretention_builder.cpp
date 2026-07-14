@@ -17,8 +17,8 @@ QString BuildReference(const StarterScriptOptions &options)
     // John McCormack Road CC-101 bioretention reference geometry.
     // Keep this independent from the R_Bioswale cross-section: JM is a
     // longitudinal, layered system with sloped media elevations, choker/gravel
-    // storage, sump, surrounding native soil, underdrain, a single surface
-    // catchment, and a partial-height outlet.
+    // storage, sump, surrounding native soil, segmented underdrain, segmented
+    // surface storage, and a partial-height outlet.
     // All dimensions and elevations written to OHQ are SI (m).
     constexpr int nx = 4;
     const double length = options.jmLength > 0.0 ? options.jmLength : 12.192;       // 40 ft
@@ -53,7 +53,8 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "# Local vertical datum: partial-height outlet crest = 0.0 m.\n";
     ts << "# JM grid: nx=" << nx << ", nz=5 material layers, primary_cells=" << (nx * 5) << "\n";
     ts << "# JM blocks: soil=" << (nx * 7) << ", aggregate_storage=" << (nx * 3)
-       << ", surface=1, surrounding_soil=" << (nx * 5) << "\n";
+       << ", surface=" << nx << ", surrounding_soil=" << (nx * 5)
+       << ", groundwater_boundary=" << nx << "\n";
     ts << "loadtemplate; filename=<template_dir>/main_components.json\n";
     ts << "addtemplate; filename=<template_dir>/Pond_Plugin.json\n";
     ts << "addtemplate; filename=<template_dir>/unsaturated_soil.json\n";
@@ -69,10 +70,14 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,Runoff_coeff=0.8,"
           "Slope=0.02,Width=30,_height=300,_width=500,area=" << n(options.jmCatchmentArea > 0.0 ? options.jmCatchmentArea : 1000.0)
        << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,loss_coefficient=0,name=JM Contributing Catchment,x=-800,y=-300\n";
-    ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,"
-          "Slope=0.01,Width=" << n(width) << ",_height=140,_width=190,area=" << n(width * length)
-       << "[m~^2],depression_storage=0,depth=0,elevation=" << n(surfaceZ[0])
-       << ",inflow=,loss_coefficient=0,name=JM Catchment,x=0,y=0\n";
+    for (int i = 0; i < nx; ++i) {
+        const int k = i + 1;
+        ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.01,Precipitation=,Runoff_coeff=1,"
+              "Slope=0.01,Width=" << n(width) << ",_height=140,_width=190,area=" << n(cellArea)
+           << "[m~^2],depression_storage=0,depth=0,elevation=" << n(surfaceZ[i])
+           << ",inflow=,loss_coefficient=0,name=JM Surface (" << k << "),x="
+           << n(i * 260.0) << ",y=0\n";
+    }
 
     for (int i = 0; i < nx; ++i) {
         const int k = i + 1;
@@ -174,33 +179,42 @@ QString BuildReference(const StarterScriptOptions &options)
     const double lowestMediaBottom = lowestSurface - mulch - media;
     const double lowestChokerBottom = lowestMediaBottom - choker;
     const double lowestGravelBottom = lowestChokerBottom - gravel;
-    const double underdrainInvert = lowestGravelBottom + underdrainDiameter / 2.0;
-    const double groundwaterHead = lowestGravelBottom - sump - verticalSoilDepth - 0.5;
 
-    // Represent the perforated underdrain as a small aggregate-storage conduit.
-    // This permits valid aggregate-to-aggregate drainage links from the gravel
-    // cells.  The conduit then discharges through a Sewer_pipe link.
-    ts << "create block;type=Aggregate_storage_layer,K_sat=10000,_height=120,_width=220,area="
-       << n(underdrainDiameter * length) << ",bottom_elevation=" << n(underdrainInvert)
-       << ",depth=" << n(underdrainDiameter)
-       << ",inflow=,name=JM Underdrain,porosity=1,x=1040,y=600\n";
-    ts << "create block;type=fixed_head,name=JM Underdrain Outlet,_width=180,_height=120,x=1300,y=600,head="
-       << n(underdrainInvert) << "[m],Storage=100000[m~^3]\n";
+    // Create one underdrain segment and one groundwater boundary per column so
+    // every hydraulic connection remains local to an adjacent block.
+    for (int i = 0; i < nx; ++i) {
+        const int k = i + 1;
+        const double zMediaBottom = surfaceZ[i] - mulch - media;
+        const double zChokerBottom = zMediaBottom - choker;
+        const double zGravelBottom = zChokerBottom - gravel;
+        const double zSumpBottom = zGravelBottom - sump;
+        const double underdrainInvert = zGravelBottom + underdrainDiameter / 2.0;
+        const double groundwaterHead = zSumpBottom - verticalSoilDepth - 0.5;
+        const double uiX = i * 260.0;
+
+        ts << "create block;type=Aggregate_storage_layer,K_sat=10000,_height=90,_width=180,area="
+           << n(underdrainDiameter * dx) << ",bottom_elevation=" << n(underdrainInvert)
+           << ",depth=" << n(underdrainDiameter)
+           << ",inflow=,name=JM Underdrain (" << k << "),porosity=1,x=" << n(uiX) << ",y=710\n";
+        ts << "create block;type=fixed_head,name=JM Groundwater (" << k
+           << "),_width=180,_height=100,x=" << n(uiX) << ",y=1700,head="
+           << n(groundwaterHead) << "[m],Storage=100000[m~^3]\n";
+    }
+
+    const double terminalUnderdrainInvert = lowestGravelBottom + underdrainDiameter / 2.0;
+    ts << "create block;type=fixed_head,name=JM Underdrain Outlet,_width=180,_height=120,x=1300,y=710,head="
+       << n(terminalUnderdrainInvert) << "[m],Storage=100000[m~^3]\n";
     ts << "create block;type=fixed_head,name=JM Surface Outlet,_width=180,_height=120,x=1300,y=120,head=0[m],Storage=100000[m~^3]\n";
-    ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=450,y=1700,head="
-       << n(groundwaterHead) << "[m],Storage=100000[m~^3]\n";
 
-    // Use one surface catchment for runoff storage, comparable to R_Bioswale's
-    // catchment-to-first-soil routing pattern, while preserving JM's separate
-    // layered longitudinal media/choker/gravel/sump geometry.
-    ts << "create link;from=JM Contributing Catchment,to=JM Catchment,"
-          "type=Catchment_link,name=JM Contributing Catchment - JM Catchment\n";
+    // External runoff enters the first surface cell. Surface water then moves
+    // longitudinally through adjacent cells; each surface cell infiltrates only
+    // to the media block directly beneath it.
+    ts << "create link;from=JM Contributing Catchment,to=JM Surface (1),"
+          "type=Catchment_link,name=JM Contributing Catchment - Surface 1\n";
+
     for (int i = 1; i <= nx; ++i) {
-        ts << "create link;from=JM Catchment,to=JM Media (" << i
-           << "),type=surfacewater_to_soil_link,name=JM Catchment - Media " << i << "\n";
-        // aggregate_to_soil_link is the available soil/aggregate interface
-        // link in the OHQ templates.  Put the aggregate block first; the link
-        // remains hydraulically bidirectional.
+        ts << "create link;from=JM Surface (" << i << "),to=JM Media (" << i
+           << "),type=surfacewater_to_soil_link,name=JM Surface - Media " << i << "\n";
         ts << "create link;from=JM Choker (" << i << "),to=JM Media (" << i
            << "),type=aggregate_to_soil_link,name=JM Choker - Media " << i << "\n";
         ts << "create link;from=JM Choker (" << i << "),to=JM Gravel (" << i
@@ -208,6 +222,9 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",name=JM Choker - Gravel " << i << ",width=" << n(width) << "\n";
         ts << "create link;from=JM Gravel (" << i << "),to=JM Infiltration Sump (" << i
            << "),type=aggregate_to_soil_link,name=JM Gravel - Sump " << i << "\n";
+        ts << "create link;from=JM Gravel (" << i << "),to=JM Underdrain (" << i
+           << "),type=aggregate2aggregate_H_Link,length=" << n(underdrainDiameter / 2.0)
+           << ",name=JM Gravel - Underdrain " << i << ",width=" << n(dx) << "\n";
         ts << "create link;from=JM Media (" << i
            << "),to=JM Left Native Soil (" << i
            << "),type=soil_to_soil_H_link,name=JM Media - Left Native Soil " << i
@@ -234,14 +251,16 @@ QString BuildReference(const StarterScriptOptions &options)
            << "),type=soil_to_soil_H_link,name=JM Bottom Native Soil - Right Bottom Native Soil " << i
            << ",length=" << n(width / 2.0) << "[m],area=" << n(verticalSoilDepth * dx) << "[m~^2]\n";
         ts << "create link;from=JM Bottom Native Soil (" << i
-           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW " << i << "\n";
-        ts << "create link;from=JM Left Bottom Native Soil (" << i
-           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Left Bottom Native Soil - GW " << i << "\n";
-        ts << "create link;from=JM Right Bottom Native Soil (" << i
-           << "),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Right Bottom Native Soil - GW " << i << "\n";
+           << "),to=JM Groundwater (" << i
+           << "),type=soil_to_fixedhead_link,name=JM Bottom Native Soil - GW " << i << "\n";
     }
 
     for (int i = 1; i < nx; ++i) {
+        ts << "create link;from=JM Surface (" << i << "),to=JM Surface (" << i + 1
+           << "),type=Catchment_link,name=JM Surface Horizontal " << i << "\n";
+        ts << "create link;from=JM Underdrain (" << i << "),to=JM Underdrain (" << i + 1
+           << "),type=aggregate2aggregate_H_Link,length=" << n(dx)
+           << ",name=JM Underdrain Horizontal " << i << ",width=" << n(underdrainDiameter) << "\n";
         ts << "create link;from=JM Media (" << i << "),to=JM Media (" << i + 1
            << "),type=soil_to_soil_H_link,name=JM Media Horizontal " << i << "\n";
         ts << "create link;from=JM Choker (" << i << "),to=JM Choker (" << i + 1
@@ -269,21 +288,15 @@ QString BuildReference(const StarterScriptOptions &options)
            << ",length=" << n(dx) << "[m],area=" << n(verticalSoilDepth * surroundingWidth) << "[m~^2]\n";
     }
 
-    // Underdrain receives drainage from each gravel cell and discharges to a
-    // dedicated subsurface outlet.  Do not connect gravel to a Pipe block with
-    // aggregate_to_soil_link; that endpoint pairing is invalid.
-    for (int i = 1; i <= nx; ++i) {
-        ts << "create link;from=JM Gravel (" << i
-           << "),to=JM Underdrain,type=aggregate2aggregate_H_Link,length=" << n(dx / 2.0)
-           << ",name=JM Gravel - Underdrain " << i << ",width=" << n(underdrainDiameter) << "\n";
-    }
-    ts << "create link;from=JM Underdrain,to=JM Underdrain Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter="
-       << n(underdrainDiameter) << ",end_elevation=" << n(underdrainInvert)
-       << ",length=" << n(length)
-       << ",name=JM Underdrain - Outlet,start_elevation=" << n(underdrainInvert) << "\n";
+    // Only terminal adjacent cells connect to their external outlets.
+    ts << "create link;from=JM Underdrain (" << nx
+       << "),to=JM Underdrain Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter="
+       << n(underdrainDiameter) << ",end_elevation=" << n(terminalUnderdrainInvert)
+       << ",length=" << n(dx / 2.0)
+       << ",name=JM Underdrain - Outlet,start_elevation=" << n(terminalUnderdrainInvert) << "\n";
 
-    // Partial-height surface outlet at the local crest datum.
-    ts << "create link;from=JM Catchment,to=JM Surface Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.15,"
+    ts << "create link;from=JM Surface (" << nx
+       << "),to=JM Surface Outlet,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.15,"
           "end_elevation=0,length=1,name=JM Partial Height Outlet,start_elevation=0\n";
 
     return out;
