@@ -181,6 +181,19 @@ class TestAnalysisAlgorithms(unittest.TestCase):
             self.assertIn(pattern, r_source)
             self.assertIn(pattern, jm_text)
 
+    def test_r_and_jm_reference_geometries_remain_independent(self):
+        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+
+        self.assertIn("options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096", r_source)
+        self.assertIn("options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144", r_source)
+        self.assertIn("Width=3.7084", jm_text)
+        self.assertIn("depth=0.9144,n=JM_Eng_Soil_n,name=JM Media", jm_text)
+        self.assertIn("depth=0.0762,inflow=,name=JM Choker", jm_text)
+        self.assertIn("depth=0.6096,inflow=,name=JM Gravel", jm_text)
+        self.assertIn("depth=0.3048,n=1.56,name=JM Infiltration Sump", jm_text)
+        self.assertIn("diameter=0.1016[m],length=12.192[m],slope=0.005", jm_text)
+
     def test_registry_exposes_jm_model_type(self):
         source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"
         text = source.read_text(encoding="utf-8")

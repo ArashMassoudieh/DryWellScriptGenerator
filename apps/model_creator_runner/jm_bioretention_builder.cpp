@@ -15,6 +15,9 @@ QString n(double value)
 QString BuildReference(const StarterScriptOptions &options)
 {
     // John McCormack Road CC-101 bioretention reference geometry.
+    // Keep this independent from the R_Bioswale cross-section: JM is a
+    // longitudinal, layered system with sloped media elevations, choker/gravel
+    // storage, sump, underdrain, a single surface catchment, and a partial-height outlet.
     // All dimensions and elevations written to OHQ are SI (m).
     constexpr int nx = 4;
     const double length = options.jmLength > 0.0 ? options.jmLength : 12.192;       // 40 ft
@@ -104,9 +107,9 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=1300,y=800,head="
        << n(-1.9812) << "[m],Storage=100000[m~^3]\n";
 
-    // Match the R_Bioswale surface layout: one catchment represents surface
-    // storage above the media grid, receives the external contributing area,
-    // and connects to the upstream engineered media cell.
+    // Use one surface catchment for runoff storage, comparable to R_Bioswale's
+    // catchment-to-first-soil routing pattern, while preserving JM's separate
+    // layered longitudinal media/choker/gravel/sump geometry.
     ts << "create link;from=JM Contributing Catchment,to=JM Catchment,"
           "type=Catchment_link,name=JM Contributing Catchment - JM Catchment\n";
     ts << "create link;from=JM Catchment,to=JM Media (1),"
