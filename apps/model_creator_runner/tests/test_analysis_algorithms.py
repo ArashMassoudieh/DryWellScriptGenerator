@@ -143,16 +143,20 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertFalse(is_preset_compatible_with_model("JM_Bioretention_GW", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "JM_Bioretention"))
 
-    def test_jm_builder_reference_script_contains_required_blocks(self):
-        source = Path(__file__).resolve().parents[1] / "jm_bioretention_builder.cpp"
+    def test_jm_reference_ohq_contains_required_blocks(self):
+        source = Path(__file__).resolve().parents[1] / "JM.ohq"
         text = source.read_text(encoding="utf-8")
         self.assertIn("JM_Bioretention: John McCormack Road CC-101", text)
-        self.assertIn("create block;type=Catchment", text)
         self.assertIn("name=JM Contributing Catchment", text)
         self.assertIn("name=JM Underdrain", text)
         self.assertIn("name=JM Outlet", text)
         self.assertIn("name=JM Groundwater", text)
         self.assertIn("JM Partial Height Outlet", text)
+        self.assertEqual(text.count("name=JM Surface ("), 4)
+        self.assertEqual(text.count("name=JM Media ("), 4)
+        self.assertEqual(text.count("name=JM Choker ("), 4)
+        self.assertEqual(text.count("name=JM Gravel ("), 4)
+        self.assertEqual(text.count("name=JM Infiltration Sump ("), 4)
 
     def test_registry_exposes_jm_model_type(self):
         source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"
@@ -160,6 +164,14 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn('QStringLiteral("JM_Bioretention")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_Underdrain")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_GW")', text)
+
+    def test_qmake_project_packages_jm_reference_output(self):
+        source = Path(__file__).resolve().parents[1] / "model_creator_runner.pro"
+        text = source.read_text(encoding="utf-8")
+        self.assertIn("jm_bioretention_builder.cpp", text)
+        self.assertIn("jm_bioretention_builder.h", text)
+        self.assertIn("DISTFILES", text)
+        self.assertIn("JM.ohq", text)
 
 
 if __name__ == "__main__":
