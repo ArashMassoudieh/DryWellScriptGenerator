@@ -157,6 +157,25 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertEqual(text.count("name=JM Choker ("), 4)
         self.assertEqual(text.count("name=JM Gravel ("), 4)
         self.assertEqual(text.count("name=JM Infiltration Sump ("), 4)
+        self.assertEqual(text.count("name=JM Catchment - Inlet"), 1)
+        self.assertEqual(text.count("name=JM Surface Routing"), 3)
+
+    def test_jm_reference_uses_r_bioswale_link_patterns(self):
+        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+        shared_patterns = [
+            "type=Catchment_link",
+            "type=surfacewater_to_soil_link",
+            "type=soil_to_fixedhead_link_H",
+            "type=aggregate2aggregate_H_Link",
+            "type=aggregate_to_soil_link",
+            "type=soil_to_fixedhead_link",
+            "type=Sewer_pipe",
+            "type=fixed_head",
+        ]
+        for pattern in shared_patterns:
+            self.assertIn(pattern, r_source)
+            self.assertIn(pattern, jm_text)
 
     def test_registry_exposes_jm_model_type(self):
         source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"

@@ -138,6 +138,13 @@ curb inlets, routes each surface/media/choker/gravel/sump layer vertically and
 horizontally, connects each gravel cell to the 4 in underdrain, and routes the
 last surface cell to the partial-height outlet at the local 0.0 m datum.
 
+JM follows the same high-level hydraulic pattern as `R_Bioswale`: one external
+contributing catchment enters the surface-storage system, then connected
+surface, engineered-media, aggregate-storage, native-soil, fixed-head, and
+sewer/outlet links move water through the model. The main difference is that
+JM uses a longitudinal four-cell profile for the CC-101 slope instead of the
+Rosemead lateral street/bioswale grid.
+
 Add these files to the qmake/CMake source list:
 - `jm_bioretention_builder.cpp`
 - `jm_bioretention_builder.h`

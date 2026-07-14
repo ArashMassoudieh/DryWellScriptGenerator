@@ -43,19 +43,16 @@ create link;from=JM Media (1),to=JM Choker (1),type=soil_to_fixedhead_link_H,are
 create link;from=JM Choker (1),to=JM Gravel (1),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 1,width=3.7084
 create link;from=JM Gravel (1),to=JM Infiltration Sump (1),type=aggregate_to_soil_link,name=JM Gravel - Sump 1
 create link;from=JM Infiltration Sump (1),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Sump - GW 1
-create link;from=JM Contributing Catchment,to=JM Surface (2),type=Catchment_link,name=JM Catchment - Inlet 2
 create link;from=JM Surface (2),to=JM Media (2),type=surfacewater_to_soil_link,name=JM Surface - Media 2
 create link;from=JM Media (2),to=JM Choker (2),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 2,outlet_head=-0.28956
 create link;from=JM Choker (2),to=JM Gravel (2),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 2,width=3.7084
 create link;from=JM Gravel (2),to=JM Infiltration Sump (2),type=aggregate_to_soil_link,name=JM Gravel - Sump 2
 create link;from=JM Infiltration Sump (2),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Sump - GW 2
-create link;from=JM Contributing Catchment,to=JM Surface (3),type=Catchment_link,name=JM Catchment - Inlet 3
 create link;from=JM Surface (3),to=JM Media (3),type=surfacewater_to_soil_link,name=JM Surface - Media 3
 create link;from=JM Media (3),to=JM Choker (3),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 3,outlet_head=-0.478536
 create link;from=JM Choker (3),to=JM Gravel (3),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 3,width=3.7084
 create link;from=JM Gravel (3),to=JM Infiltration Sump (3),type=aggregate_to_soil_link,name=JM Gravel - Sump 3
 create link;from=JM Infiltration Sump (3),to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Sump - GW 3
-create link;from=JM Contributing Catchment,to=JM Surface (4),type=Catchment_link,name=JM Catchment - Inlet 4
 create link;from=JM Surface (4),to=JM Media (4),type=surfacewater_to_soil_link,name=JM Surface - Media 4
 create link;from=JM Media (4),to=JM Choker (4),type=soil_to_fixedhead_link_H,area=11.3032032,length=0.4572,name=JM Media - Choker 4,outlet_head=-0.710184
 create link;from=JM Choker (4),to=JM Gravel (4),type=aggregate2aggregate_H_Link,length=0.0762,name=JM Choker - Gravel 4,width=3.7084
