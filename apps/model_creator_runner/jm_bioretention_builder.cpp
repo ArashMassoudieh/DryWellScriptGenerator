@@ -102,10 +102,13 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create block;type=fixed_head,name=JM Groundwater,_width=180,_height=120,x=1300,y=800,head="
        << n(-1.9812) << "[m],Storage=100000[m~^3]\n";
 
-    // Catchment inflow distributed to the four curb-opening surface cells.
+    // Route the contributing area into the upstream surface cell, matching the
+    // R_Bioswale approach of applying external runoff once and then moving it
+    // through the connected surface-storage cells.
+    ts << "create link;from=JM Contributing Catchment,to=JM Surface (1),"
+          "type=Catchment_link,name=JM Catchment - Inlet 1\n";
+
     for (int i = 1; i <= nx; ++i) {
-        ts << "create link;from=JM Contributing Catchment,to=JM Surface (" << i
-           << "),type=Catchment_link,name=JM Catchment - Inlet " << i << "\n";
         ts << "create link;from=JM Surface (" << i << "),to=JM Media (" << i
            << "),type=surfacewater_to_soil_link,name=JM Surface - Media " << i << "\n";
         ts << "create link;from=JM Media (" << i << "),to=JM Choker (" << i
