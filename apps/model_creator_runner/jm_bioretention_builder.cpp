@@ -37,6 +37,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     // (engineered media, choker, gravel and infiltration sump).
     constexpr int mediaNz = 8;
     constexpr int nativeBelowNz = 23;
+    constexpr int nativeSideNx = 2; // two native-soil columns on each side
 
     const double length = useOptions && options.jmLength > 0.0 ? options.jmLength : 12.192;
     const double width = useOptions && options.jmWidth > 0.0 ? options.jmWidth : 1.524;
@@ -79,6 +80,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     ts << "# JM_Bioretention: R-style cross-section using JM dimensions\n";
     ts << "# Units: SI; all dimensions and elevations are metres.\n";
     ts << "# One engineered-soil column; media_nz=" << mediaNz
+       << ", native_side_nx=" << nativeSideNx
        << ", native_below_nz=" << nativeBelowNz << "\n";
     ts << "# JM footprint: length=" << n(length) << " m, width=" << n(width)
        << " m, area=" << n(footprintArea) << " m2\n";
@@ -149,13 +151,16 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
         writeSoil(QStringLiteral("JM Engineered Soil (%1)").arg(k),
                   footprintArea, bottom, mediaDz, 0.0, actualY, 0.0, uiY, true);
 
-        // Side columns use a representative native-soil plan area equal to the
-        // JM footprint. This keeps the R-style topology without longitudinal
-        // duplication of the bioretention column.
-        writeSoil(QStringLiteral("JM Left Native Soil (%1)").arg(k),
-                  footprintArea, bottom, mediaDz, -width, actualY, -220.0, uiY, false);
-        writeSoil(QStringLiteral("JM Right Native Soil (%1)").arg(k),
-                  footprintArea, bottom, mediaDz, width, actualY, 220.0, uiY, false);
+        // Two native-soil columns on each side. Column 1 is adjacent to the
+        // engineered media; column 2 extends the lateral native-soil domain.
+        for (int c = 1; c <= nativeSideNx; ++c) {
+            writeSoil(QStringLiteral("JM Left Native Soil (%1$%2)").arg(k).arg(c),
+                      footprintArea, bottom, mediaDz, -c * width, actualY,
+                      -220.0 * c, uiY, false);
+            writeSoil(QStringLiteral("JM Right Native Soil (%1$%2)").arg(k).arg(c),
+                      footprintArea, bottom, mediaDz, c * width, actualY,
+                      220.0 * c, uiY, false);
+        }
     }
 
     ts << "create block;type=Aggregate_storage_layer,K_sat=500,_height=100,_width=150,area="
@@ -171,7 +176,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     writeSoil(QStringLiteral("JM Infiltration Sump"), footprintArea, sumpBottom, sump,
               0.0, gravelBottom - sump / 2.0, 0.0, (mediaNz + 2) * 180.0, false);
 
-    // Three-column native-soil grid below the sump.
+    // Five-column native-soil grid below the sump: two left, center, two right.
     for (int k = 1; k <= nativeBelowNz; ++k) {
         double top = sumpBottom;
         for (int j = 0; j < k - 1; ++j) top -= nativeDepths[j];
@@ -180,12 +185,18 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
         const double actualY = (top + bottom) / 2.0;
         const double uiY = (mediaNz + 2 + k) * 180.0;
 
-        writeSoil(QStringLiteral("JM Left Bottom Native Soil (%1)").arg(k),
-                  footprintArea, bottom, nativeDz, -width, actualY, -220.0, uiY, false);
+        for (int c = 1; c <= nativeSideNx; ++c) {
+            writeSoil(QStringLiteral("JM Left Bottom Native Soil (%1$%2)").arg(k).arg(c),
+                      footprintArea, bottom, nativeDz, -c * width, actualY,
+                      -220.0 * c, uiY, false);
+        }
         writeSoil(QStringLiteral("JM Bottom Native Soil (%1)").arg(k),
                   footprintArea, bottom, nativeDz, 0.0, actualY, 0.0, uiY, false);
-        writeSoil(QStringLiteral("JM Right Bottom Native Soil (%1)").arg(k),
-                  footprintArea, bottom, nativeDz, width, actualY, 220.0, uiY, false);
+        for (int c = 1; c <= nativeSideNx; ++c) {
+            writeSoil(QStringLiteral("JM Right Bottom Native Soil (%1$%2)").arg(k).arg(c),
+                      footprintArea, bottom, nativeDz, c * width, actualY,
+                      220.0 * c, uiY, false);
+        }
     }
 
     ts << "create block;type=Pipe,name=JM Underdrain,_width=220,_height=120,x=500,y="
@@ -205,22 +216,44 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     ts << "create link;from=JM Catchment,to=JM Engineered Soil (1),type=surfacewater_to_soil_link,"
           "name=JM Catchment - Engineered Soil 1\n";
 
-    // Media grid: vertical center/side connections and horizontal adjacency.
+    // Media grid: L2--L1--Engineered--R1--R2 in every row. Every link is
+    // between immediate horizontal or vertical neighbours only.
     for (int k = 1; k <= mediaNz; ++k) {
-        ts << "create link;from=JM Engineered Soil (" << k << "),to=JM Left Native Soil (" << k
-           << "),type=soil_to_soil_H_link,name=JM Engineered - Left Native " << k
+        ts << "create link;from=JM Engineered Soil (" << k
+           << "),to=JM Left Native Soil (" << k << "$1)"
+           << ",type=soil_to_soil_H_link,name=JM Engineered - Left Native " << k
            << ",length=" << n(width / 2.0) << "[m],area=" << n(mediaDz * length) << "[m~^2]\n";
-        ts << "create link;from=JM Engineered Soil (" << k << "),to=JM Right Native Soil (" << k
-           << "),type=soil_to_soil_H_link,name=JM Engineered - Right Native " << k
+        ts << "create link;from=JM Engineered Soil (" << k
+           << "),to=JM Right Native Soil (" << k << "$1)"
+           << ",type=soil_to_soil_H_link,name=JM Engineered - Right Native " << k
            << ",length=" << n(width / 2.0) << "[m],area=" << n(mediaDz * length) << "[m~^2]\n";
+
+        for (int c = 1; c < nativeSideNx; ++c) {
+            ts << "create link;from=JM Left Native Soil (" << k << "$" << c
+               << "),to=JM Left Native Soil (" << k << "$" << c + 1
+               << "),type=soil_to_soil_H_link,name=JM Left Native Horizontal "
+               << k << "-" << c << ",length=" << n(width) << "[m],area="
+               << n(mediaDz * length) << "[m~^2]\n";
+            ts << "create link;from=JM Right Native Soil (" << k << "$" << c
+               << "),to=JM Right Native Soil (" << k << "$" << c + 1
+               << "),type=soil_to_soil_H_link,name=JM Right Native Horizontal "
+               << k << "-" << c << ",length=" << n(width) << "[m],area="
+               << n(mediaDz * length) << "[m~^2]\n";
+        }
 
         if (k < mediaNz) {
             ts << "create link;from=JM Engineered Soil (" << k << "),to=JM Engineered Soil (" << k + 1
                << "),type=soil_to_soil_link,name=JM Engineered Vertical " << k << "\n";
-            ts << "create link;from=JM Left Native Soil (" << k << "),to=JM Left Native Soil (" << k + 1
-               << "),type=soil_to_soil_link,name=JM Left Native Vertical " << k << "\n";
-            ts << "create link;from=JM Right Native Soil (" << k << "),to=JM Right Native Soil (" << k + 1
-               << "),type=soil_to_soil_link,name=JM Right Native Vertical " << k << "\n";
+            for (int c = 1; c <= nativeSideNx; ++c) {
+                ts << "create link;from=JM Left Native Soil (" << k << "$" << c
+                   << "),to=JM Left Native Soil (" << k + 1 << "$" << c
+                   << "),type=soil_to_soil_link,name=JM Left Native Vertical "
+                   << k << "-" << c << "\n";
+                ts << "create link;from=JM Right Native Soil (" << k << "$" << c
+                   << "),to=JM Right Native Soil (" << k + 1 << "$" << c
+                   << "),type=soil_to_soil_link,name=JM Right Native Vertical "
+                   << k << "-" << c << "\n";
+            }
         }
     }
 
@@ -232,32 +265,60 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     ts << "create link;from=JM Gravel,to=JM Infiltration Sump,type=aggregate_to_soil_link,"
           "name=JM Gravel - Infiltration Sump\n";
 
-    // Join the three media-level columns to the three native columns below.
-    ts << "create link;from=JM Left Native Soil (" << mediaNz
-       << "),to=JM Left Bottom Native Soil (1),type=soil_to_soil_link,"
-          "name=JM Left Native - Left Bottom Native\n";
+    // Join each upper native column to the corresponding deeper native
+    // column. The center constructed profile enters the center native column
+    // through the infiltration sump.
+    for (int c = 1; c <= nativeSideNx; ++c) {
+        ts << "create link;from=JM Left Native Soil (" << mediaNz << "$" << c
+           << "),to=JM Left Bottom Native Soil (1$" << c
+           << "),type=soil_to_soil_link,name=JM Left Native - Left Bottom Native " << c << "\n";
+        ts << "create link;from=JM Right Native Soil (" << mediaNz << "$" << c
+           << "),to=JM Right Bottom Native Soil (1$" << c
+           << "),type=soil_to_soil_link,name=JM Right Native - Right Bottom Native " << c << "\n";
+    }
     ts << "create link;from=JM Infiltration Sump,to=JM Bottom Native Soil (1),type=soil_to_soil_link,"
           "name=JM Sump - Bottom Native\n";
-    ts << "create link;from=JM Right Native Soil (" << mediaNz
-       << "),to=JM Right Bottom Native Soil (1),type=soil_to_soil_link,"
-          "name=JM Right Native - Right Bottom Native\n";
 
-    // Native grid below: each block connects only to its immediate neighbours.
+    // Five-column native grid below: L2--L1--Center--R1--R2. Every block
+    // connects only to its immediate neighbours.
     for (int k = 1; k <= nativeBelowNz; ++k) {
-        ts << "create link;from=JM Bottom Native Soil (" << k << "),to=JM Left Bottom Native Soil (" << k
-           << "),type=soil_to_soil_H_link,name=JM Bottom - Left Bottom " << k
-           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
-        ts << "create link;from=JM Bottom Native Soil (" << k << "),to=JM Right Bottom Native Soil (" << k
-           << "),type=soil_to_soil_H_link,name=JM Bottom - Right Bottom " << k
-           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
+        ts << "create link;from=JM Bottom Native Soil (" << k
+           << "),to=JM Left Bottom Native Soil (" << k << "$1)"
+           << ",type=soil_to_soil_H_link,name=JM Bottom - Left Bottom " << k
+           << ",length=" << n(width / 2.0) << "[m],area="
+           << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
+        ts << "create link;from=JM Bottom Native Soil (" << k
+           << "),to=JM Right Bottom Native Soil (" << k << "$1)"
+           << ",type=soil_to_soil_H_link,name=JM Bottom - Right Bottom " << k
+           << ",length=" << n(width / 2.0) << "[m],area="
+           << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
+
+        for (int c = 1; c < nativeSideNx; ++c) {
+            ts << "create link;from=JM Left Bottom Native Soil (" << k << "$" << c
+               << "),to=JM Left Bottom Native Soil (" << k << "$" << c + 1
+               << "),type=soil_to_soil_H_link,name=JM Left Bottom Horizontal "
+               << k << "-" << c << ",length=" << n(width) << "[m],area="
+               << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
+            ts << "create link;from=JM Right Bottom Native Soil (" << k << "$" << c
+               << "),to=JM Right Bottom Native Soil (" << k << "$" << c + 1
+               << "),type=soil_to_soil_H_link,name=JM Right Bottom Horizontal "
+               << k << "-" << c << ",length=" << n(width) << "[m],area="
+               << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
+        }
 
         if (k < nativeBelowNz) {
-            ts << "create link;from=JM Left Bottom Native Soil (" << k << "),to=JM Left Bottom Native Soil (" << k + 1
-               << "),type=soil_to_soil_link,name=JM Left Bottom Vertical " << k << "\n";
             ts << "create link;from=JM Bottom Native Soil (" << k << "),to=JM Bottom Native Soil (" << k + 1
                << "),type=soil_to_soil_link,name=JM Bottom Vertical " << k << "\n";
-            ts << "create link;from=JM Right Bottom Native Soil (" << k << "),to=JM Right Bottom Native Soil (" << k + 1
-               << "),type=soil_to_soil_link,name=JM Right Bottom Vertical " << k << "\n";
+            for (int c = 1; c <= nativeSideNx; ++c) {
+                ts << "create link;from=JM Left Bottom Native Soil (" << k << "$" << c
+                   << "),to=JM Left Bottom Native Soil (" << k + 1 << "$" << c
+                   << "),type=soil_to_soil_link,name=JM Left Bottom Vertical "
+                   << k << "-" << c << "\n";
+                ts << "create link;from=JM Right Bottom Native Soil (" << k << "$" << c
+                   << "),to=JM Right Bottom Native Soil (" << k + 1 << "$" << c
+                   << "),type=soil_to_soil_link,name=JM Right Bottom Vertical "
+                   << k << "-" << c << "\n";
+            }
         }
     }
 
