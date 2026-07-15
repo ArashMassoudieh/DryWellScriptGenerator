@@ -1,6 +1,7 @@
 #include "jm_bioretention_builder.h"
 
 #include <QTextStream>
+#include <QVector>
 #include <QtGlobal>
 
 namespace {
@@ -10,7 +11,7 @@ QString n(double value)
     return QString::number(value, 'g', 12);
 }
 
-QString BuildReference(const StarterScriptOptions &options)
+QString BuildModel(const StarterScriptOptions &options, bool useOptions)
 {
     // John McCormack Road bioretention model.
     //
@@ -31,25 +32,37 @@ QString BuildReference(const StarterScriptOptions &options)
     //   infiltration sump  0.3048 m
     //   ponding depth      0.20828 m
 
+    // Match the R reference discretization: 8 constructed-profile rows and
+    // 23 deeper native-soil rows. The JM constructed layers remain explicit
+    // (engineered media, choker, gravel and infiltration sump).
     constexpr int mediaNz = 8;
-    constexpr int nativeBelowNz = 4;
+    constexpr int nativeBelowNz = 23;
 
-    const double length = options.jmLength > 0.0 ? options.jmLength : 12.192;
-    const double width = options.jmWidth > 0.0 ? options.jmWidth : 1.524;
+    const double length = useOptions && options.jmLength > 0.0 ? options.jmLength : 12.192;
+    const double width = useOptions && options.jmWidth > 0.0 ? options.jmWidth : 1.524;
     const double footprintArea = length * width;
 
-    const double mulch = options.jmMulchDepth > 0.0 ? options.jmMulchDepth : 0.0762;
-    const double media = options.jmMediaDepth > 0.0 ? options.jmMediaDepth : 0.9144;
-    const double choker = options.jmChokerDepth > 0.0 ? options.jmChokerDepth : 0.0762;
-    const double gravel = options.jmGravelDepth > 0.0 ? options.jmGravelDepth : 0.6096;
-    const double sump = options.jmSumpDepth > 0.0 ? options.jmSumpDepth : 0.3048;
-    const double underdrainDiameter = options.jmUnderdrainDiameter > 0.0
+    const double mulch = useOptions && options.jmMulchDepth > 0.0 ? options.jmMulchDepth : 0.0762;
+    const double media = useOptions && options.jmMediaDepth > 0.0 ? options.jmMediaDepth : 0.9144;
+    const double choker = useOptions && options.jmChokerDepth > 0.0 ? options.jmChokerDepth : 0.0762;
+    const double gravel = useOptions && options.jmGravelDepth > 0.0 ? options.jmGravelDepth : 0.6096;
+    const double sump = useOptions && options.jmSumpDepth > 0.0 ? options.jmSumpDepth : 0.3048;
+    const double underdrainDiameter = useOptions && options.jmUnderdrainDiameter > 0.0
         ? options.jmUnderdrainDiameter : 0.1016;
     const double pondingDepth = 0.20828;
 
     const double mediaDz = media / mediaNz;
-    const double nativeBelowDepth = 1.8288; // 6 ft represented below the infiltration sump.
-    const double nativeBelowDz = nativeBelowDepth / nativeBelowNz;
+    // R FullReference continues the native profile well below the facility.
+    // Use the same 23-row depth pattern: first three transition rows, followed
+    // by twenty 0.4572-m rows. Total native depth = 9.7536 m.
+    QVector<double> nativeDepths;
+    nativeDepths.reserve(nativeBelowNz);
+    nativeDepths << 0.1016 << 0.3048 << 0.3048;
+    while (nativeDepths.size() < nativeBelowNz) {
+        nativeDepths << 0.4572;
+    }
+    double nativeBelowDepth = 0.0;
+    for (double d : nativeDepths) nativeBelowDepth += d;
 
     // Local datum: top of mulch = 0 m.
     const double mediaTop = -mulch;
@@ -84,7 +97,7 @@ QString BuildReference(const StarterScriptOptions &options)
     ts << "create parameter;type=Parameter,high=10,low=0.1,name=JM_Eng_Soil_alpha,prior_distribution=log-normal,value=1\n";
     ts << "create parameter;type=Parameter,high=3,low=1.01,name=JM_Eng_Soil_n,prior_distribution=log-normal,value=1.56\n";
 
-    const double contributingArea = options.jmCatchmentArea > 0.0
+    const double contributingArea = useOptions && options.jmCatchmentArea > 0.0
         ? options.jmCatchmentArea : 1000.0;
 
     ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.03,Precipitation=Rain,"
@@ -160,17 +173,19 @@ QString BuildReference(const StarterScriptOptions &options)
 
     // Three-column native-soil grid below the sump.
     for (int k = 1; k <= nativeBelowNz; ++k) {
-        const double top = sumpBottom - (k - 1) * nativeBelowDz;
-        const double bottom = top - nativeBelowDz;
+        double top = sumpBottom;
+        for (int j = 0; j < k - 1; ++j) top -= nativeDepths[j];
+        const double nativeDz = nativeDepths[k - 1];
+        const double bottom = top - nativeDz;
         const double actualY = (top + bottom) / 2.0;
         const double uiY = (mediaNz + 2 + k) * 180.0;
 
         writeSoil(QStringLiteral("JM Left Bottom Native Soil (%1)").arg(k),
-                  footprintArea, bottom, nativeBelowDz, -width, actualY, -220.0, uiY, false);
+                  footprintArea, bottom, nativeDz, -width, actualY, -220.0, uiY, false);
         writeSoil(QStringLiteral("JM Bottom Native Soil (%1)").arg(k),
-                  footprintArea, bottom, nativeBelowDz, 0.0, actualY, 0.0, uiY, false);
+                  footprintArea, bottom, nativeDz, 0.0, actualY, 0.0, uiY, false);
         writeSoil(QStringLiteral("JM Right Bottom Native Soil (%1)").arg(k),
-                  footprintArea, bottom, nativeBelowDz, width, actualY, 220.0, uiY, false);
+                  footprintArea, bottom, nativeDz, width, actualY, 220.0, uiY, false);
     }
 
     ts << "create block;type=Pipe,name=JM Underdrain,_width=220,_height=120,x=500,y="
@@ -231,10 +246,10 @@ QString BuildReference(const StarterScriptOptions &options)
     for (int k = 1; k <= nativeBelowNz; ++k) {
         ts << "create link;from=JM Bottom Native Soil (" << k << "),to=JM Left Bottom Native Soil (" << k
            << "),type=soil_to_soil_H_link,name=JM Bottom - Left Bottom " << k
-           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeBelowDz * length) << "[m~^2]\n";
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
         ts << "create link;from=JM Bottom Native Soil (" << k << "),to=JM Right Bottom Native Soil (" << k
            << "),type=soil_to_soil_H_link,name=JM Bottom - Right Bottom " << k
-           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeBelowDz * length) << "[m~^2]\n";
+           << ",length=" << n(width / 2.0) << "[m],area=" << n(nativeDepths[k - 1] * length) << "[m~^2]\n";
 
         if (k < nativeBelowNz) {
             ts << "create link;from=JM Left Bottom Native Soil (" << k << "),to=JM Left Bottom Native Soil (" << k + 1
@@ -271,7 +286,7 @@ namespace JMBioretentionBuilder
 QString FullReferenceScript()
 {
     StarterScriptOptions defaults;
-    return BuildReference(defaults);
+    return BuildModel(defaults, false);
 }
 
 QString InflowTargetObject()
@@ -301,10 +316,14 @@ bool Build(const StarterScriptOptions &options,
     }
 
     const QString mode = options.jmBuildMode.trimmed();
+    if (mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
+        *scriptText = FullReferenceScript();
+        return true;
+    }
+
     if (mode.isEmpty()
-        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0
-        || mode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0) {
-        *scriptText = BuildReference(options);
+        || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
+        *scriptText = BuildModel(options, true);
         return true;
     }
 
