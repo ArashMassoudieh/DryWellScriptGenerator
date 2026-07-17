@@ -138,6 +138,27 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
            << ",x=" << n(-650.0 + i * 190.0) << ",y=-250\n";
     }
 
+    // Dummy catchment.
+	ts << "create block;"
+	      "type=Catchment,"
+	      "Evapotranspiration=,"
+	      "ManningCoeff=0.03,"
+	      "Precipitation=Rain,"
+	      "Runoff_coeff=1,"
+	      "Slope=0.01,"
+	      "Width=1,"
+	      "_height=180,"
+	      "_width=220,"
+	      "area=1[m~^2],"
+	      "depression_storage=0,"
+	      "depth=0,"
+	      "elevation=0,"
+	      "inflow=,"
+	      "loss_coefficient=0,"
+	      "name=JM Dummy Catchment,"
+	      "x=-1050,"
+	      "y=-250\n";
+      
     // Four surface, media, and aggregate blocks.
     for (int c = 1; c <= columnCount; ++c) {
         const double x = (c - 1) * 230.0;
