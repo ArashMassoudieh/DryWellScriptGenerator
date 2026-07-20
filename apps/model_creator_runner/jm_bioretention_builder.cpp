@@ -11,7 +11,7 @@ QString n(double value)
     return QString::number(value, 'g', 12);
 }
 
-QString BuildModel(const StarterScriptOptions &options, bool useOptions)
+QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool useCurbChannels)
 {
     // John McCormack Road bioretention model based on BP-01 of the plan set.
     //
@@ -90,6 +90,9 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     ts << "addtemplate; filename=<template_dir>/soil_evapotranspiration_models.json\n";
     ts << "addtemplate; filename=<template_dir>/evapotranspiration_models.json\n";
     ts << "addtemplate; filename=<template_dir>/pipe_pump_tank.json\n";
+    if (useCurbChannels) {
+        ts << "addtemplate; filename=<template_dir>/open_channel.json\n";
+    }
 
     ts << "create source;type=Precipitation,name=Rain,timeseries=Rain_JM.txt\n";
     ts << "create parameter;type=Parameter,high=20,low=1,name=JM_EngineeredSoilKsat,prior_distribution=log-normal,value=5\n";
@@ -159,6 +162,27 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
 	      "x=-1050,"
 	      "y=-250\n";
       
+    // Optional curb/gutter channel segments. No additional catch basins are
+    // created. In channel mode, each drainage-area catchment enters a curb
+    // channel segment and that segment discharges directly to its pond.
+    // The original direct-routing model is unchanged when useCurbChannels is false.
+    if (useCurbChannels) {
+        for (int c = 1; c <= columnCount; ++c) {
+            const double x = (c - 1) * 230.0;
+            const double channelBottom = 0.03 * static_cast<double>(columnCount - c);
+
+            ts << "create block;type=Trapezoidal Channel Segment,"
+                  "ManningCoeff=0.015,base_width=0.6,side_slope=2,"
+                  "bottom_elevation=" << n(channelBottom)
+               << ",depth=0,dam_height=0,length=" << n(columnLength)
+               << "[m],inflow=0,ag_area=0,non_ag_area=0,"
+                  "ag_withdrawal_per_unit_area=0,"
+                  "non_ag_withdrawal_per_unit_area=0,"
+                  "_height=100,_width=180,name=JM Curb Channel " << c
+               << ",x=" << n(x) << ",y=-140\n";
+        }
+    }
+
     // Four surface, media, and aggregate blocks.
     for (int c = 1; c <= columnCount; ++c) {
         const double x = (c - 1) * 230.0;
@@ -250,11 +274,49 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions)
     }
 
     // Drainage-area routing.
-    for (int i = 0; i < drainageAreas.size(); ++i) {
-        ts << "create link;from=JM DA-0" << (i + 1)
-           << ",to=JM Pond " << drainageTargets[i]
-           << ",type=Catchment_link,name=JM DA-0" << (i + 1)
-           << " to Pond " << drainageTargets[i] << "\n";
+    if (!useCurbChannels) {
+        // Original direct routing: drainage areas discharge to the ponds.
+        for (int i = 0; i < drainageAreas.size(); ++i) {
+            ts << "create link;from=JM DA-0" << (i + 1)
+               << ",to=JM Pond " << drainageTargets[i]
+               << ",type=Catchment_link,name=JM DA-0" << (i + 1)
+               << " to Pond " << drainageTargets[i] << "\n";
+        }
+    } else {
+        // Channel routing: each catchment enters the corresponding curb
+        // channel, which then discharges directly to the matching pond.
+        for (int i = 0; i < drainageAreas.size(); ++i) {
+            const int channel = drainageTargets[i];
+            ts << "create link;from=JM DA-0" << (i + 1)
+               << ",to=JM Curb Channel " << channel
+               << ",type=Catchment_link,name=JM DA-0" << (i + 1)
+               << " to Curb Channel " << channel << "\n";
+        }
+
+        // Longitudinal curb/gutter conveyance uses the connector name defined
+        // by open_channel.json.
+        for (int c = 1; c < columnCount; ++c) {
+            ts << "create link;from=JM Curb Channel " << c
+               << ",to=JM Curb Channel " << (c + 1)
+               << ",type=Trapezoidal_Channel_link,"
+                  "name=JM Curb Channel " << c
+               << " to " << (c + 1) << "\n";
+        }
+
+        // Curb openings: no intermediate catch basins. Each channel segment
+        // is connected directly to the corresponding bioretention pond.
+        for (int c = 1; c <= columnCount; ++c) {
+            ts << "create link;from=JM Curb Channel " << c
+               << ",to=JM Pond " << c
+               << ",type=wier,alpha=10000,beta=1.5,crest_elevation=0,"
+                  "name=JM Curb Channel " << c
+               << " to Pond " << c << "\n";
+        }
+
+        // Bypass from the final curb segment to the existing outlet catch basin.
+        ts << "create link;from=JM Curb Channel 4,to=JM Catch Basin,"
+              "type=wier,alpha=10000,beta=1.5,crest_elevation=0.15,"
+              "name=JM Curb Channel Bypass\n";
     }
 
     // Vertical flow paths and surface overflow/underdrains.
@@ -397,7 +459,18 @@ namespace JMBioretentionBuilder
 QString FullReferenceScript()
 {
     StarterScriptOptions defaults;
-    return BuildModel(defaults, false);
+    return BuildModel(defaults, false, false);
+}
+
+QString ChannelReferenceScript()
+{
+    StarterScriptOptions defaults;
+    return BuildModel(defaults, false, true);
+}
+
+QString CurbChannelReferenceScript()
+{
+    return ChannelReferenceScript();
 }
 
 QString InflowTargetObject()
@@ -429,15 +502,27 @@ bool Build(const StarterScriptOptions &options,
 
     const QString mode = options.jmBuildMode.trimmed();
     if (mode.compare(QStringLiteral("FullReference"),
-                     Qt::CaseInsensitive) == 0) {
+                     Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("Direct"),
+                        Qt::CaseInsensitive) == 0) {
         *scriptText = FullReferenceScript();
+        return true;
+    }
+
+    if (mode.compare(QStringLiteral("Channel"),
+                     Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("CurbChannel"),
+                        Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("ChannelReference"),
+                        Qt::CaseInsensitive) == 0) {
+        *scriptText = BuildModel(options, true, true);
         return true;
     }
 
     if (mode.isEmpty()
         || mode.compare(QStringLiteral("SoftReference"),
                         Qt::CaseInsensitive) == 0) {
-        *scriptText = BuildModel(options, true);
+        *scriptText = BuildModel(options, true, false);
         return true;
     }
 

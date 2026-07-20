@@ -2815,6 +2815,12 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
         addUniquePresetItem(tr("SoftReference"), defaultModePreset);
         addUniquePresetItem(tr("LoadFromOhq"), QStringLiteral("%1:LoadFromOhq").arg(modePrefix));
         addUniquePresetItem(tr("FullReference"), QStringLiteral("%1:FullReference").arg(modePrefix));
+
+        if (modelType.compare(QStringLiteral("JM_Bioretention"),
+                              Qt::CaseInsensitive) == 0) {
+            addUniquePresetItem(tr("Curb Channel"),
+                                QStringLiteral("JM_MODE:Channel"));
+        }
     }
 
     const auto options = StructureRegistry::PresetOptionsForModel(modelType);

@@ -9,6 +9,8 @@ namespace JMBioretentionBuilder
 {
 
 QString FullReferenceScript();
+QString ChannelReferenceScript();
+QString CurbChannelReferenceScript();
 QString InflowTargetObject();
 QString RainfallTargetObject();
 QString ContributingCatchmentObject();
