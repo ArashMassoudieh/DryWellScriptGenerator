@@ -18,6 +18,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
     // The longitudinal profile contains four inlet/profile stations:
     // CC-101-1, CC-102-1, CC-103-1, and CC-104-1.  The model therefore uses
     // four adjacent bioretention columns rather than one central column.
+    // Physical geometry is written in metres using cell-center act_X/act_Y.
     //
     // Detail section (SI conversion):
     //   mulch                         3 in  = 0.0762 m
@@ -36,8 +37,13 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
 
     const double totalLength = useOptions && options.jmLength > 0.0
         ? options.jmLength : 12.192;       // 40 ft
-    const double width = useOptions && options.jmWidth > 0.0
-        ? options.jmWidth : 1.524;         // 5 ft
+    // BP-01 plan width: 12 ft 2 in = 3.7084 m. Treat the former
+    // 1.524-m starter default as a legacy value so existing saved settings
+    // do not silently shrink the JM facility back to 5 ft.
+    const double requestedWidth = useOptions ? options.jmWidth : 0.0;
+    const double width = requestedWidth > 0.0
+        && qAbs(requestedWidth - 1.524) > 1.0e-9
+        ? requestedWidth : 3.7084;
     const double columnLength = totalLength / columnCount;
     const double columnArea = columnLength * width;
 
@@ -69,10 +75,14 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
     const QVector<double> nativeDepths = {0.8, 0.8, 0.8};
     const double nativeTotalDepth = 2.4;
 
-    const double mediaTop = -mulch;
-    const double mediaBottom = mediaTop - media;
-    const double aggregateBottom = mediaBottom - aggregateDepth;
-    const double groundwaterHead = aggregateBottom - nativeTotalDepth;
+    // Longitudinal station offsets in metres. The fourth station is the
+    // local datum; upstream cells are progressively higher.
+    const QVector<double> stationZ = {0.09, 0.06, 0.03, 0.0};
+
+    const double baseMediaTop = -mulch;
+    const double baseMediaBottom = baseMediaTop - media;
+    const double baseAggregateBottom = baseMediaBottom - aggregateDepth;
+    const double groundwaterHead = baseAggregateBottom - nativeTotalDepth;
 
     QString out;
     QTextStream ts(&out);
@@ -104,6 +114,8 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
                                double area,
                                double bottom,
                                double depth,
+                               double actX,
+                               double actY,
                                double uiX,
                                double uiY,
                                bool engineered) {
@@ -111,7 +123,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
            << (engineered ? "5" : "0.01")
            << ",K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,"
               "MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,"
-              "act_X=" << n(uiX / 200.0) << ",act_Y=" << n(-uiY / 200.0)
+              "act_X=" << n(actX) << ",act_Y=" << n(actY)
            << ",alpha=1"
            << ",aniso_ratio=1,area=" << n(area)
            << ",bottom_elevation=" << n(bottom)
@@ -136,7 +148,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
         ts << "create block;type=Catchment,Evapotranspiration=,ManningCoeff=0.011,"
               "Precipitation=Rain,Runoff_coeff=0.95,Slope=0.01,Width=10,"
               "_height=120,_width=180,area=" << n(drainageAreas[i])
-           << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=,"
+           << "[m~^2],depression_storage=0,depth=0,elevation=0,inflow=0,"
               "loss_coefficient=0,name=JM DA-0" << (i + 1)
            << ",x=" << n(-650.0 + i * 190.0) << ",y=-250\n";
     }
@@ -156,7 +168,7 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
 	      "depression_storage=0,"
 	      "depth=0,"
 	      "elevation=0,"
-	      "inflow=,"
+	      "inflow=0,"
 	      "loss_coefficient=0,"
 	      "name=JM Dummy Catchment,"
 	      "x=-1050,"
@@ -185,61 +197,101 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
 
     // Four surface, media, and aggregate blocks.
     for (int c = 1; c <= columnCount; ++c) {
-        const double x = (c - 1) * 230.0;
+        const double uiX = (c - 1) * 230.0;
+        const double actX = (static_cast<double>(c) - 0.5) * columnLength;
+        const double z = stationZ[c - 1];
+        const double mediaTop = z + baseMediaTop;
+        const double mediaBottom = z + baseMediaBottom;
+        const double aggregateBottom = z + baseAggregateBottom;
 
         ts << "create block;type=Pond,Evapotranspiration=0,Precipitation=Rain,"
-              "Storage=0,_height=130,_width=170,alpha=" << n(columnArea)
-           << ",alpha_multiplier=1,beta=1,bottom_elevation=0,inflow=,"
-              "name=JM Pond " << c << ",x=" << n(x) << ",y=0\n";
+              "Storage=0,_height=130,_width=170,act_X=" << n(actX)
+           << ",act_Y=" << n(z)
+           << ",alpha=" << n(columnArea)
+           << ",alpha_multiplier=1,beta=1,bottom_elevation=" << n(z)
+           << ",inflow=0,name=JM Pond " << c
+           << ",x=" << n(uiX) << ",y=0\n";
 
         writeSoil(QStringLiteral("JM Engineered Soil %1").arg(c),
-                  columnArea, mediaBottom, media, x, 210.0, true);
+                  columnArea, mediaBottom, media,
+                  actX, 0.5 * (mediaTop + mediaBottom),
+                  uiX, 210.0, true);
 
         ts << "create block;type=Aggregate_storage_layer,K_sat=5000,"
-              "_height=150,_width=170,area=" << n(columnArea)
+              "_height=150,_width=170,act_X=" << n(actX)
+           << ",act_Y=" << n(mediaBottom - 0.5 * aggregateDepth)
+           << ",area=" << n(columnArea)
            << ",bottom_elevation=" << n(aggregateBottom)
            << ",depth=" << n(aggregateDepth)
-           << ",inflow=,name=JM Aggregate " << c
-           << ",porosity=0.4,x=" << n(x) << ",y=420\n";
+           << ",inflow=0,name=JM Aggregate " << c
+           << ",porosity=0.4,x=" << n(uiX) << ",y=420\n";
     }
 
-    // Native soil below each of the four cells.
-    double nativeTop = aggregateBottom;
+    // Native soil below each of the four cells. Each column follows its
+    // station elevation while preserving the same layer thicknesses.
+    double cumulativeNativeDepth = 0.0;
     for (int k = 1; k <= nativeBelowNz; ++k) {
-        const double bottom = nativeTop - nativeDepths[k - 1];
+        const double layerTopOffset = cumulativeNativeDepth;
+        cumulativeNativeDepth += nativeDepths[k - 1];
         for (int c = 1; c <= columnCount; ++c) {
+            const double uiX = (c - 1) * 230.0;
+            const double actX = (static_cast<double>(c) - 0.5) * columnLength;
+            const double top = stationZ[c - 1] + baseAggregateBottom - layerTopOffset;
+            const double bottom = stationZ[c - 1] + baseAggregateBottom - cumulativeNativeDepth;
             writeSoil(QStringLiteral("JM Native Soil %1-%2").arg(c).arg(k),
                       columnArea, bottom, nativeDepths[k - 1],
-                      (c - 1) * 230.0, 420.0 + k * 190.0, false);
+                      actX, 0.5 * (top + bottom),
+                      uiX, 420.0 + k * 190.0, false);
         }
-        nativeTop = bottom;
     }
 
-    // Native soil beside the outer walls at each principal depth.
-    writeSoil(QStringLiteral("JM Left Native Media"), columnArea,
-              mediaBottom, media, -230.0, 210.0, false);
-    writeSoil(QStringLiteral("JM Right Native Media"), columnArea,
-              mediaBottom, media, columnCount * 230.0, 210.0, false);
-    writeSoil(QStringLiteral("JM Left Native Aggregate"), columnArea,
-              aggregateBottom, aggregateDepth, -230.0, 420.0, false);
-    writeSoil(QStringLiteral("JM Right Native Aggregate"), columnArea,
-              aggregateBottom, aggregateDepth, columnCount * 230.0, 420.0, false);
+    // Native soil beside the outer walls at each principal depth. The left
+    // side follows station 1 and the right side follows station 4.
+    const double leftZ = stationZ.first();
+    const double rightZ = stationZ.last();
+    const double leftActX = -0.5 * columnLength;
+    const double rightActX = totalLength + 0.5 * columnLength;
 
-    nativeTop = aggregateBottom;
+    writeSoil(QStringLiteral("JM Left Native Media"), columnArea,
+              leftZ + baseMediaBottom, media,
+              leftActX, leftZ + baseMediaTop - 0.5 * media,
+              -230.0, 210.0, false);
+    writeSoil(QStringLiteral("JM Right Native Media"), columnArea,
+              rightZ + baseMediaBottom, media,
+              rightActX, rightZ + baseMediaTop - 0.5 * media,
+              columnCount * 230.0, 210.0, false);
+    writeSoil(QStringLiteral("JM Left Native Aggregate"), columnArea,
+              leftZ + baseAggregateBottom, aggregateDepth,
+              leftActX, leftZ + baseMediaBottom - 0.5 * aggregateDepth,
+              -230.0, 420.0, false);
+    writeSoil(QStringLiteral("JM Right Native Aggregate"), columnArea,
+              rightZ + baseAggregateBottom, aggregateDepth,
+              rightActX, rightZ + baseMediaBottom - 0.5 * aggregateDepth,
+              columnCount * 230.0, 420.0, false);
+
+    cumulativeNativeDepth = 0.0;
     for (int k = 1; k <= nativeBelowNz; ++k) {
-        const double bottom = nativeTop - nativeDepths[k - 1];
+        const double layerTopOffset = cumulativeNativeDepth;
+        cumulativeNativeDepth += nativeDepths[k - 1];
+
+        const double leftTop = leftZ + baseAggregateBottom - layerTopOffset;
+        const double leftBottom = leftZ + baseAggregateBottom - cumulativeNativeDepth;
         writeSoil(QStringLiteral("JM Left Native %1").arg(k), columnArea,
-                  bottom, nativeDepths[k - 1], -230.0,
-                  420.0 + k * 190.0, false);
+                  leftBottom, nativeDepths[k - 1],
+                  leftActX, 0.5 * (leftTop + leftBottom),
+                  -230.0, 420.0 + k * 190.0, false);
+
+        const double rightTop = rightZ + baseAggregateBottom - layerTopOffset;
+        const double rightBottom = rightZ + baseAggregateBottom - cumulativeNativeDepth;
         writeSoil(QStringLiteral("JM Right Native %1").arg(k), columnArea,
-                  bottom, nativeDepths[k - 1], columnCount * 230.0,
-                  420.0 + k * 190.0, false);
-        nativeTop = bottom;
+                  rightBottom, nativeDepths[k - 1],
+                  rightActX, 0.5 * (rightTop + rightBottom),
+                  columnCount * 230.0, 420.0 + k * 190.0, false);
     }
 
     ts << "create block;type=Catch basin,_height=150,_width=190,area=1,"
-          "bottom_elevation=" << n(aggregateBottom)
-       << ",inflow=,name=JM Catch Basin,x=1150,y=200\n";
+          "bottom_elevation=" << n(baseAggregateBottom)
+       << ",inflow=0,name=JM Catch Basin,x=1150,y=200\n";
     ts << "create block;type=fixed_head,Storage=100000,_height=150,_width=220,"
           "head=0,name=JM Receiving Water,x=1400,y=200\n";
     ts << "create block;type=fixed_head,Storage=100000,_height=150,_width=900,"
@@ -308,8 +360,9 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
         for (int c = 1; c <= columnCount; ++c) {
             ts << "create link;from=JM Curb Channel " << c
                << ",to=JM Pond " << c
-               << ",type=wier,alpha=10000,beta=1.5,crest_elevation=0,"
-                  "name=JM Curb Channel " << c
+               << ",type=wier,alpha=10000,beta=1.5,crest_elevation="
+               << n(stationZ[c - 1])
+               << ",name=JM Curb Channel " << c
                << " to Pond " << c << "\n";
         }
 
@@ -343,18 +396,22 @@ QString BuildModel(const StarterScriptOptions &options, bool useOptions, bool us
                << c << "-" << k << "\n";
         }
 
+        const double stationElevation = stationZ[c - 1];
+        const double underdrainInvert =
+            stationElevation + baseMediaBottom - choker - gravel;
+
         ts << "create link;from=JM Pond " << c
            << ",to=JM Catch Basin,type=wier,alpha=10000,beta=2.5,"
-              "crest_elevation=" << n(pondingDepths[c - 1])
+              "crest_elevation=" << n(stationElevation + pondingDepths[c - 1])
            << ",name=JM Overflow Weir " << c << "\n";
 
         ts << "create link;from=JM Aggregate " << c
            << ",to=JM Catch Basin,type=Sewer_pipe,ManningCoeff=0.011,"
               "diameter=" << n(underdrainDiameter)
-           << "[m],end_elevation=" << n(mediaBottom - choker - gravel)
-           << ",length=" << n(columnLength)
+           << "[m],end_elevation=" << n(underdrainInvert - 0.05)
+           << "[m],length=" << n(columnLength)
            << "[m],name=JM Underdrain " << c
-           << ",start_elevation=" << n(mediaBottom - choker - gravel + 0.05)
+           << ",start_elevation=" << n(underdrainInvert)
            << "[m]\n";
     }
 
