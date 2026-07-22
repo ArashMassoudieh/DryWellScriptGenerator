@@ -70,21 +70,10 @@ create block;type=Aggregate_storage_layer,K_sat=5000,_height=150,_width=170,area
 create block;type=Pond,Evapotranspiration=0,Precipitation=Rain,Storage=0,_height=130,_width=170,alpha=11.3032,alpha_multiplier=1,beta=1,bottom_elevation=0,inflow=,name=JM Pond 4,x=690,y=0
 create block;type=Soil,Evapotranspiration=,K_sat_original=5,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=10.668,act_Y=-0.5334,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-0.9906,depth=0.9144,n=1.41,name=JM Engineered Soil 4,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=690,y=210
 create block;type=Aggregate_storage_layer,K_sat=5000,_height=150,_width=170,area=11.3032,bottom_elevation=-1.9812,depth=0.9906,inflow=,name=JM Aggregate 4,porosity=0.4,x=690,y=420
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=1.524,act_Y=-2.30245,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-2.70245,depth=0.8,n=1.41,name=JM Native Soil 1-1,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=0,y=610
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=4.572,act_Y=-2.32495,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-2.72495,depth=0.8,n=1.41,name=JM Native Soil 2-1,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=230,y=610
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=7.62,act_Y=-2.34745,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-2.74745,depth=0.8,n=1.41,name=JM Native Soil 3-1,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=460,y=610
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=10.668,act_Y=-2.36995,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-2.76995,depth=0.8,n=1.41,name=JM Native Soil 4-1,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=690,y=610
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=1.524,act_Y=-3.10245,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-3.50245,depth=0.8,n=1.41,name=JM Native Soil 1-2,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=0,y=800
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=4.572,act_Y=-3.12495,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-3.52495,depth=0.8,n=1.41,name=JM Native Soil 2-2,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=230,y=800
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=7.62,act_Y=-3.14745,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-3.54745,depth=0.8,n=1.41,name=JM Native Soil 3-2,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=460,y=800
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=10.668,act_Y=-3.16995,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-3.56995,depth=0.8,n=1.41,name=JM Native Soil 4-2,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=690,y=800
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=1.524,act_Y=-3.90245,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-4.30245,depth=0.8,n=1.41,name=JM Native Soil 1-3,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=0,y=990
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=4.572,act_Y=-3.92495,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-4.32495,depth=0.8,n=1.41,name=JM Native Soil 2-3,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=230,y=990
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=7.62,act_Y=-3.94745,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-4.34745,depth=0.8,n=1.41,name=JM Native Soil 3-3,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=460,y=990
-create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=10.668,act_Y=-3.96995,alpha=1,aniso_ratio=1,area=11.3032,bottom_elevation=-4.36995,depth=0.8,n=1.41,name=JM Native Soil 4-3,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=690,y=990
+create block;type=Soil,Evapotranspiration=,K_sat_original=0.01,K_sat_scale_factor=1,MC_to_EC_Threshold_Moisture=0,MC_to_EC_coefficient=0,MC_to_EC_exponent=0,_height=150,_width=170,act_X=6.096,act_Y=-3.1362,alpha=1,aniso_ratio=1,area=45.2128,bottom_elevation=-4.3362,depth=2.4,n=1.41,name=JM Native Soil 1-1,specific_storage=0.01,theta=0.25,theta_res=0.05,theta_sat=0.4,x=345,y=610
 create block;type=Catch basin,_height=150,_width=190,area=1,bottom_elevation=-1.9812,inflow=,name=JM Catch Basin,x=1150,y=200
 create block;type=fixed_head,Storage=100000,_height=150,_width=220,head=0,name=JM Receiving Water,x=1400,y=200
-create block;type=fixed_head,Storage=100000,_height=150,_width=900,head=-4.3812,name=JM Groundwater,x=345,y=1200
+create block;type=fixed_head,Storage=100000,_height=150,_width=900,head=-4.3812,name=JM Groundwater,x=0,y=1200
 create link;from=JM DA-01,to=JM Pond 1,type=Catchment_link,name=JM DA-01 to Pond 1
 create link;from=JM DA-02,to=JM Pond 2,type=Catchment_link,name=JM DA-02 to Pond 2
 create link;from=JM DA-03,to=JM Pond 2,type=Catchment_link,name=JM DA-03 to Pond 2
@@ -96,44 +85,24 @@ create link;from=JM Aggregate 1,to=JM Native Soil 1-1,type=aggregate_to_soil_lin
 create link;from=JM Pond 1,to=JM Catch Basin,type=wier,alpha=10000,beta=2.5,crest_elevation=0.300058,name=JM Overflow Weir 1
 create link;from=JM Pond 2,to=JM Engineered Soil 2,type=surfacewater_to_soil_link,name=JM Pond 2 to Engineered Soil 2
 create link;from=JM Engineered Soil 2,to=JM Aggregate 2,type=soil_to_aggregate_link,name=JM Engineered Soil 2 to Aggregate 2
-create link;from=JM Aggregate 2,to=JM Native Soil 2-1,type=aggregate_to_soil_link,name=JM Aggregate 2 to JM Native Soil 2-1
+create link;from=JM Aggregate 2,to=JM Native Soil 1-1,type=aggregate_to_soil_link,name=JM Aggregate 2 to JM Native Soil 1-1
 create link;from=JM Pond 2,to=JM Catch Basin,type=wier,alpha=10000,beta=2.5,crest_elevation=0.22383,name=JM Overflow Weir 2
 create link;from=JM Pond 3,to=JM Engineered Soil 3,type=surfacewater_to_soil_link,name=JM Pond 3 to Engineered Soil 3
 create link;from=JM Engineered Soil 3,to=JM Aggregate 3,type=soil_to_aggregate_link,name=JM Engineered Soil 3 to Aggregate 3
-create link;from=JM Aggregate 3,to=JM Native Soil 3-1,type=aggregate_to_soil_link,name=JM Aggregate 3 to JM Native Soil 3-1
+create link;from=JM Aggregate 3,to=JM Native Soil 1-1,type=aggregate_to_soil_link,name=JM Aggregate 3 to JM Native Soil 1-1
 create link;from=JM Pond 3,to=JM Catch Basin,type=wier,alpha=10000,beta=2.5,crest_elevation=0.153444,name=JM Overflow Weir 3
 create link;from=JM Pond 4,to=JM Engineered Soil 4,type=surfacewater_to_soil_link,name=JM Pond 4 to Engineered Soil 4
 create link;from=JM Engineered Soil 4,to=JM Aggregate 4,type=soil_to_aggregate_link,name=JM Engineered Soil 4 to Aggregate 4
-create link;from=JM Aggregate 4,to=JM Native Soil 4-1,type=aggregate_to_soil_link,name=JM Aggregate 4 to JM Native Soil 4-1
+create link;from=JM Aggregate 4,to=JM Native Soil 1-1,type=aggregate_to_soil_link,name=JM Aggregate 4 to JM Native Soil 1-1
 create link;from=JM Pond 4,to=JM Catch Basin,type=wier,alpha=10000,beta=2.5,crest_elevation=0.164338,name=JM Overflow Weir 4
 create link;from=JM Engineered Soil 1,to=JM Engineered Soil 2,type=soil_to_soil_H_link,area=3.39096,length=3.048,name=JM Engineered Horizontal 1
 create link;from=JM Engineered Soil 2,to=JM Engineered Soil 3,type=soil_to_soil_H_link,area=3.39096,length=3.048,name=JM Engineered Horizontal 2
 create link;from=JM Engineered Soil 3,to=JM Engineered Soil 4,type=soil_to_soil_H_link,area=3.39096,length=3.048,name=JM Engineered Horizontal 3
-create link;from=JM Native Soil 1-1,to=JM Native Soil 2-1,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 1-1
-create link;from=JM Native Soil 2-1,to=JM Native Soil 3-1,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 2-1
-create link;from=JM Native Soil 3-1,to=JM Native Soil 4-1,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 3-1
-create link;from=JM Native Soil 1-2,to=JM Native Soil 2-2,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 1-2
-create link;from=JM Native Soil 2-2,to=JM Native Soil 3-2,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 2-2
-create link;from=JM Native Soil 3-2,to=JM Native Soil 4-2,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 3-2
-create link;from=JM Native Soil 1-3,to=JM Native Soil 2-3,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 1-3
-create link;from=JM Native Soil 2-3,to=JM Native Soil 3-3,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 2-3
-create link;from=JM Native Soil 3-3,to=JM Native Soil 4-3,type=soil_to_soil_H_link,area=2.96672,length=3.048,name=JM Native Horizontal 3-3
-create link;from=JM Native Soil 1-1,to=JM Native Soil 1-2,type=soil_to_soil_link,name=JM Native Vertical 1-1
-create link;from=JM Native Soil 1-2,to=JM Native Soil 1-3,type=soil_to_soil_link,name=JM Native Vertical 1-2
-create link;from=JM Native Soil 2-1,to=JM Native Soil 2-2,type=soil_to_soil_link,name=JM Native Vertical 2-1
-create link;from=JM Native Soil 2-2,to=JM Native Soil 2-3,type=soil_to_soil_link,name=JM Native Vertical 2-2
-create link;from=JM Native Soil 3-1,to=JM Native Soil 3-2,type=soil_to_soil_link,name=JM Native Vertical 3-1
-create link;from=JM Native Soil 3-2,to=JM Native Soil 3-3,type=soil_to_soil_link,name=JM Native Vertical 3-2
-create link;from=JM Native Soil 4-1,to=JM Native Soil 4-2,type=soil_to_soil_link,name=JM Native Vertical 4-1
-create link;from=JM Native Soil 4-2,to=JM Native Soil 4-3,type=soil_to_soil_link,name=JM Native Vertical 4-2
 create link;from=JM Aggregate 1,to=JM Aggregate 2,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.1016,end_elevation=-1.6164,length=3.048,name=JM Aggregate 1 - JM Aggregate 2,start_elevation=-1.5864
 create link;from=JM Aggregate 2,to=JM Aggregate 3,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.1016,end_elevation=-1.6464,length=3.048,name=JM Aggregate 2 - JM Aggregate 3,start_elevation=-1.6164
 create link;from=JM Aggregate 3,to=JM Aggregate 4,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.1016,end_elevation=-1.6764,length=3.048,name=JM Aggregate 3 - JM Aggregate 4,start_elevation=-1.6464
 create link;from=JM Aggregate 4,to=JM Catch Basin,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.1016,end_elevation=-1.7264,length=3.048,name=JM Underdrain 4,start_elevation=-1.6764
-create link;from=JM Native Soil 1-3,to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Native Soil 1 to Groundwater
-create link;from=JM Native Soil 2-3,to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Native Soil 2 to Groundwater
-create link;from=JM Native Soil 3-3,to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Native Soil 3 to Groundwater
-create link;from=JM Native Soil 4-3,to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Native Soil 4 to Groundwater
+create link;from=JM Native Soil 1-1,to=JM Groundwater,type=soil_to_fixedhead_link,name=JM Native Soil 1 to Groundwater
 create link;from=JM Catch Basin,to=JM Receiving Water,type=Sewer_pipe,ManningCoeff=0.011,diameter=0.2,end_elevation=0,length=2,name=JM Catch Basin Outlet,start_elevation=0.05
 setasparameter; object= JM Engineered Soil 1, parametername= JM_EngineeredSoilKsat, quantity= K_sat_original
 setasparameter; object= JM Engineered Soil 1, parametername= JM_EngineeredSoilAlpha, quantity= alpha
@@ -148,14 +117,3 @@ setasparameter; object= JM Engineered Soil 4, parametername= JM_EngineeredSoilKs
 setasparameter; object= JM Engineered Soil 4, parametername= JM_EngineeredSoilAlpha, quantity= alpha
 setasparameter; object= JM Engineered Soil 4, parametername= JM_EngineeredSoilN, quantity= n
 setasparameter; object= JM Native Soil 1-1, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 2-1, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 3-1, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 4-1, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 1-2, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 2-2, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 3-2, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 4-2, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 1-3, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 2-3, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 3-3, parametername= JM_NativeSoilKsat, quantity= K_sat_original
-setasparameter; object= JM Native Soil 4-3, parametername= JM_NativeSoilKsat, quantity= K_sat_original
