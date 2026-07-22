@@ -2014,7 +2014,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     rEngineeredSoilNzEdit->setPlaceholderText(tr("Auto"));
     rEngineeredSoilNzEdit->setToolTip(tr("Engineered/top soil nz. If set with native soil nz, total nz = engineered nz + native nz."));
     rNativeSoilNzEdit->setPlaceholderText(tr("Auto"));
-    rNativeSoilNzEdit->setToolTip(tr("Native/bottom soil nz. The last native row is connected to fixed-head GW."));
+    rNativeSoilNzEdit->setToolTip(tr("Native/bottom soil nz. The last native row is connected to fixed-head GW. For JM, this controls remaining native-soil layers vertically."));
+    rVerticalLayersEdit->setToolTip(tr("R: legacy total nz. JM: remaining bottom-native cells horizontally (default 4)."));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -2820,6 +2821,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
                               Qt::CaseInsensitive) == 0) {
             addUniquePresetItem(tr("Curb Channel"),
                                 QStringLiteral("JM_MODE:Channel"));
+            addUniquePresetItem(tr("DT Simple"),
+                                QStringLiteral("JM_MODE:DTSimple"));
         }
     }
 
@@ -2875,6 +2878,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
         && (rBuildMode.isEmpty() || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
+    const bool jmContext = modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0;
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
     const bool guiExecutableSelected = LooksLikeGuiOpenHydroQualExecutable(QFileInfo(exePathEdit->text().trimmed()));
@@ -2906,7 +2910,8 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (hqSoftGeometryRowWidget) hqSoftGeometryRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (hqSoilControlsRowWidget) hqSoilControlsRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
-    if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
+    // Shared domain row: for JM, total_nz is native nx and native_nz is native nz.
+    if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && (rSoftContext || jmContext));
     if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
@@ -4034,6 +4039,8 @@ void ModelCreatorWindow::previewScript()
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
             options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
+            AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
+            AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
             options.enrichmentPreset.clear();
         }
 
@@ -4380,6 +4387,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString selectedPreset = options.enrichmentPreset.trimmed();
         const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
         options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
+        AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
+        AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
         options.enrichmentPreset.clear();
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
