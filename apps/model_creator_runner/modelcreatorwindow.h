@@ -195,6 +195,8 @@ private:
     QLineEdit *rStreetWidthEdit;
     QLineEdit *rStreetCellsEdit;
     QLineEdit *rAnisoRatioEdit;
+    QLineEdit *jmNativeHorizontalCellsEdit;
+    QLineEdit *jmNativeVerticalLayersEdit;
     QComboBox *vnInitThetaModeCombo;
     QLineEdit *vnFieldPointsEdit;
     QLineEdit *vnFieldSeedEdit;
@@ -246,6 +248,7 @@ private:
     QWidget *rSoilGeometryRowWidget = nullptr;
     QWidget *rSoilDomainRowWidget = nullptr;
     QWidget *rSoilControlsRowWidget = nullptr;
+    QWidget *jmNativeDomainRowWidget = nullptr;
     QWidget *vnInitThetaRowWidget = nullptr;
     QWidget *vnFieldGeneratorRowWidget = nullptr;
     QWidget *vnSoilToolRowWidget = nullptr;

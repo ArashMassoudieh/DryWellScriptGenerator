@@ -137,6 +137,10 @@ struct StarterScriptOptions
     double jmSumpDepth = 0.3048;           // 12 in
     double jmUnderdrainDiameter = 0.1016;  // 4 in
     double jmCatchmentArea = 1000.0;
+    // Remaining centered native-soil domain below the JM aggregate layer.
+    // 1 x 1 creates one native block; 4 x 1 creates one row of four blocks.
+    int jmNativeHorizontalCells = 4;       // nx, minimum 1
+    int jmNativeVerticalLayers = 3;        // nz, minimum 1
 
     // Optional SoftReference grid controls (used when vnBuildMode == "SoftReference").
     int vnSoftGridXCount = 16;

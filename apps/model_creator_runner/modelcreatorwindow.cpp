@@ -1780,6 +1780,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
       rStreetWidthEdit(new QLineEdit(this)),
       rStreetCellsEdit(new QLineEdit(this)),
       rAnisoRatioEdit(new QLineEdit(this)),
+      jmNativeHorizontalCellsEdit(new QLineEdit(this)),
+      jmNativeVerticalLayersEdit(new QLineEdit(this)),
       vnInitThetaModeCombo(new QComboBox(this)),
       vnFieldPointsEdit(new QLineEdit(this)),
       vnFieldSeedEdit(new QLineEdit(this)),
@@ -2006,6 +2008,10 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     setupCompactNumericEdit(rEngineeredSoilNzEdit, tr("Auto"));
     setupCompactNumericEdit(rNativeSoilNzEdit, tr("Auto"));
     setupCompactNumericEdit(rAnisoRatioEdit, tr("5"));
+    setupCompactNumericEdit(jmNativeHorizontalCellsEdit, tr("4"));
+    setupCompactNumericEdit(jmNativeVerticalLayersEdit, tr("3"));
+    jmNativeHorizontalCellsEdit->setToolTip(tr("JM centered native-soil cells horizontally (nx). Use 1 for one centered block across the facility."));
+    jmNativeVerticalLayersEdit->setToolTip(tr("JM centered native-soil layers vertically (nz). Use 1 for one native-soil row."));
     hqSoilPropsFileEdit->setPlaceholderText(tr("Optional HQ soil layer file (*.txt, *.csv)"));
     hqSoilPropsFileEdit->setToolTip(tr("Optional HQ/DryWell soil layer table. If provided, HQ SoftReference uses these per-layer soil parameters while keeping HQ geometry controls."));
     rSoilPropsFileEdit->setPlaceholderText(tr("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt"));
@@ -2014,8 +2020,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     rEngineeredSoilNzEdit->setPlaceholderText(tr("Auto"));
     rEngineeredSoilNzEdit->setToolTip(tr("Engineered/top soil nz. If set with native soil nz, total nz = engineered nz + native nz."));
     rNativeSoilNzEdit->setPlaceholderText(tr("Auto"));
-    rNativeSoilNzEdit->setToolTip(tr("Native/bottom soil nz. The last native row is connected to fixed-head GW. For JM, this controls remaining native-soil layers vertically."));
-    rVerticalLayersEdit->setToolTip(tr("R: legacy total nz. JM: remaining bottom-native cells horizontally (default 4)."));
+    rNativeSoilNzEdit->setToolTip(tr("Native/bottom soil nz. The last native row is connected to fixed-head GW."));
     {
         auto *container = new QWidget(this);
         auto *row = new QHBoxLayout(container);
@@ -2208,6 +2213,20 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
         row->addStretch(1);
         layout->addWidget(container);
         rSoilDomainRowWidget = container;
+    }
+    {
+        auto *container = new QWidget(this);
+        auto *row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(new QLabel(tr("JM centered native soil")));
+        row->addWidget(new QLabel(tr("horizontal nx")));
+        row->addWidget(jmNativeHorizontalCellsEdit);
+        row->addWidget(new QLabel(tr("vertical nz")));
+        row->addWidget(jmNativeVerticalLayersEdit);
+        row->addWidget(new QLabel(tr("Examples: 4x1 = one row; 1x1 = one block")));
+        row->addStretch(1);
+        layout->addWidget(container);
+        jmNativeDomainRowWidget = container;
     }
     {
         auto *container = new QWidget(this);
@@ -2596,6 +2615,8 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     saveOnEdit(rEngineeredSoilNzEdit);
     saveOnEdit(rNativeSoilNzEdit);
     saveOnEdit(rAnisoRatioEdit);
+    saveOnEdit(jmNativeHorizontalCellsEdit);
+    saveOnEdit(jmNativeVerticalLayersEdit);
     connect(vnSoftSoilParamModeCombo, &QComboBox::currentTextChanged, this, [this]() { saveSettings(); });
     auto updateVnSoftSoilModeUi = [this]() {
         const QString mode = vnSoftSoilParamModeCombo->currentData().toString().trimmed();
@@ -2872,6 +2893,7 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const QString vnBuildMode = ResolveVnBuildModeForUi(modelType, preset, fallbackBuildMode);
     const QString hqBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("HQ_MODE"));
     const QString rBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("R_MODE"));
+    const QString jmBuildMode = BuildModeFromPresetSelection(preset, QStringLiteral("JM_MODE"));
     const bool explicitNonSoftMode = vnBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) == 0
         || vnBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) == 0;
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
@@ -2911,7 +2933,11 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (hqSoilControlsRowWidget) hqSoilControlsRowWidget->setVisible(!loadExistingMode && hqSoftContext);
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
     // Shared domain row: for JM, total_nz is native nx and native_nz is native nz.
-    if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && (rSoftContext || jmContext));
+    if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
+    const bool jmEditableNativeGrid = jmContext
+        && jmBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) != 0
+        && jmBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) != 0;
+    if (jmNativeDomainRowWidget) jmNativeDomainRowWidget->setVisible(!loadExistingMode && jmEditableNativeGrid);
     if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
     if (vnFieldGeneratorRowWidget) vnFieldGeneratorRowWidget->setVisible(!loadExistingMode && vnContext);
@@ -4039,8 +4065,8 @@ void ModelCreatorWindow::previewScript()
             const QString selectedPreset = options.enrichmentPreset.trimmed();
             const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
             options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
-            AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
-            AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
+            AssignIntIfProvided(jmNativeHorizontalCellsEdit, &options.jmNativeHorizontalCells);
+            AssignIntIfProvided(jmNativeVerticalLayersEdit, &options.jmNativeVerticalLayers);
             options.enrichmentPreset.clear();
         }
 
@@ -4387,8 +4413,8 @@ bool ModelCreatorWindow::generateStarterScriptInternal()
         const QString selectedPreset = options.enrichmentPreset.trimmed();
         const QString selectedJmMode = BuildModeFromPresetSelection(selectedPreset, QStringLiteral("JM_MODE"));
         options.jmBuildMode = selectedJmMode.isEmpty() ? QStringLiteral("SoftReference") : selectedJmMode;
-        AssignIntIfProvided(rVerticalLayersEdit, &options.rVerticalLayers);
-        AssignIntIfProvided(rNativeSoilNzEdit, &options.rNativeSoilNz);
+        AssignIntIfProvided(jmNativeHorizontalCellsEdit, &options.jmNativeHorizontalCells);
+        AssignIntIfProvided(jmNativeVerticalLayersEdit, &options.jmNativeVerticalLayers);
         options.enrichmentPreset.clear();
     }
     const bool vnModel = options.modelType.compare(QStringLiteral("VN_Drywell"), Qt::CaseInsensitive) == 0;
@@ -6017,6 +6043,8 @@ void ModelCreatorWindow::loadSettings()
     rEngineeredSoilNzEdit->setText(settingTextOrDefault("rEngineeredSoilNz", ""));
     rNativeSoilNzEdit->setText(settingTextOrDefault("rNativeSoilNz", ""));
     rAnisoRatioEdit->setText(settingTextOrDefault("rAnisoRatio", "5"));
+    jmNativeHorizontalCellsEdit->setText(settingTextOrDefault("jmNativeHorizontalCells", "4"));
+    jmNativeVerticalLayersEdit->setText(settingTextOrDefault("jmNativeVerticalLayers", "3"));
     const QString vnInitThetaMode = settingTextOrDefault("vnInitThetaMode", "Default");
     const int vnInitThetaModeIndex = vnInitThetaModeCombo->findData(vnInitThetaMode);
     vnInitThetaModeCombo->setCurrentIndex(vnInitThetaModeIndex >= 0 ? vnInitThetaModeIndex : 0);
@@ -6146,6 +6174,8 @@ void ModelCreatorWindow::saveSettings() const
     settings.setValue("rEngineeredSoilNz", rEngineeredSoilNzEdit->text());
     settings.setValue("rNativeSoilNz", rNativeSoilNzEdit->text());
     settings.setValue("rAnisoRatio", rAnisoRatioEdit->text());
+    settings.setValue("jmNativeHorizontalCells", jmNativeHorizontalCellsEdit->text());
+    settings.setValue("jmNativeVerticalLayers", jmNativeVerticalLayersEdit->text());
     settings.setValue("vnInitThetaMode", vnInitThetaModeCombo->currentData().toString());
     settings.setValue("vnFieldPoints", vnFieldPointsEdit->text());
     settings.setValue("vnFieldSeed", vnFieldSeedEdit->text());

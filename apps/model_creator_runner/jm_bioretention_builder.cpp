@@ -3,7 +3,6 @@
 #include <QTextStream>
 #include <QVector>
 #include <QtGlobal>
-#include <cmath>
 
 namespace {
 
@@ -14,9 +13,8 @@ QString n(double value)
 
 int nativeColumnForFacilityColumn(int facilityColumn, int nativeNx)
 {
-    return qBound(1,
-                  static_cast<int>(std::floor((facilityColumn - 0.5) * nativeNx / 4.0)) + 1,
-                  nativeNx);
+    const int mapped = static_cast<int>((facilityColumn - 0.5) * nativeNx / 4.0) + 1;
+    return qBound(1, mapped, nativeNx);
 }
 
 QString nativeName(int ix, int iz)
@@ -31,16 +29,13 @@ QString BuildModel(const StarterScriptOptions &options,
 {
     constexpr int columnCount = 4;
 
-    // The existing R-domain controls are intentionally shared with JM so the
-    // current UI can control the remaining native-soil discretization without
-    // requiring a second duplicate set of fields:
-    //   rVerticalLayers -> JM native horizontal cells (nx)
-    //   rNativeSoilNz  -> JM native vertical layers (nz)
+    // Dedicated JM controls for the centered native-soil domain.
+    // Examples: nx=4,nz=1 -> one row; nx=1,nz=1 -> one block.
     // Defaults reproduce the original JM 4 x 3 bottom-native grid.
-    const int nativeNx = useOptions && options.rVerticalLayers > 0
-        ? qMax(1, options.rVerticalLayers) : 4;
-    const int nativeNz = useOptions && options.rNativeSoilNz > 0
-        ? qMax(1, options.rNativeSoilNz) : 3;
+    const int nativeNx = useOptions
+        ? qMax(1, options.jmNativeHorizontalCells) : 4;
+    const int nativeNz = useOptions
+        ? qMax(1, options.jmNativeVerticalLayers) : 3;
 
     const double totalLength = useOptions && options.jmLength > 0.0
         ? options.jmLength : 12.192; // 40 ft
@@ -272,7 +267,7 @@ QString BuildModel(const StarterScriptOptions &options,
           "head=0,name=JM Receiving Water,x=1400,y=200\n";
     ts << "create block;type=fixed_head,Storage=100000,_height=150,_width=900,"
           "head=" << n(groundwaterHead)
-       << ",name=JM Groundwater,x=345,y=1200\n";
+       << ",name=JM Groundwater,x=0,y=1200\n";
 
     for (int c = 1; c <= columnCount; ++c) {
         ts << "setasparameter; object=JM Engineered Soil " << c
