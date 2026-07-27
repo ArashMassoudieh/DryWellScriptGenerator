@@ -126,7 +126,7 @@ struct StarterScriptOptions
     // ---------------------------------------------------------------------
     // JM_Bioretention-specific build mode and geometry (John McCormack Rd)
     // ---------------------------------------------------------------------
-    QString jmBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
+    QString jmBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq | Channel | DTSimple | DTSimpleGutter
     QString jmBaseOhqFile;
     double jmLength = 12.192;              // 40 ft
     double jmWidth = 3.7084;               // 12 ft 2 in

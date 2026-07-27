@@ -25,6 +25,7 @@ QString nativeName(int ix, int iz)
 QString BuildModel(const StarterScriptOptions &options,
                    bool useOptions,
                    bool useCurbChannels,
+                   bool useStreetGutters,
                    bool dtSimple)
 {
     constexpr int columnCount = 4;
@@ -87,7 +88,9 @@ QString BuildModel(const StarterScriptOptions &options,
     ts << "# JM_Bioretention: four-column model based on BP-01\n";
     ts << "# Columns: CC-101-1, CC-102-1, CC-103-1, CC-104-1\n";
     ts << "# Native grid: nx=" << nativeNx << ", nz=" << nativeNz << "\n";
-    if (dtSimple) {
+    if (dtSimple && useStreetGutters) {
+        ts << "# Mode: DT Simple with street gutters; side native soils omitted, runoff is routed through gutters and curb cuts, and underdrain is routed serially.\n";
+    } else if (dtSimple) {
         ts << "# Mode: DT Simple; side native soils omitted and underdrain is routed serially.\n";
     }
 
@@ -164,6 +167,18 @@ QString BuildModel(const StarterScriptOptions &options,
                << "[m],inflow=0,ag_area=0,non_ag_area=0,"
                   "ag_withdrawal_per_unit_area=0,non_ag_withdrawal_per_unit_area=0,"
                   "_height=100,_width=180,name=JM Curb Channel " << c
+               << ",x=" << n(uiX) << ",y=-140\n";
+        }
+    }
+
+    if (useStreetGutters) {
+        for (int c = 1; c <= columnCount; ++c) {
+            const double uiX = (c - 1) * 230.0;
+            ts << "create block;type=Street Gutter Segment,"
+                  "ManningCoeff=0.016,base_width=0,side_slope=40,"
+                  "bottom_elevation=" << n(stationZ[c - 1])
+               << ",depth=0,inflow=0,length=" << n(columnLength)
+               << "[m],_height=100,_width=180,name=JM Street Gutter " << c
                << ",x=" << n(uiX) << ",y=-140\n";
         }
     }
@@ -302,14 +317,14 @@ QString BuildModel(const StarterScriptOptions &options,
         }
     }
 
-    if (!useCurbChannels) {
+    if (!useCurbChannels && !useStreetGutters) {
         for (int i = 0; i < drainageAreas.size(); ++i) {
             ts << "create link;from=JM DA-0" << (i + 1)
                << ",to=JM Pond " << drainageTargets[i]
                << ",type=Catchment_link,name=JM DA-0" << (i + 1)
                << " to Pond " << drainageTargets[i] << "\n";
         }
-    } else {
+    } else if (useCurbChannels) {
         for (int i = 0; i < drainageAreas.size(); ++i) {
             const int channel = drainageTargets[i];
             ts << "create link;from=JM DA-0" << (i + 1)
@@ -333,6 +348,31 @@ QString BuildModel(const StarterScriptOptions &options,
         ts << "create link;from=JM Curb Channel 4,to=JM Catch Basin,"
               "type=wier,alpha=10000,beta=1.5,crest_elevation=0.15,"
               "name=JM Curb Channel Bypass\n";
+    } else {
+        // Gutter mode is intentionally based on DT Simple: catchments discharge
+        // to four street-gutter segments, adjacent gutters route downslope, and
+        // each segment enters its corresponding bioretention pond through a
+        // flush curb cut. Gutter types are supplied by Sewer_system.json.
+        for (int i = 0; i < drainageAreas.size(); ++i) {
+            const int gutter = drainageTargets[i];
+            ts << "create link;from=JM DA-0" << (i + 1)
+               << ",to=JM Street Gutter " << gutter
+               << ",type=Catchment_link,name=JM DA-0" << (i + 1)
+               << " to Street Gutter " << gutter << "\n";
+        }
+        for (int c = 1; c < columnCount; ++c) {
+            ts << "create link;from=JM Street Gutter " << c
+               << ",to=JM Street Gutter " << (c + 1)
+               << ",type=Gutter2Gutter_link,name=JM Street Gutter "
+               << c << " to " << (c + 1) << "\n";
+        }
+        for (int c = 1; c <= columnCount; ++c) {
+            ts << "create link;from=JM Street Gutter " << c
+               << ",to=JM Pond " << c
+               << ",type=Curb_cut,crest_offset=0,discharge_coefficient=0.6,"
+                  "width=0.2[m],name=JM Street Gutter " << c
+               << " to Pond " << c << "\n";
+        }
     }
 
     for (int c = 1; c <= columnCount; ++c) {
@@ -503,13 +543,13 @@ namespace JMBioretentionBuilder
 QString FullReferenceScript()
 {
     StarterScriptOptions defaults;
-    return BuildModel(defaults, false, false, false);
+    return BuildModel(defaults, false, false, false, false);
 }
 
 QString ChannelReferenceScript()
 {
     StarterScriptOptions defaults;
-    return BuildModel(defaults, false, true, false);
+    return BuildModel(defaults, false, true, false, false);
 }
 
 QString CurbChannelReferenceScript()
@@ -520,7 +560,13 @@ QString CurbChannelReferenceScript()
 QString DtSimpleReferenceScript()
 {
     StarterScriptOptions defaults;
-    return BuildModel(defaults, false, false, true);
+    return BuildModel(defaults, false, false, false, true);
+}
+
+QString DtSimpleGutterReferenceScript()
+{
+    StarterScriptOptions defaults;
+    return BuildModel(defaults, false, false, true, true);
 }
 
 QString InflowTargetObject()
@@ -559,20 +605,28 @@ bool Build(const StarterScriptOptions &options,
     if (mode.compare(QStringLiteral("Channel"), Qt::CaseInsensitive) == 0
         || mode.compare(QStringLiteral("CurbChannel"), Qt::CaseInsensitive) == 0
         || mode.compare(QStringLiteral("ChannelReference"), Qt::CaseInsensitive) == 0) {
-        *scriptText = BuildModel(options, true, true, false);
+        *scriptText = BuildModel(options, true, true, false, false);
+        return true;
+    }
+
+    if (mode.compare(QStringLiteral("DTSimpleGutter"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("DT_Simple_Gutter"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("GutterSimple"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("SimpleGutter"), Qt::CaseInsensitive) == 0) {
+        *scriptText = BuildModel(options, true, false, true, true);
         return true;
     }
 
     if (mode.compare(QStringLiteral("DTSimple"), Qt::CaseInsensitive) == 0
         || mode.compare(QStringLiteral("DT_Simple"), Qt::CaseInsensitive) == 0
         || mode.compare(QStringLiteral("DigitalTwinSimple"), Qt::CaseInsensitive) == 0) {
-        *scriptText = BuildModel(options, true, false, true);
+        *scriptText = BuildModel(options, true, false, false, true);
         return true;
     }
 
     if (mode.isEmpty()
         || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
-        *scriptText = BuildModel(options, true, false, false);
+        *scriptText = BuildModel(options, true, false, false, false);
         return true;
     }
 

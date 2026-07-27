@@ -2844,6 +2844,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
                                 QStringLiteral("JM_MODE:Channel"));
             addUniquePresetItem(tr("DT Simple"),
                                 QStringLiteral("JM_MODE:DTSimple"));
+            addUniquePresetItem(tr("DT Simple + Gutters"),
+                                QStringLiteral("JM_MODE:DTSimpleGutter"));
         }
     }
 
