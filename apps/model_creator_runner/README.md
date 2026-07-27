@@ -6,7 +6,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 - `src/app`: application entry point.
 - `src/ui`: windows, dialogs, and plotting widgets.
-- `src/execution`: OHQ process execution.
+- `src/execution`: OHQ installation discovery and process execution.
 - `src/generation`: shared script-generation options and model registry.
 - `src/generation/builders`: model-specific script builders.
 - `resources/reference-models`: checked-in reference OHQ scripts.

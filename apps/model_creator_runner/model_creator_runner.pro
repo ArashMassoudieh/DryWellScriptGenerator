@@ -21,6 +21,7 @@ SOURCES += \
     src/ui/modelcreatorwindow.cpp \
     src/ui/simplelineplotwidget.cpp \
     src/ui/scripteditordialog.cpp \
+    src/execution/ohqdiscovery.cpp \
     src/execution/ohqprocessrunner.cpp \
     src/generation/structure_registry.cpp \
     src/generation/starter_script_builder.cpp \
@@ -33,6 +34,7 @@ HEADERS += \
     src/ui/modelcreatorwindow.h \
     src/ui/simplelineplotwidget.h \
     src/ui/scripteditordialog.h \
+    src/execution/ohqdiscovery.h \
     src/execution/ohqprocessrunner.h \
     src/generation/structure_registry.h \
     src/generation/starter_script_builder.h \
