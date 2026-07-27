@@ -2,6 +2,30 @@
 
 This app is the new workflow target discussed for DryWellScriptGenerator evolution.
 
+## Repository layout
+
+- `src/app`: application entry point.
+- `src/ui`: windows, dialogs, and plotting widgets.
+- `src/execution`: OHQ installation discovery and process execution.
+- `src/generation`: shared script-generation options and model registry.
+- `src/generation/builders`: model-specific script builders.
+- `resources/reference-models`: checked-in reference OHQ scripts.
+- `tests`: automated analysis and generation checks.
+
+The directories separate responsibilities without changing the runner's behavior.
+
+## External OHQ discovery
+
+The runner can discover OpenHydroQual from its saved UI settings and nearby
+development directories. Standalone checkouts can also configure discovery with:
+
+- `OHQ_EXECUTABLE` (or `OPENHYDROQUAL_EXECUTABLE`): OHQ executable path.
+- `OHQ_ROOT` (or `OPENHYDROQUAL_ROOT`): OpenHydroQual installation/source root.
+- `OHQ_TEMPLATE_DIR`: directory containing OHQ JSON template resources.
+- `MODEL_CREATOR_DATA_ROOT`: optional root containing legacy LA/VN input datasets.
+
+Explicit environment configuration takes precedence over automatic discovery.
+
 ## Planned flow
 1. Create/select model input.
 2. Generate `.ohq` script.
@@ -122,7 +146,7 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 A dedicated `JM_Bioretention` model type and procedural builder are included in
 `jm_bioretention_builder.cpp/.h`. The checked-in reference output is
-`apps/model_creator_runner/JM.ohq`.
+`apps/model_creator_runner/resources/reference-models/JM.ohq`.
 
 Default SI geometry:
 - facility: 12.192 m long × 3.7084 m wide
@@ -155,6 +179,5 @@ sewer/outlet links move water through the model. The main difference is that
 JM uses a longitudinal four-cell profile for the CC-101 slope instead of the
 Rosemead lateral street/bioswale grid.
 
-Add these files to the qmake/CMake source list:
-- `jm_bioretention_builder.cpp`
-- `jm_bioretention_builder.h`
+The JM builder sources are registered in `model_creator_runner.pro` from
+`src/generation/builders`.

@@ -5094,9 +5094,7 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     const QString templateDir = options.templateDirectory.trimmed();
     const auto tf = [&](const QString &name) { return QDir(templateDir).filePath(name).replace('\\', '/'); };
     const QString inflow = options.useInflowFile
-        ? (options.inflowFile.trimmed().isEmpty()
-               ? QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt")
-               : options.inflowFile.trimmed())
+        ? options.inflowFile.trimmed()
         : QString();
 
     const double modelLength = options.rLength > 0.0 ? options.rLength : 8.0;
