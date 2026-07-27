@@ -22,6 +22,7 @@ development directories. Standalone checkouts can also configure discovery with:
 - `OHQ_EXECUTABLE` (or `OPENHYDROQUAL_EXECUTABLE`): OHQ executable path.
 - `OHQ_ROOT` (or `OPENHYDROQUAL_ROOT`): OpenHydroQual installation/source root.
 - `OHQ_TEMPLATE_DIR`: directory containing OHQ JSON template resources.
+- `MODEL_CREATOR_DATA_ROOT`: optional root containing legacy LA/VN input datasets.
 
 Explicit environment configuration takes precedence over automatic discovery.
 

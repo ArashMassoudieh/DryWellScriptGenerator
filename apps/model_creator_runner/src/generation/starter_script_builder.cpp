@@ -297,12 +297,11 @@ QString ExtractEmbeddedReferenceInflowForModel(const QString &modelType)
 
 QStringList CandidateProjectRootsFromTemplateDirectory(const QString &templateDirectory)
 {
-    QStringList roots {
-        QStringLiteral("/mnt/3rd900/Projects"),
-        QStringLiteral("/home/arash/Projects"),
-        QStringLiteral("/home/hoomanmoradpour/Projects"),
-        QStringLiteral("/media/arash/E/Projects")
-    };
+    QStringList roots;
+    const QString configuredDataRoot = qEnvironmentVariable("MODEL_CREATOR_DATA_ROOT").trimmed();
+    if (!configuredDataRoot.isEmpty()) {
+        roots << QFileInfo(configuredDataRoot).absoluteFilePath();
+    }
     const QFileInfo templateInfo(templateDirectory);
     if (templateInfo.exists()) {
         QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
@@ -337,17 +336,14 @@ QString DetectStructureDefaultInflowFile(const QString &modelType,
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
     } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
     } else {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
     }
     for (const QString &candidate : candidates) {
         if (QFileInfo::exists(candidate)) {

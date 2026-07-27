@@ -213,6 +213,21 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("DISTFILES", text)
         self.assertIn("JM.ohq", text)
 
+    def test_runtime_defaults_do_not_require_developer_paths(self):
+        runtime_sources = [
+            RUNNER_ROOT / "src" / "ui" / "modelcreatorwindow.cpp",
+            RUNNER_ROOT / "src" / "generation" / "starter_script_builder.cpp",
+        ]
+        for source in runtime_sources:
+            text = source.read_text(encoding="utf-8")
+            self.assertNotIn("/mnt/", text, source)
+            self.assertNotIn("/home/", text, source)
+            self.assertNotIn("/media/", text, source)
+
+        bioswale_builder = (BUILDERS_DIR / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        procedural_section = bioswale_builder[bioswale_builder.index("const QString templateDir") :]
+        self.assertNotIn("/mnt/", procedural_section)
+
 
 if __name__ == "__main__":
     unittest.main()
