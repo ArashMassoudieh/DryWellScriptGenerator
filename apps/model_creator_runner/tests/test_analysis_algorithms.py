@@ -228,6 +228,18 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         procedural_section = bioswale_builder[bioswale_builder.index("const QString templateDir") :]
         self.assertNotIn("/mnt/", procedural_section)
 
+    def test_standalone_build_and_resources_are_registered(self):
+        cmake = (RUNNER_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        qmake = (RUNNER_ROOT / "model_creator_runner.pro").read_text(encoding="utf-8")
+        resource = (RUNNER_ROOT / "resources" / "model_creator_runner.qrc").read_text(encoding="utf-8")
+
+        self.assertIn("add_library(model_creator_runner_core STATIC", cmake)
+        self.assertIn("add_executable(ModelCreatorRunner", cmake)
+        self.assertIn("add_executable(model_creator_runner_tests", cmake)
+        self.assertIn("RESOURCES += resources/model_creator_runner.qrc", qmake)
+        self.assertIn("reference-models/JM.ohq", resource)
+        self.assertIn("reference-models/JM_gutter.ohq", resource)
+
 
 if __name__ == "__main__":
     unittest.main()

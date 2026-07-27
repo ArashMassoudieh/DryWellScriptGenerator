@@ -14,6 +14,11 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 The directories separate responsibilities without changing the runner's behavior.
 
+The supported standalone build uses CMake and exposes production generation and
+execution code through `model_creator_runner_core`. The qmake project remains
+available during migration. Reference models are compiled into the application
+through Qt resources and remain listed as source-distribution files.
+
 ## External OHQ discovery
 
 The runner can discover OpenHydroQual from its saved UI settings and nearby
@@ -25,6 +30,17 @@ development directories. Standalone checkouts can also configure discovery with:
 - `MODEL_CREATOR_DATA_ROOT`: optional root containing legacy LA/VN input datasets.
 
 Explicit environment configuration takes precedence over automatic discovery.
+
+## Build and test
+
+```bash
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+python3 -m unittest discover -s tests -v
+```
+
+See `docs/EXTRACTION.md` for the history-preserving repository split procedure.
 
 ## Planned flow
 1. Create/select model input.

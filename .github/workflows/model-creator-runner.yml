@@ -1,0 +1,27 @@
+name: Model Creator Runner
+
+on:
+  push:
+    paths:
+      - "apps/model_creator_runner/**"
+      - ".github/workflows/model-creator-runner.yml"
+  pull_request:
+    paths:
+      - "apps/model_creator_runner/**"
+      - ".github/workflows/model-creator-runner.yml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build qtbase5-dev
+      - name: Configure
+        run: cmake -S apps/model_creator_runner -B build/model_creator_runner -G Ninja -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build/model_creator_runner
+      - name: C++ tests
+        run: ctest --test-dir build/model_creator_runner --output-on-failure
+      - name: Python checks
+        run: python3 -m unittest discover -s apps/model_creator_runner/tests -v

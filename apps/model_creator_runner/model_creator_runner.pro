@@ -44,5 +44,9 @@ HEADERS += \
     src/generation/builders/vn_drywell_builder.h
 
 DISTFILES += \
+    CMakeLists.txt \
     resources/reference-models/JM.ohq \
-    resources/reference-models/JM_gutter.ohq
+    resources/reference-models/JM_gutter.ohq \
+    docs/EXTRACTION.md
+
+RESOURCES += resources/model_creator_runner.qrc

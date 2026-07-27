@@ -5795,7 +5795,16 @@ void ModelCreatorWindow::appendLog(const QString &text)
 
 void ModelCreatorWindow::loadSettings()
 {
-    QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
+    QSettings settings("OpenHydroQual", "ModelCreatorRunner");
+    if (settings.allKeys().isEmpty()) {
+        QSettings legacySettings("DryWellScriptGenerator", "ModelCreatorRunner");
+        for (const QString &key : legacySettings.allKeys()) {
+            settings.setValue(key, legacySettings.value(key));
+        }
+        if (!legacySettings.allKeys().isEmpty()) {
+            settings.setValue("settingsMigratedFromDryWellScriptGenerator", true);
+        }
+    }
     const auto settingTextOrDefault = [&settings](const QString &key, const QString &fallback) {
         const QString value = settings.value(key, fallback).toString().trimmed();
         return value.isEmpty() ? fallback : value;
@@ -6006,7 +6015,7 @@ void ModelCreatorWindow::loadSettings()
 
 void ModelCreatorWindow::saveSettings() const
 {
-    QSettings settings("DryWellScriptGenerator", "ModelCreatorRunner");
+    QSettings settings("OpenHydroQual", "ModelCreatorRunner");
     settings.setValue("modelType", modelTypeCombo->currentText());
     settings.setValue("workflowMode", workflowModeCombo->currentData().toString());
     settings.setValue("enrichmentPreset", enrichmentPresetCombo->currentData().toString());

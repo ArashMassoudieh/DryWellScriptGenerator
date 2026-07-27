@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/reference-models">
+        <file alias="JM.ohq">reference-models/JM.ohq</file>
+        <file alias="JM_gutter.ohq">reference-models/JM_gutter.ohq</file>
+    </qresource>
+</RCC>
