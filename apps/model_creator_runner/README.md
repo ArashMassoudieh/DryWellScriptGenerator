@@ -14,6 +14,17 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 The directories separate responsibilities without changing the runner's behavior.
 
+## External OHQ discovery
+
+The runner can discover OpenHydroQual from its saved UI settings and nearby
+development directories. Standalone checkouts can also configure discovery with:
+
+- `OHQ_EXECUTABLE` (or `OPENHYDROQUAL_EXECUTABLE`): OHQ executable path.
+- `OHQ_ROOT` (or `OPENHYDROQUAL_ROOT`): OpenHydroQual installation/source root.
+- `OHQ_TEMPLATE_DIR`: directory containing OHQ JSON template resources.
+
+Explicit environment configuration takes precedence over automatic discovery.
+
 ## Planned flow
 1. Create/select model input.
 2. Generate `.ohq` script.
