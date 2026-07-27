@@ -3,6 +3,11 @@ from collections import defaultdict
 from pathlib import Path
 
 
+RUNNER_ROOT = Path(__file__).resolve().parents[1]
+BUILDERS_DIR = RUNNER_ROOT / "src" / "generation" / "builders"
+REFERENCE_MODELS_DIR = RUNNER_ROOT / "resources" / "reference-models"
+
+
 def interpolate_y_sorted(sorted_series, x):
     if len(sorted_series) < 2:
         return None
@@ -144,7 +149,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "JM_Bioretention"))
 
     def test_jm_reference_ohq_contains_required_blocks(self):
-        source = Path(__file__).resolve().parents[1] / "JM.ohq"
+        source = REFERENCE_MODELS_DIR / "JM.ohq"
         text = source.read_text(encoding="utf-8")
         self.assertIn("JM_Bioretention: John McCormack Road CC-101", text)
         self.assertIn("name=JM Contributing Catchment", text)
@@ -187,8 +192,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertEqual(text.count("name=JM Surface Routing"), 0)
 
     def test_jm_reference_uses_r_bioswale_link_patterns(self):
-        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
-        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+        r_source = (BUILDERS_DIR / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (REFERENCE_MODELS_DIR / "JM.ohq").read_text(encoding="utf-8")
         shared_patterns = [
             "type=Catchment_link",
             "type=surfacewater_to_soil_link",
@@ -206,8 +211,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
             self.assertIn(pattern, jm_text)
 
     def test_r_and_jm_reference_geometries_remain_independent(self):
-        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
-        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+        r_source = (BUILDERS_DIR / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (REFERENCE_MODELS_DIR / "JM.ohq").read_text(encoding="utf-8")
 
         self.assertIn("options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096", r_source)
         self.assertIn("options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144", r_source)
@@ -224,14 +229,14 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("diameter=0.1016[m],length=12.192[m],slope=0.005", jm_text)
 
     def test_registry_exposes_jm_model_type(self):
-        source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"
+        source = RUNNER_ROOT / "src" / "generation" / "structure_registry.cpp"
         text = source.read_text(encoding="utf-8")
         self.assertIn('QStringLiteral("JM_Bioretention")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_Underdrain")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_GW")', text)
 
     def test_qmake_project_packages_jm_reference_output(self):
-        source = Path(__file__).resolve().parents[1] / "model_creator_runner.pro"
+        source = RUNNER_ROOT / "model_creator_runner.pro"
         text = source.read_text(encoding="utf-8")
         self.assertIn("jm_bioretention_builder.cpp", text)
         self.assertIn("jm_bioretention_builder.h", text)
