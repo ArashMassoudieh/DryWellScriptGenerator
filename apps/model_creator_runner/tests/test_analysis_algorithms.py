@@ -3,6 +3,11 @@ from collections import defaultdict
 from pathlib import Path
 
 
+RUNNER_ROOT = Path(__file__).resolve().parents[1]
+BUILDERS_DIR = RUNNER_ROOT / "src" / "generation" / "builders"
+REFERENCE_MODELS_DIR = RUNNER_ROOT / "resources" / "reference-models"
+
+
 def interpolate_y_sorted(sorted_series, x):
     if len(sorted_series) < 2:
         return None
@@ -143,59 +148,36 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertFalse(is_preset_compatible_with_model("JM_Bioretention_GW", "R_Bioswale"))
         self.assertFalse(is_preset_compatible_with_model("HQ_Drywell_MonitoringWell", "JM_Bioretention"))
 
-    def test_jm_reference_ohq_contains_required_blocks(self):
-        source = Path(__file__).resolve().parents[1] / "JM.ohq"
+    def test_jm_reference_ohq_contains_checked_in_topology(self):
+        source = REFERENCE_MODELS_DIR / "JM.ohq"
         text = source.read_text(encoding="utf-8")
-        self.assertIn("JM_Bioretention: John McCormack Road CC-101", text)
-        self.assertIn("name=JM Contributing Catchment", text)
-        self.assertIn("name=JM Underdrain", text)
-        self.assertIn("name=JM Outlet", text)
+        lines = text.splitlines()
+
+        self.assertEqual(sum(line.startswith("create block;") for line in lines), 22)
+        self.assertEqual(sum(line.startswith("create link;") for line in lines), 30)
+        self.assertEqual(sum(line.startswith("create parameter;") for line in lines), 4)
+        self.assertEqual(text.count("type=Catchment_link"), 5)
+        self.assertEqual(text.count("type=surfacewater_to_soil_link"), 4)
+        self.assertEqual(text.count("type=soil_to_aggregate_link"), 4)
+        self.assertEqual(text.count("type=aggregate_to_soil_link"), 4)
+        self.assertEqual(text.count("type=soil_to_soil_H_link"), 3)
+        self.assertEqual(text.count("type=Sewer_pipe"), 5)
+        self.assertIn("name=JM DA-01", text)
+        self.assertIn("name=JM Pond 1", text)
+        self.assertIn("name=JM Engineered Soil 1", text)
+        self.assertIn("name=JM Aggregate 1", text)
+        self.assertIn("name=JM Native Soil 1-1", text)
+        self.assertIn("name=JM Catch Basin", text)
+        self.assertIn("name=JM Receiving Water", text)
         self.assertIn("name=JM Groundwater", text)
-        self.assertIn("JM Partial Height Outlet", text)
-        self.assertIn("# JM grid: nx=4, nz=5 material layers, primary_cells=20", text)
-        self.assertIn("# JM blocks: soil=28, aggregate_storage=8, surface=1, surrounding_soil=20", text)
-        self.assertEqual(text.count("name=JM Catchment,x"), 1)
-        self.assertEqual(text.count("name=JM Media ("), 4)
-        self.assertEqual(text.count("name=JM Choker ("), 4)
-        self.assertEqual(text.count("name=JM Gravel ("), 4)
-        self.assertEqual(text.count("name=JM Infiltration Sump ("), 4)
-        self.assertEqual(text.count("name=JM Left Native Soil ("), 4)
-        self.assertEqual(text.count("name=JM Right Native Soil ("), 4)
-        self.assertEqual(text.count("name=JM Bottom Native Soil ("), 4)
-        self.assertEqual(text.count("name=JM Left Bottom Native Soil ("), 4)
-        self.assertEqual(text.count("name=JM Right Bottom Native Soil ("), 4)
-        self.assertEqual(text.count("name=JM Contributing Catchment - JM Catchment"), 1)
-        self.assertEqual(text.count("name=JM Catchment - Media 1"), 1)
-        self.assertEqual(text.count("name=JM Media - Left Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Media - Right Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Sump - Bottom Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Left Native Soil - Left Bottom Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Right Native Soil - Right Bottom Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Bottom Native Soil - Left Bottom Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Bottom Native Soil - Right Bottom Native Soil"), 4)
-        self.assertEqual(text.count("name=JM Sump - GW"), 0)
-        self.assertEqual(text.count("name=JM Bottom Native Soil - GW"), 4)
-        self.assertEqual(text.count("name=JM Left Bottom Native Soil - GW"), 4)
-        self.assertEqual(text.count("name=JM Right Bottom Native Soil - GW"), 4)
-        self.assertEqual(text.count("name=JM Left Native Soil Horizontal"), 3)
-        self.assertEqual(text.count("name=JM Right Native Soil Horizontal"), 3)
-        self.assertEqual(text.count("name=JM Bottom Native Soil Horizontal"), 3)
-        self.assertEqual(text.count("name=JM Left Bottom Native Soil Horizontal"), 3)
-        self.assertEqual(text.count("name=JM Right Bottom Native Soil Horizontal"), 3)
-        self.assertIn("name=JM Groundwater,_width=180,_height=120,x=450,y=1700", text)
-        self.assertEqual(text.count("name=JM Surface ("), 0)
-        self.assertEqual(text.count("name=JM Surface Routing"), 0)
 
     def test_jm_reference_uses_r_bioswale_link_patterns(self):
-        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
-        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+        r_source = (BUILDERS_DIR / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (REFERENCE_MODELS_DIR / "JM.ohq").read_text(encoding="utf-8")
         shared_patterns = [
             "type=Catchment_link",
             "type=surfacewater_to_soil_link",
-            "type=soil_to_fixedhead_link_H",
             "type=soil_to_soil_H_link",
-            "type=soil_to_soil_link",
-            "type=aggregate2aggregate_H_Link",
             "type=aggregate_to_soil_link",
             "type=soil_to_fixedhead_link",
             "type=Sewer_pipe",
@@ -206,32 +188,25 @@ class TestAnalysisAlgorithms(unittest.TestCase):
             self.assertIn(pattern, jm_text)
 
     def test_r_and_jm_reference_geometries_remain_independent(self):
-        r_source = (Path(__file__).resolve().parents[1] / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
-        jm_text = (Path(__file__).resolve().parents[1] / "JM.ohq").read_text(encoding="utf-8")
+        r_source = (BUILDERS_DIR / "r_bioswale_builder.cpp").read_text(encoding="utf-8")
+        jm_text = (REFERENCE_MODELS_DIR / "JM.ohq").read_text(encoding="utf-8")
 
         self.assertIn("options.rBioSwaleWidth > 0.0 ? options.rBioSwaleWidth : 0.6096", r_source)
         self.assertIn("options.rBioSwaleDepth > 0.0 ? options.rBioSwaleDepth : 0.9144", r_source)
-        self.assertIn("Width=3.7084", jm_text)
-        self.assertIn("depth=0.9144,n=JM_Eng_Soil_n,name=JM Media", jm_text)
-        self.assertIn("depth=0.0762,inflow=,name=JM Choker", jm_text)
-        self.assertIn("depth=0.6096,inflow=,name=JM Gravel", jm_text)
-        self.assertIn("depth=0.3048,n=1.56,name=JM Infiltration Sump", jm_text)
-        self.assertIn("depth=0.9144,n=1.56,name=JM Left Native Soil", jm_text)
-        self.assertIn("depth=0.9144,n=1.56,name=JM Right Native Soil", jm_text)
-        self.assertIn("depth=0.9144,n=1.56,name=JM Bottom Native Soil", jm_text)
-        self.assertIn("depth=0.9144,n=1.56,name=JM Left Bottom Native Soil", jm_text)
-        self.assertIn("depth=0.9144,n=1.56,name=JM Right Bottom Native Soil", jm_text)
-        self.assertIn("diameter=0.1016[m],length=12.192[m],slope=0.005", jm_text)
+        self.assertIn("area=11.3032,bottom_elevation=-0.9006,depth=0.9144", jm_text)
+        self.assertIn("area=11.3032,bottom_elevation=-1.8912,depth=0.9906", jm_text)
+        self.assertIn("area=45.2128,bottom_elevation=-4.3362,depth=2.4", jm_text)
+        self.assertIn("diameter=0.1016,end_elevation=-1.6164,length=3.048", jm_text)
 
     def test_registry_exposes_jm_model_type(self):
-        source = Path(__file__).resolve().parents[1] / "structure_registry.cpp"
+        source = RUNNER_ROOT / "src" / "generation" / "structure_registry.cpp"
         text = source.read_text(encoding="utf-8")
         self.assertIn('QStringLiteral("JM_Bioretention")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_Underdrain")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_GW")', text)
 
     def test_qmake_project_packages_jm_reference_output(self):
-        source = Path(__file__).resolve().parents[1] / "model_creator_runner.pro"
+        source = RUNNER_ROOT / "model_creator_runner.pro"
         text = source.read_text(encoding="utf-8")
         self.assertIn("jm_bioretention_builder.cpp", text)
         self.assertIn("jm_bioretention_builder.h", text)

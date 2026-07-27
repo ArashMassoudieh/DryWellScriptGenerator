@@ -13,6 +13,7 @@
 
 #include <QComboBox>
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDialog>
@@ -49,6 +50,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QtGlobal>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -218,13 +220,20 @@ bool InterpolateYSorted(const QVector<QPointF> &sortedSeries, double x, double *
 
 QString FindRepoRoot()
 {
-    QDir dir(QDir::currentPath());
-    for (int i = 0; i < 8; ++i) {
-        if (QFileInfo::exists(dir.filePath("DryWellScriptGenerator.pro"))) {
-            return dir.absolutePath();
-        }
-        if (!dir.cdUp()) {
-            break;
+    const QStringList startingDirectories = {
+        QDir::currentPath(),
+        QCoreApplication::applicationDirPath()
+    };
+    for (const QString &startingDirectory : startingDirectories) {
+        QDir dir(startingDirectory);
+        for (int i = 0; i < 8; ++i) {
+            if (QFileInfo::exists(dir.filePath("model_creator_runner.pro"))
+                || QFileInfo::exists(dir.filePath("DryWellScriptGenerator.pro"))) {
+                return dir.absolutePath();
+            }
+            if (!dir.cdUp()) {
+                break;
+            }
         }
     }
     return QDir::currentPath();
@@ -265,13 +274,10 @@ QString FirstExecutableFile(const QStringList &candidates)
 
 void AppendUniquePath(QStringList *paths, const QString &path)
 {
-    if (paths == nullptr) {
+    if (paths == nullptr || path.trimmed().isEmpty()) {
         return;
     }
     const QString normalized = QFileInfo(path).absoluteFilePath();
-    if (normalized.trimmed().isEmpty()) {
-        return;
-    }
     if (!paths->contains(normalized)) {
         paths->push_back(normalized);
     }
@@ -280,6 +286,8 @@ void AppendUniquePath(QStringList *paths, const QString &path)
 QStringList CandidateOpenHydroQualRoots(const QString &repoRoot, const QStringList &hintRoots = {})
 {
     QStringList roots;
+    AppendUniquePath(&roots, qEnvironmentVariable("OHQ_ROOT"));
+    AppendUniquePath(&roots, qEnvironmentVariable("OPENHYDROQUAL_ROOT"));
     for (const QString &hint : hintRoots) {
         const QFileInfo info(hint);
         if (info.exists()) {
@@ -298,7 +306,7 @@ QStringList CandidateOpenHydroQualRoots(const QString &repoRoot, const QStringLi
 
 QString DetectTemplateDirectory(const QStringList &rootCandidates, const QString &workingDirectory)
 {
-    QStringList candidates;
+    QStringList candidates = {qEnvironmentVariable("OHQ_TEMPLATE_DIR")};
     for (const QString &rootPath : rootCandidates) {
         const QDir root(rootPath);
         if (!root.exists()) {
@@ -364,6 +372,14 @@ QString DetectLatestTerminalBuildExecutable(const QString &rootPath)
 
 QString DetectExecutablePath(const QStringList &rootCandidates)
 {
+    const QString configuredExecutable = FirstExecutableFile({
+        qEnvironmentVariable("OHQ_EXECUTABLE"),
+        qEnvironmentVariable("OPENHYDROQUAL_EXECUTABLE")
+    });
+    if (!configuredExecutable.isEmpty()) {
+        return configuredExecutable;
+    }
+
     QFileInfo newestTerminalBuildExecutable;
     for (const QString &rootPath : rootCandidates) {
         const QString terminalCandidate = DetectLatestTerminalBuildExecutable(rootPath);
