@@ -373,6 +373,13 @@ QString BuildModel(const StarterScriptOptions &options,
                   "width=0.2[m],name=JM Street Gutter " << c
                << " to Pond " << c << "\n";
         }
+
+        // Final gutter bypass/outlet to the downstream catch basin.
+        // Curb_cut is valid here because Sewer_system.json defines it for a
+        // street-gutter source and any receiving block that provides head.
+        ts << "create link;from=JM Street Gutter 4,to=JM Catch Basin,"
+              "type=Curb_cut,crest_offset=0,discharge_coefficient=0.6,"
+              "width=0.2[m],name=JM Street Gutter 4 to Catch Basin\n";
     }
 
     for (int c = 1; c <= columnCount; ++c) {
