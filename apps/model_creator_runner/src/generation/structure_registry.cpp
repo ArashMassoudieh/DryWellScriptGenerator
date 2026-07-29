@@ -121,6 +121,7 @@ QList<QPair<QString, QString>> StructureRegistry::PresetOptionsForModel(const QS
 
     return {
         {QStringLiteral("SoftReference"), QStringLiteral("R_MODE:SoftReference")},
+        {QStringLiteral("Simple"), QStringLiteral("R_MODE:Simple")},
         {QStringLiteral("LoadFromOhq"), QStringLiteral("R_MODE:LoadFromOhq")},
         {QStringLiteral("FullReference"), QStringLiteral("R_MODE:FullReference")}
         // {QStringLiteral("R_Bioswale_SuiteStyle"), QStringLiteral("R_Bioswale_SuiteStyle")},

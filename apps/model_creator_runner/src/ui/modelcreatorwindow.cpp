@@ -2846,6 +2846,9 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
                                 QStringLiteral("JM_MODE:DTSimple"));
             addUniquePresetItem(tr("DT Simple + Gutters"),
                                 QStringLiteral("JM_MODE:DTSimpleGutter"));
+        } else if (modelType.compare(QStringLiteral("R_Bioswale"),
+                                     Qt::CaseInsensitive) == 0) {
+            addUniquePresetItem(tr("Simple"), QStringLiteral("R_MODE:Simple"));
         }
     }
 
@@ -2901,7 +2904,9 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     const bool hqSoftContext = modelType.compare(QStringLiteral("HQ_Drywell"), Qt::CaseInsensitive) == 0
         && (hqBuildMode.isEmpty() || hqBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
     const bool rSoftContext = modelType.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0
-        && (rBuildMode.isEmpty() || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0);
+        && (rBuildMode.isEmpty()
+            || rBuildMode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0
+            || rBuildMode.compare(QStringLiteral("Simple"), Qt::CaseInsensitive) == 0);
     const bool jmContext = modelType.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0;
     const bool showOptional = showOptionalFieldsCheck != nullptr && showOptionalFieldsCheck->isChecked();
     const bool guiFallbackEnabled = allowGuiExecutionCheck != nullptr && allowGuiExecutionCheck->isChecked();
