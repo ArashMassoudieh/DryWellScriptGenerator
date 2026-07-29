@@ -5515,6 +5515,40 @@ static QString BuildSoftReferenceScriptLocal(const StarterScriptOptions &options
     return out;
 }
 
+static QString BuildSimpleScriptLocal(const StarterScriptOptions &options)
+{
+    // The simple model retains the editable central bioretention column and
+    // the user-selected bottom layers, but deliberately removes every side
+    // native-soil and street/subbase object (and all links to those objects).
+    const QString fullScript = BuildSoftReferenceScriptLocal(options);
+    const QStringList omittedObjectNames = {
+        QStringLiteral("LeftTop"),
+        QStringLiteral("RightTop"),
+        QStringLiteral("LeftBottom"),
+        QStringLiteral("RightBottom"),
+        QStringLiteral("Subbase")
+    };
+
+    QString simpleScript = QStringLiteral(
+        "# Mode: R Simple; side native soils and street subbase omitted; "
+        "editable engineered and bottom blocks retained.\n");
+    const QStringList lines = fullScript.split('\n', Qt::KeepEmptyParts);
+    for (const QString &line : lines) {
+        bool omit = false;
+        for (const QString &objectName : omittedObjectNames) {
+            if (line.contains(objectName, Qt::CaseInsensitive)) {
+                omit = true;
+                break;
+            }
+        }
+        if (!omit) {
+            simpleScript += line;
+            simpleScript += '\n';
+        }
+    }
+    return simpleScript;
+}
+
 } // namespace
 
 QString RBioswaleBuilder::FullReferenceScript()
@@ -5606,6 +5640,12 @@ bool RBioswaleBuilder::Build(const StarterScriptOptions &options,
     if (mode.isEmpty()
         || mode.compare(QStringLiteral("SoftReference"), Qt::CaseInsensitive) == 0) {
         *scriptText = BuildSoftReferenceScriptLocal(options);
+        return true;
+    }
+
+    if (mode.compare(QStringLiteral("Simple"), Qt::CaseInsensitive) == 0
+        || mode.compare(QStringLiteral("DTSimple"), Qt::CaseInsensitive) == 0) {
+        *scriptText = BuildSimpleScriptLocal(options);
         return true;
     }
 

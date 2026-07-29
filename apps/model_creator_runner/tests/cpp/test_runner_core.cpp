@@ -1,4 +1,5 @@
 #include "ohqdiscovery.h"
+#include "r_bioswale_builder.h"
 #include "structure_registry.h"
 
 #include <QDir>
@@ -15,6 +16,7 @@ private slots:
     void registryRejectsCrossModelPresets();
     void discoveryPrefersConfiguredRoot();
     void discoveryPrefersConfiguredTemplateDirectory();
+    void rSimpleKeepsOnlyCentralSoilColumns();
 };
 
 void RunnerCoreTest::registryExposesSupportedModels()
@@ -24,6 +26,27 @@ void RunnerCoreTest::registryExposesSupportedModels()
     QVERIFY(models.contains(QStringLiteral("VN_Drywell")));
     QVERIFY(models.contains(QStringLiteral("R_Bioswale")));
     QVERIFY(models.contains(QStringLiteral("JM_Bioretention")));
+}
+
+void RunnerCoreTest::rSimpleKeepsOnlyCentralSoilColumns()
+{
+    StarterScriptOptions options;
+    options.rBioswaleBuildMode = QStringLiteral("Simple");
+    options.rEngineeredSoilNz = 3;
+    options.rNativeSoilNz = 2;
+    QString script;
+    QString error;
+
+    QVERIFY2(RBioswaleBuilder::Build(options, &script, &error), qPrintable(error));
+    QVERIFY(script.contains(QStringLiteral("# Mode: R Simple")));
+    QVERIFY(script.contains(QStringLiteral("EngineeredSoil (1)")));
+    QVERIFY(script.contains(QStringLiteral("UEngineered (5)")));
+    QVERIFY(script.contains(QStringLiteral("Engineered_to_bottom")));
+    QVERIFY(!script.contains(QStringLiteral("LeftTop")));
+    QVERIFY(!script.contains(QStringLiteral("RightTop")));
+    QVERIFY(!script.contains(QStringLiteral("LeftBottom")));
+    QVERIFY(!script.contains(QStringLiteral("RightBottom")));
+    QVERIFY(!script.contains(QStringLiteral("Subbase")));
 }
 
 void RunnerCoreTest::registryRejectsCrossModelPresets()

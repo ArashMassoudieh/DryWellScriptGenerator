@@ -105,7 +105,7 @@ struct StarterScriptOptions
     //   "FullReference" -> use the embedded R_Bioswale full-reference payload
     //                      through RBioswaleBuilder::Build(...)
     //   "LoadFromOhq"   -> load rBioswaleBaseOhqFile as authoritative script
-    QString rBioswaleBuildMode = "SoftReference"; // SoftReference | FullReference | LoadFromOhq
+    QString rBioswaleBuildMode = "SoftReference"; // SoftReference | Simple | FullReference | LoadFromOhq
     QString rBioswaleBaseOhqFile;
 
     // Optional R_Bioswale SoftReference controls (procedural Rosemead-style soil-block generation).
