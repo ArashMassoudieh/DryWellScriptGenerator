@@ -4,15 +4,12 @@ This app is the new workflow target discussed for DryWellScriptGenerator evoluti
 
 ## Repository layout
 
-- `src/app`: application entry point.
-- `src/ui`: windows, dialogs, and plotting widgets.
-- `src/execution`: OHQ installation discovery and process execution.
-- `src/generation`: shared script-generation options and model registry.
-- `src/generation/builders`: model-specific script builders.
+- `src`: runner entry point, UI, OHQ discovery/execution, and shared script-generation code.
+- `src/structures`: model-specific script builders.
 - `resources/reference-models`: checked-in reference OHQ scripts.
 - `tests`: automated analysis and generation checks.
 
-The directories separate responsibilities without changing the runner's behavior.
+The runner keeps common code in one source folder so files are easy to find; only per-structure builders live in their own subfolder. This layout does not change the runner's behavior.
 
 The supported standalone build uses CMake and exposes production generation and
 execution code through `model_creator_runner_core`. The qmake project remains
@@ -196,4 +193,4 @@ JM uses a longitudinal four-cell profile for the CC-101 slope instead of the
 Rosemead lateral street/bioswale grid.
 
 The JM builder sources are registered in `model_creator_runner.pro` from
-`src/generation/builders`.
+`src/structures`.

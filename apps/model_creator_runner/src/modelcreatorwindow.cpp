@@ -291,8 +291,6 @@ QStringList CandidateOpenHydroQualRoots(const QString &repoRoot, const QStringLi
     AppendUniquePath(&roots, repoDir.filePath("OpenHydroQual"));
     AppendUniquePath(&roots, repoDir.filePath("../OpenHydroQual"));
     AppendUniquePath(&roots, repoDir.filePath("../../OpenHydroQual"));
-    AppendUniquePath(&roots, QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"));
-    AppendUniquePath(&roots, QStringLiteral("/home/arash/Projects/OpenHydroQual"));
     return roots;
 }
 
@@ -391,12 +389,7 @@ QString DetectExecutablePath(const QStringList &rootCandidates)
 
 QStringList CandidateProjectRootsFromTemplateDirectoryUi(const QString &templateDirectory)
 {
-    QStringList roots = {
-        QStringLiteral("/mnt/3rd900/Projects"),
-        QStringLiteral("/home/arash/Projects"),
-        QStringLiteral("/home/hoomanmoradpour/Projects"),
-        QStringLiteral("/media/arash/E/Projects")
-    };
+    QStringList roots;
     const QFileInfo templateInfo(templateDirectory);
     if (templateInfo.exists()) {
         QDir dir = templateInfo.isDir() ? QDir(templateInfo.absoluteFilePath())
@@ -583,19 +576,16 @@ QString DetectSuggestedInflowFile(const QString &modelType, const QString &templ
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Corrected_New_Khiem.csv"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Corrected_New_Khiem.csv");
     } else if (normalizedModel.compare(QStringLiteral("R_Bioswale"), Qt::CaseInsensitive) == 0) {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("LA Project/Data/Inflow_Rosemead_August.txt"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/Inflow_Rosemead_August.txt");
     } else if (normalizedModel.compare(QStringLiteral("JM_Bioretention"), Qt::CaseInsensitive) == 0) {
         return QString();
     } else {
         for (const QString &root : projectRoots) {
             candidates << QDir(root).filePath(QStringLiteral("VN Drywell_Models/LA_Precipitaion (5 yr new).csv"));
         }
-        candidates << QStringLiteral("/mnt/3rd900/Projects/VN Drywell_Models/LA_Precipitaion (5 yr new).csv");
     }
 
     const QString detected = FirstExistingFile(candidates);
@@ -879,34 +869,6 @@ QString FindCliExecutableNearGui(const QFileInfo &guiExecutableInfo)
         }
     }
 
-    const QStringList fallbackRoots = {
-        // Environment-specific fallback roots used in this project.
-        QStringLiteral("/mnt/3rd900/Projects/OpenHydroQual"),
-        QStringLiteral("/home/arash/Projects/OpenHydroQual")
-    };
-    for (const QString &root : fallbackRoots) {
-        QDir rootDir(root);
-        if (!rootDir.exists()) {
-            continue;
-        }
-        QDirIterator it(rootDir.absolutePath(),
-                        QDir::Files | QDir::NoSymLinks,
-                        QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            it.next();
-            const QFileInfo fileInfo = it.fileInfo();
-            if (!fileInfo.isExecutable()) {
-                continue;
-            }
-            if (IsGuiExecutableOrAlias(fileInfo)) {
-                continue;
-            }
-            if (LooksLikeCliOhqBinaryName(fileInfo.fileName())
-                || LooksLikeInternalSolverBinaryName(fileInfo.fileName())) {
-                return fileInfo.absoluteFilePath();
-            }
-        }
-    }
 
     return QString();
 }
@@ -2014,7 +1976,7 @@ ModelCreatorWindow::ModelCreatorWindow(QWidget *parent)
     jmNativeVerticalLayersEdit->setToolTip(tr("JM centered native-soil layers vertically (nz). Use 1 for one native-soil row."));
     hqSoilPropsFileEdit->setPlaceholderText(tr("Optional HQ soil layer file (*.txt, *.csv)"));
     hqSoilPropsFileEdit->setToolTip(tr("Optional HQ/DryWell soil layer table. If provided, HQ SoftReference uses these per-layer soil parameters while keeping HQ geometry controls."));
-    rSoilPropsFileEdit->setPlaceholderText(tr("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt"));
+    rSoilPropsFileEdit->setPlaceholderText(tr("Optional R/Rosemead soil layer file (*.txt, *.csv)"));
     rVerticalLayersEdit->setPlaceholderText(tr("Auto"));
     rVerticalLayersEdit->setToolTip(tr("Legacy total R/Rosemead nz. Leave Auto when using separate engineered/native nz fields."));
     rEngineeredSoilNzEdit->setPlaceholderText(tr("Auto"));
@@ -3100,8 +3062,7 @@ void ModelCreatorWindow::applySuggestedDefaults()
     const QString suggestedExecutablePath = DetectExecutablePath(rootCandidates);
     const QString suggestedInflowPath = DetectSuggestedInflowFile(modelTypeCombo->currentText(),
                                                                   templateDirEdit->text().trimmed());
-    const QString suggestedRBioswaleSoilPath =
-        QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt");
+    const QString suggestedRBioswaleSoilPath;
     const QString suggestedScriptPath = FirstExistingFile({
         QDir(suggestedWorkingDirectory).filePath("hq_drywell.ohq"),
         QDir(suggestedWorkingDirectory).filePath("vn_drywell.ohq"),
@@ -3354,7 +3315,8 @@ void ModelCreatorWindow::showRBioswaleSoilPropsTable()
 {
     QString path = rSoilPropsFileEdit->text().trimmed();
     if (path.isEmpty()) {
-        path = QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt");
+        QMessageBox::information(this, tr("R soil props table"), tr("Choose an R/Rosemead soil properties file first."));
+        return;
     }
 
     QFile file(path);
@@ -6041,7 +6003,7 @@ void ModelCreatorWindow::loadSettings()
     rBioSwaleWidthEdit->setText(settingTextOrDefault("rBioSwaleWidth", "0.6096"));
     rSystemWidthEdit->setText(settingTextOrDefault("rSystemWidth", "3"));
     rBioSwaleDepthEdit->setText(settingTextOrDefault("rBioSwaleDepth", "0.9144"));
-    rSoilPropsFileEdit->setText(settings.value("rSoilPropsFile", QStringLiteral("/mnt/3rd900/Projects/LA Project/Data/SoilData_Rosemead_corrected.txt")).toString());
+    rSoilPropsFileEdit->setText(settings.value("rSoilPropsFile").toString());
     rLateralCellsEdit->setText(settingTextOrDefault("rLateralCells", "6"));
     rLengthEdit->setText(settingTextOrDefault("rLength", "8"));
     rStreetWidthEdit->setText(settingTextOrDefault("rStreetWidth", "5"));

@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 RUNNER_ROOT = Path(__file__).resolve().parents[1]
-BUILDERS_DIR = RUNNER_ROOT / "src" / "generation" / "builders"
+BUILDERS_DIR = RUNNER_ROOT / "src" / "structures"
 REFERENCE_MODELS_DIR = RUNNER_ROOT / "resources" / "reference-models"
 
 
@@ -199,7 +199,7 @@ class TestAnalysisAlgorithms(unittest.TestCase):
         self.assertIn("diameter=0.1016,end_elevation=-1.6164,length=3.048", jm_text)
 
     def test_registry_exposes_jm_model_type(self):
-        source = RUNNER_ROOT / "src" / "generation" / "structure_registry.cpp"
+        source = RUNNER_ROOT / "src" / "structure_registry.cpp"
         text = source.read_text(encoding="utf-8")
         self.assertIn('QStringLiteral("JM_Bioretention")', text)
         self.assertIn('QStringLiteral("JM_Bioretention_Underdrain")', text)
@@ -215,8 +215,8 @@ class TestAnalysisAlgorithms(unittest.TestCase):
 
     def test_runtime_defaults_do_not_require_developer_paths(self):
         runtime_sources = [
-            RUNNER_ROOT / "src" / "ui" / "modelcreatorwindow.cpp",
-            RUNNER_ROOT / "src" / "generation" / "starter_script_builder.cpp",
+            RUNNER_ROOT / "src" / "modelcreatorwindow.cpp",
+            RUNNER_ROOT / "src" / "starter_script_builder.cpp",
         ]
         for source in runtime_sources:
             text = source.read_text(encoding="utf-8")
