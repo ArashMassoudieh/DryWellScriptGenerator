@@ -11,37 +11,35 @@ TEMPLATE = app
 TARGET = ModelCreatorRunner
 
 INCLUDEPATH += \
-    src/ui \
-    src/execution \
-    src/generation \
-    src/generation/builders
+    src \
+    src/structures
 
 SOURCES += \
-    src/app/main.cpp \
-    src/ui/modelcreatorwindow.cpp \
-    src/ui/simplelineplotwidget.cpp \
-    src/ui/scripteditordialog.cpp \
-    src/execution/ohqdiscovery.cpp \
-    src/execution/ohqprocessrunner.cpp \
-    src/generation/structure_registry.cpp \
-    src/generation/starter_script_builder.cpp \
-    src/generation/builders/hq_drywell_builder.cpp \
-    src/generation/builders/r_bioswale_builder.cpp \
-    src/generation/builders/jm_bioretention_builder.cpp \
-    src/generation/builders/vn_drywell_builder.cpp
+    src/main.cpp \
+    src/modelcreatorwindow.cpp \
+    src/simplelineplotwidget.cpp \
+    src/scripteditordialog.cpp \
+    src/ohqdiscovery.cpp \
+    src/ohqprocessrunner.cpp \
+    src/structure_registry.cpp \
+    src/starter_script_builder.cpp \
+    src/structures/hq_drywell_builder.cpp \
+    src/structures/r_bioswale_builder.cpp \
+    src/structures/jm_bioretention_builder.cpp \
+    src/structures/vn_drywell_builder.cpp
 
 HEADERS += \
-    src/ui/modelcreatorwindow.h \
-    src/ui/simplelineplotwidget.h \
-    src/ui/scripteditordialog.h \
-    src/execution/ohqdiscovery.h \
-    src/execution/ohqprocessrunner.h \
-    src/generation/structure_registry.h \
-    src/generation/starter_script_builder.h \
-    src/generation/builders/hq_drywell_builder.h \
-    src/generation/builders/r_bioswale_builder.h \
-    src/generation/builders/jm_bioretention_builder.h \
-    src/generation/builders/vn_drywell_builder.h
+    src/modelcreatorwindow.h \
+    src/simplelineplotwidget.h \
+    src/scripteditordialog.h \
+    src/ohqdiscovery.h \
+    src/ohqprocessrunner.h \
+    src/structure_registry.h \
+    src/starter_script_builder.h \
+    src/structures/hq_drywell_builder.h \
+    src/structures/r_bioswale_builder.h \
+    src/structures/jm_bioretention_builder.h \
+    src/structures/vn_drywell_builder.h
 
 DISTFILES += \
     CMakeLists.txt \
