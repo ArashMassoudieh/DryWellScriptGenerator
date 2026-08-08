@@ -592,7 +592,14 @@ QString DetectSuggestedInflowFile(const QString &modelType, const QString &templ
     if (!detected.isEmpty()) {
         return detected;
     }
-    return candidates.front();
+
+    // Candidate roots are inferred from the repository/template layout.  A
+    // relocated standalone runner can legitimately have no matching root (and
+    // an older or incomplete embedded reference may not provide an inflow
+    // either).  Do not call front() on the resulting empty list: selecting a
+    // structure must still be safe, and the normal validation flow can ask the
+    // user for an inflow file when one is required.
+    return candidates.isEmpty() ? QString() : candidates.constFirst();
 }
 
 QString DetectExecutablePathFromContext(const QString &repoRoot,
