@@ -13,6 +13,7 @@ QString ChannelReferenceScript();
 QString CurbChannelReferenceScript();
 QString DtSimpleReferenceScript();
 QString DtSimpleGutterReferenceScript();
+QString Test2010ReferenceScript();
 QString InflowTargetObject();
 QString RainfallTargetObject();
 QString ContributingCatchmentObject();

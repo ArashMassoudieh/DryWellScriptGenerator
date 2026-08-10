@@ -2815,6 +2815,8 @@ void ModelCreatorWindow::syncEnrichmentPresetForModel()
                                 QStringLiteral("JM_MODE:DTSimple"));
             addUniquePresetItem(tr("DT Simple + Gutters"),
                                 QStringLiteral("JM_MODE:DTSimpleGutter"));
+            addUniquePresetItem(tr("JM Test (2010 real data)"),
+                                QStringLiteral("JM_MODE:JMTest"));
         } else if (modelType.compare(QStringLiteral("R_Bioswale"),
                                      Qt::CaseInsensitive) == 0) {
             addUniquePresetItem(tr("Simple"), QStringLiteral("R_MODE:Simple"));
@@ -2910,9 +2912,15 @@ void ModelCreatorWindow::updateFieldVisibilityForContext()
     if (rSoilGeometryRowWidget) rSoilGeometryRowWidget->setVisible(!loadExistingMode && rSoftContext);
     // Shared domain row: for JM, total_nz is native nx and native_nz is native nz.
     if (rSoilDomainRowWidget) rSoilDomainRowWidget->setVisible(!loadExistingMode && rSoftContext);
+    // JMTest is a fixed 2010 real-data preset. Keep its soil-block topology
+    // exactly as defined by the JM builder; only the corrected elevations and
+    // test forcing/settings should differ from the regular JM modes.
     const bool jmEditableNativeGrid = jmContext
         && jmBuildMode.compare(QStringLiteral("FullReference"), Qt::CaseInsensitive) != 0
-        && jmBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) != 0;
+        && jmBuildMode.compare(QStringLiteral("LoadFromOhq"), Qt::CaseInsensitive) != 0
+        && jmBuildMode.compare(QStringLiteral("JMTest"), Qt::CaseInsensitive) != 0
+        && jmBuildMode.compare(QStringLiteral("Test2010"), Qt::CaseInsensitive) != 0
+        && jmBuildMode.compare(QStringLiteral("DTSimpleGutter2010"), Qt::CaseInsensitive) != 0;
     if (jmNativeDomainRowWidget) jmNativeDomainRowWidget->setVisible(!loadExistingMode && jmEditableNativeGrid);
     if (rSoilControlsRowWidget) rSoilControlsRowWidget->setVisible(!loadExistingMode && rSoftContext);
     if (vnInitThetaRowWidget) vnInitThetaRowWidget->setVisible(!loadExistingMode && vnContext);
