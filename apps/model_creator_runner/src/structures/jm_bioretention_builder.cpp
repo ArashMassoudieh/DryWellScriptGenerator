@@ -72,7 +72,10 @@ QString BuildModel(const StarterScriptOptions &options,
     const auto localZ = [=](double elevFt) { return (elevFt - datumFt) * ftToM; };
 
     // Surface/profile values from Section A-A.
-    const QVector<double> gutterZ = {
+    // The four 158.90/158.46/157.84/157.08 ft labels are retained only for
+    // the legacy curb-channel representation.  They are NOT used as street-
+    // gutter inverts in DTSimpleGutter/JMTest.
+    const QVector<double> curbChannelZ = {
         localZ(158.90), localZ(158.46), localZ(157.84), localZ(157.08)
     };
     const QVector<double> pondBottomZ = {
@@ -102,11 +105,28 @@ QString BuildModel(const StarterScriptOptions &options,
         localZ(151.40), localZ(150.97), localZ(150.33), localZ(149.54)
     };
 
-    // Ponding-depth labels provide an independent cross-check:
-    // 157.49 ft + 8.27 in = 158.18 ft (shown on the profile), etc.
+    // Ponding-depth labels provide the curb-cut crest elevations:
+    // crest = pond bottom + labeled ponding depth.  The profile also shows a
+    // 4-in vertical separation between the street-gutter invert and the curb-
+    // cut crest.  Therefore:
+    //   street gutter invert = crest - 4 in
+    //   curb-cut crest_offset = 4 in
+    // This keeps the gutter close to the pond bottom (rather than ~0.4 m above
+    // it) while honoring both the 4-in curb detail and the 8.27/6.45/4.86/6.47
+    // in ponding-depth callouts.
     const QVector<double> pondingDepths = {
         8.27 * 0.0254, 6.45 * 0.0254, 4.86 * 0.0254, 6.47 * 0.0254
     };
+    constexpr double curbCutCrestOffset = 4.0 * 0.0254;
+    QVector<double> curbCutCrestZ;
+    QVector<double> streetGutterZ;
+    curbCutCrestZ.reserve(columnCount);
+    streetGutterZ.reserve(columnCount);
+    for (int i = 0; i < columnCount; ++i) {
+        const double crest = pondBottomZ[i] + pondingDepths[i];
+        curbCutCrestZ.push_back(crest);
+        streetGutterZ.push_back(crest - curbCutCrestOffset);
+    }
 
     // Preserve the original modeled native-soil domain.  In JM_test this is
     // deliberately one 2.4-m block at the same location/elevation as the
@@ -136,6 +156,7 @@ QString BuildModel(const StarterScriptOptions &options,
     ts << "# Native grid: nx=" << nativeNx << ", nz=" << nativeNz << "\n";
     if (dtSimple && useStreetGutters) {
         ts << "# Mode: DT Simple with street gutters; side native soils omitted, runoff is routed through gutters and curb cuts, and underdrain is routed serially.\n";
+        ts << "# BP-01 surface hydraulics: gutter invert = curb-cut crest - 4 in; curb-cut crest = pond bottom + labeled ponding depth.\n";
     } else if (dtSimple) {
         ts << "# Mode: DT Simple; side native soils omitted and underdrain is routed serially.\n";
     }
@@ -220,7 +241,7 @@ QString BuildModel(const StarterScriptOptions &options,
             const double uiX = (c - 1) * 230.0;
             ts << "create block;type=Trapezoidal Channel Segment,"
                   "ManningCoeff=0.015,base_width=0.6,side_slope=2,"
-                  "bottom_elevation=" << n(gutterZ[c - 1])
+                  "bottom_elevation=" << n(curbChannelZ[c - 1])
                << ",depth=0,dam_height=0,length=" << n(columnLength)
                << "[m],inflow=0,ag_area=0,non_ag_area=0,"
                   "ag_withdrawal_per_unit_area=0,non_ag_withdrawal_per_unit_area=0,"
@@ -234,7 +255,7 @@ QString BuildModel(const StarterScriptOptions &options,
             const double uiX = (c - 1) * 230.0;
             ts << "create block;type=Street Gutter Segment,"
                   "ManningCoeff=0.016,base_width=0,side_slope=40,"
-                  "bottom_elevation=" << n(gutterZ[c - 1])
+                  "bottom_elevation=" << n(streetGutterZ[c - 1])
                << ",depth=0,inflow=0,length=" << n(columnLength)
                << "[m],_height=100,_width=180,name=JM Street Gutter " << c
                << ",x=" << n(uiX) << ",y=-140\n";
@@ -410,7 +431,7 @@ QString BuildModel(const StarterScriptOptions &options,
             ts << "create link;from=JM Curb Channel " << c
                << ",to=JM Pond " << c
                << ",type=wier,alpha=10000,beta=1.5,crest_elevation="
-               << n(gutterZ[c - 1])
+               << n(curbChannelZ[c - 1])
                << ",name=JM Curb Channel " << c << " to Pond " << c << "\n";
         }
         ts << "create link;from=JM Curb Channel 4,to=JM Catch Basin,"
@@ -419,8 +440,10 @@ QString BuildModel(const StarterScriptOptions &options,
     } else {
         // Gutter mode is intentionally based on DT Simple: catchments discharge
         // to four street-gutter segments, adjacent gutters route downslope, and
-        // each segment enters its corresponding bioretention pond through a
-        // flush curb cut. Gutter types are supplied by Sewer_system.json.
+        // each segment enters its corresponding bioretention pond through the
+        // BP-01 curb opening.  Sewer_system.json defines Street Gutter Segment
+        // bottom_elevation as the gutter invert and Curb_cut crest_offset as the
+        // crest height above that invert; BP-01 supplies a 4-in offset.
         for (int i = 0; i < drainageAreas.size(); ++i) {
             const int gutter = drainageTargets[i];
             ts << "create link;from=JM DA-0" << (i + 1)
@@ -437,15 +460,16 @@ QString BuildModel(const StarterScriptOptions &options,
         for (int c = 1; c <= columnCount; ++c) {
             ts << "create link;from=JM Street Gutter " << c
                << ",to=JM Pond " << c
-               << ",type=Curb_cut,crest_offset=0,discharge_coefficient=0.6,"
+               << ",type=Curb_cut,crest_offset=" << n(curbCutCrestOffset)
+               << "[m],discharge_coefficient=0.6,"
                   "width=0.2[m],name=JM Street Gutter " << c
                << " to Pond " << c << "\n";
         }
 
-        // Final gutter bypass/outlet to the downstream catch basin.  The catch
-        // basin is outside the surveyed BP-01 profile.  crest_offset=0 means
-        // flush with the final gutter source datum; it is not an asserted
-        // surveyed catch-basin rim elevation.
+        // Final gutter bypass/outlet to the downstream catch basin.  This is a
+        // separate downstream bypass, not one of the four BP-01 curb openings,
+        // so it remains flush (crest_offset=0).  The catch-basin elevation is
+        // unsurveyed and is intentionally not inferred from the facility profile.
         ts << "create link;from=JM Street Gutter 4,to=JM Catch Basin,"
               "type=Curb_cut,crest_offset=0,discharge_coefficient=0.6,"
               "width=0.2[m],name=JM Street Gutter 4 to Catch Basin\n";
