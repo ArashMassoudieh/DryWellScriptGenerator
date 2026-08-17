@@ -110,14 +110,16 @@ QString BuildModel(const StarterScriptOptions &options,
     // 4-in vertical separation between the street-gutter invert and the curb-
     // cut crest.  Therefore:
     //   street gutter invert = crest - 4 in
-    //   curb-cut crest_offset = 4 in
+    // The edited JM/JM_test reference OHQ files use a flush hydraulic Curb_cut
+    // (crest_offset=0) while retaining this 4-in geometric offset when locating
+    // the street-gutter invert.
     // This keeps the gutter close to the pond bottom (rather than ~0.4 m above
     // it) while honoring both the 4-in curb detail and the 8.27/6.45/4.86/6.47
     // in ponding-depth callouts.
     const QVector<double> pondingDepths = {
         8.27 * 0.0254, 6.45 * 0.0254, 4.86 * 0.0254, 6.47 * 0.0254
     };
-    constexpr double curbCutCrestOffset = 4.0 * 0.0254;
+    constexpr double gutterToProfileCrestOffset = 4.0 * 0.0254;
     QVector<double> curbCutCrestZ;
     QVector<double> streetGutterZ;
     curbCutCrestZ.reserve(columnCount);
@@ -125,7 +127,7 @@ QString BuildModel(const StarterScriptOptions &options,
     for (int i = 0; i < columnCount; ++i) {
         const double crest = pondBottomZ[i] + pondingDepths[i];
         curbCutCrestZ.push_back(crest);
-        streetGutterZ.push_back(crest - curbCutCrestOffset);
+        streetGutterZ.push_back(crest - gutterToProfileCrestOffset);
     }
 
     // Preserve the original modeled native-soil domain.  In JM_test this is
@@ -186,7 +188,7 @@ QString BuildModel(const StarterScriptOptions &options,
     }
     ts << "create parameter;type=Parameter,high=20,low=1,name=JM_EngineeredSoilKsat,prior_distribution=log-normal,value=5\n";
     ts << "create parameter;type=Parameter,high=0.1,low=0.001,name=JM_NativeSoilKsat,prior_distribution=log-normal,value=0.01\n";
-    ts << "create parameter;type=Parameter,high=5,low=0.5,name=JM_EngineeredSoilAlpha,prior_distribution=log-normal,value=1\n";
+    ts << "create parameter;type=Parameter,high=5,low=0.5,name=JM_EngineeredSoilAlpha,prior_distribution=log-normal,value=3\n";
     ts << "create parameter;type=Parameter,high=1.8,low=1.2,name=JM_EngineeredSoilN,prior_distribution=normal,value=1.41\n";
 
     const auto writeSoil = [&](const QString &name,
@@ -442,8 +444,9 @@ QString BuildModel(const StarterScriptOptions &options,
         // to four street-gutter segments, adjacent gutters route downslope, and
         // each segment enters its corresponding bioretention pond through the
         // BP-01 curb opening.  Sewer_system.json defines Street Gutter Segment
-        // bottom_elevation as the gutter invert and Curb_cut crest_offset as the
-        // crest height above that invert; BP-01 supplies a 4-in offset.
+        // bottom_elevation as the gutter invert. The edited JM/JM_test
+        // OHQ references keep the Curb_cut hydraulically flush (crest_offset=0);
+        // the BP-01 4-in detail is used only to locate the gutter invert above.
         for (int i = 0; i < drainageAreas.size(); ++i) {
             const int gutter = drainageTargets[i];
             ts << "create link;from=JM DA-0" << (i + 1)
@@ -460,8 +463,7 @@ QString BuildModel(const StarterScriptOptions &options,
         for (int c = 1; c <= columnCount; ++c) {
             ts << "create link;from=JM Street Gutter " << c
                << ",to=JM Pond " << c
-               << ",type=Curb_cut,crest_offset=" << n(curbCutCrestOffset)
-               << "[m],discharge_coefficient=0.6,"
+               << ",type=Curb_cut,crest_offset=0[m],discharge_coefficient=0.6,"
                   "width=0.2[m],name=JM Street Gutter " << c
                << " to Pond " << c << "\n";
         }
